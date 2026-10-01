@@ -103,8 +103,21 @@ const sessionLog: Step = async (page, base) => {
   step('submitted')
 }
 
+/** Home → Missing & Needs Attention → fix an automatic clock-out. */
+const homeClockFix: Step = async (page, base) => {
+  await page.goto(`${base}/${E2E_BRANCH}/admin/home`, { waitUntil: 'load' })
+  const card = page.getByTestId('home-attention')
+  const row = card.getByRole('button').filter({ hasText: 'Daniel Kim' }).first()
+  await row.waitFor({ timeout: 15000 })
+  await row.click()
+  await expectText(page, 'Correct clock-out time')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expectText(page, 'Clock-out time updated')
+}
+
 export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'schedule create/status/delete', email: 'goochoi913@gmail.com', run: scheduleCrud },
   { name: 'kiosk clock in/out', email: 'goochoi913@gmail.com', run: kiosk },
   { name: 'tutor submits a session log', email: 'tutor@e2e.test', run: sessionLog },
+  { name: 'home fixes an automatic clock-out', email: 'goochoi913@gmail.com', run: homeClockFix },
 ]

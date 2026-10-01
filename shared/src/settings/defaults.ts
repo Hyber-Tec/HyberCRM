@@ -111,7 +111,11 @@ export interface BranchSettings {
   home: {
     upcomingDays: number
     missingLogLookbackDays: number
+    /** Minutes after a session starts before its missing log is flagged (TE: 0). */
+    missingLogGraceMinutes: number
     clockLookbackDays: number
+    /** Shortcut IDs shown until a person customizes their Home. */
+    defaultShortcuts: string[]
   }
   announcements: { defaultCategories: string[] }
   notifications: {
@@ -219,7 +223,13 @@ export const DEFAULT_SETTINGS: BranchSettings = {
     kiosk: { pinLength: 4, successReturnSeconds: 3 },
   },
   timeEntries: { stepMinutes: 5 },
-  home: { upcomingDays: 7, missingLogLookbackDays: 14, clockLookbackDays: 7 },
+  home: {
+    upcomingDays: 7,
+    missingLogLookbackDays: 14,
+    missingLogGraceMinutes: 0,
+    clockLookbackDays: 7,
+    defaultShortcuts: ['schedule', 'students', 'employeeCalendar', 'sessionLog', 'progressReports'],
+  },
   announcements: { defaultCategories: ['General', 'Updates'] },
   notifications: { retentionDays: 14, sessionChangeWindowHours: 24 },
   audit: { logPendingSessions: true },

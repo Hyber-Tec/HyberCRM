@@ -50,7 +50,7 @@ export const SCENARIOS: Scenario[] = [
     ],
     expect: {
       '/platform': ['Demo Academy'],
-      [`${b}/admin/home`]: ['Super Admin'],
+      [`${b}/admin/home`]: ['Super Admin', 'Upcoming Schedule & Events', 'Live Clock In / Out', 'Missing & Needs Attention', 'Conference Needed', 'New Students to Follow Up'],
       [`${b}/admin/account`]: ['owner@e2e.test'],
       [`${b}/admin/employees/directory`]: ['Maya Thompson'],
       [`${b}/admin/employees/directory/demo-maya-thompson`]: ['Teaching rate', 'Internal notes'],

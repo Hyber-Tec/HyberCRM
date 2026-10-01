@@ -1,6 +1,7 @@
 import { orderBy, query } from 'firebase/firestore'
 import { useMemo, useState } from 'react'
 import { LuCheck, LuCopy, LuEllipsis, LuPencil, LuSearch, LuTrash2, LuUserPlus, LuX } from 'react-icons/lu'
+import { useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { COL } from '@shared/paths'
 import { ROLES, ROLE_LABELS, type Role, sortRoles } from '@shared/roles'
@@ -52,6 +53,8 @@ export function AccountPage() {
     `requests-${branchId}`,
   )
 
+  const [search_] = useSearchParams()
+  const tabParam = search_.get('tab')
   const [filter, setFilter] = useState<RoleFilter>('all')
   const [search, setSearch] = useState('')
   const [dialog, setDialog] = useState<{ member: WithId<Member> | null; request: WithId<SignupRequest> | null } | null>(null)
@@ -100,7 +103,7 @@ export function AccountPage() {
           </Button>
         }
       />
-      <Tabs defaultValue="people">
+      <Tabs defaultValue={tabParam === 'requests' ? 'requests' : 'people'}>
         <TabsList>
           <TabsTrigger value="people">People</TabsTrigger>
           <TabsTrigger value="requests">

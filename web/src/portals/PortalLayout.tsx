@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { createContext, useContext, useEffect, useMemo } from 'react'
 import { LuArrowLeftRight, LuChevronRight, LuShieldCheck } from 'react-icons/lu'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { PORTAL_LABELS, type Role } from '@shared/roles'
 import { ActivityToasts } from '@/features/audit/ActivityToasts'
+import { useAttention } from '@/features/home/attention'
 import { useBranch } from '@/branch/BranchProvider'
 import { BrandMark } from '@/components/app/BrandMark'
 import { UserMenu, rememberPortal } from '@/components/app/UserMenu'
@@ -26,6 +27,7 @@ import {
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -38,6 +40,20 @@ import {
 } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
 import { type NavGroup, type NavItem, type NavLeaf, PORTAL_NAV, isGroup, navLeaves } from './nav'
+
+/** Live counts shown next to nav entries, by nav key (Home: needs attention). */
+const NavBadges = createContext<Record<string, number>>({})
+
+function NavBadgesProvider({ portal, children }: { portal: Role; children: React.ReactNode }) {
+  const attention = useAttention(portal === 'admin')
+  const total = portal === 'admin' ? attention.total : 0
+  const value = useMemo(() => ({ home: total }), [total])
+  return <NavBadges.Provider value={value}>{children}</NavBadges.Provider>
+}
+
+function badgeText(n: number) {
+  return n > 99 ? '99+' : String(n)
+}
 
 function usePortalBase(portal: Role) {
   const { branchId } = useBranch()
@@ -68,6 +84,7 @@ export function PortalLayout({ portal }: { portal: Role }) {
   }, [current?.label, portal, branch.branch.name])
 
   return (
+    <NavBadgesProvider portal={portal}>
     <SidebarProvider>
       <PortalSidebar portal={portal} />
       <SidebarInset className="min-w-0">
@@ -90,6 +107,7 @@ export function PortalLayout({ portal }: { portal: Role }) {
         {portal === 'admin' ? <ActivityToasts /> : null}
       </SidebarInset>
     </SidebarProvider>
+    </NavBadgesProvider>
   )
 }
 
@@ -152,20 +170,30 @@ function PortalSidebar({ portal }: { portal: Role }) {
 
 function NavEntry({ item, base }: { item: NavItem; base: string }) {
   const { can } = useBranch()
+  const badges = useContext(NavBadges)
   const { pathname } = useLocation()
   const { setOpenMobile } = useSidebar()
 
   if (!isGroup(item)) {
     if (!visible(item, can)) return null
     const Icon = item.icon
+    const badge = badges[item.key] ?? 0
     return (
       <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={item.label} isActive={isActivePath(pathname, base, item)}>
+        <SidebarMenuButton asChild tooltip={badge ? `${item.label} (${badge})` : item.label} isActive={isActivePath(pathname, base, item)}>
           <NavLink to={`${base}/${item.to}`} onClick={() => setOpenMobile(false)}>
             {Icon ? <Icon /> : null}
             <span>{item.label}</span>
           </NavLink>
         </SidebarMenuButton>
+        {badge ? (
+          <>
+            <SidebarMenuBadge className="rounded-full bg-red-500 px-1.5 text-white peer-hover/menu-button:text-white peer-data-[active=true]/menu-button:text-white" data-testid={`nav-badge-${item.key}`}>
+              {badgeText(badge)}
+            </SidebarMenuBadge>
+            <span className="pointer-events-none absolute top-1 right-1 hidden size-2 rounded-full bg-red-500 group-data-[collapsible=icon]:block" />
+          </>
+        ) : null}
       </SidebarMenuItem>
     )
   }
@@ -236,6 +264,7 @@ function NavGroupEntry({ group, base }: { group: NavGroup; base: string }) {
 
 function MobileTabs({ tabs, base }: { tabs: NavLeaf[]; base: string }) {
   const { pathname } = useLocation()
+  const badges = useContext(NavBadges)
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
       <ul className="mx-auto flex max-w-md">
@@ -251,7 +280,14 @@ function MobileTabs({ tabs, base }: { tabs: NavLeaf[]; base: string }) {
                   active ? 'text-foreground' : 'text-muted-foreground',
                 )}
               >
-                {Icon ? <Icon className="size-5" /> : null}
+                <span className="relative">
+                  {Icon ? <Icon className="size-5" /> : null}
+                  {badges[t.key] ? (
+                    <span className="absolute -top-1.5 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-background bg-red-500 px-1 text-[10px] leading-none font-semibold text-white tabular-nums">
+                      {badgeText(badges[t.key])}
+                    </span>
+                  ) : null}
+                </span>
                 {t.label}
               </Link>
             </li>

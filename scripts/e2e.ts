@@ -33,6 +33,21 @@ function e2eSession() {
   }
 }
 
+/** A shift two days ago closed by the automatic clock-out (Home correction check). */
+function e2eAutoShift() {
+  const tz = 'America/New_York'
+  const d = addDays(todayKey(tz), -2)
+  const now = new Date()
+  return {
+    path: 'clockShifts/e2e-auto-shift',
+    data: {
+      staffId: 'demo-daniel-kim', staffName: 'Daniel Kim', dateKey: d, inMin: 900, clockInAt: toInstant(d, 900, tz),
+      clockOutAt: toInstant(addDays(d, 1), 0, tz), outDateKey: addDays(d, 1), outMin: 0, status: 'closed', source: 'kiosk',
+      autoClosed: true, autoCorrected: false, forcedType: null, note: '', createdAt: now, createdBy: 'e2e', updatedAt: now, updatedBy: 'e2e',
+    },
+  }
+}
+
 const PORT = 5174
 const BASE = `http://localhost:${PORT}`
 const only = process.env.E2E_ONLY
@@ -60,7 +75,7 @@ async function main() {
     superAdmin: 'goochoi913@gmail.com',
     sample: true,
     members: E2E_MEMBERS.map((m) => ({ ...m, roles: [...m.roles] })),
-    extraDocs: [e2eSession()],
+    extraDocs: [e2eSession(), e2eAutoShift()],
     log: () => undefined,
   })
 

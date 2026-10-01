@@ -21,3 +21,15 @@ export const SESSION_STATUS_STYLE: Record<SessionStatus, { bg: string; border: s
   no_show: { bg: '#DFDFDF', border: '#b8b8b8', text: '#57534e' },
   canceled: { bg: '#FFE8E8', border: '#f9a8a8', text: '#991b1b' },
 }
+
+/** Small status dots in lists (True Education Home colors). */
+export const SESSION_STATUS_DOT: Record<SessionStatus, string> = {
+  pending: '#E0B400',
+  confirmed: '#34A853',
+  present: '#4285F4',
+  no_show: '#9AA0A6',
+  canceled: '#EA4335',
+}
+
+/** Calendar events in lists. */
+export const EVENT_DOT = '#009EEB'

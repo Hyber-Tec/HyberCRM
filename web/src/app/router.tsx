@@ -22,7 +22,7 @@ const soon = (title: string, description?: string) => <ComingSoon title={title} 
 
 const adminRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="home" replace /> },
-  { path: 'home', element: soon('Home') },
+  { path: 'home', lazy: page(() => import('@/features/home/AdminHomePage'), 'AdminHomePage') },
   { path: 'announcements', element: soon('Announcements') },
   { path: 'scheduling', element: <Navigate to="schedule" replace /> },
   { path: 'scheduling/schedule/*', lazy: page(() => import('@/features/schedule/SchedulePage'), 'SchedulePage') },

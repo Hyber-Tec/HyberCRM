@@ -158,12 +158,15 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
 
   // Students -------------------------------------------------------------
   const subjectNames = [...subjectIdByName.keys()]
+  // Hours from before the generated two weeks, so a few students are due a conference.
+  const priorHours = new Map<string, number>()
   STUDENT_FIRST.forEach((first, i) => {
     const last = STUDENT_LAST[i % STUDENT_LAST.length]
     const id = `demo-student-${slug(`${first} ${last}`)}`
     const name = `${first} ${last}`
     const grade = String(6 + Math.floor(rand() * 7))
     const status: StudentStatus = i < 22 ? 'enrolled' : i < 25 ? 'signed_up' : 'paused'
+    if (status === 'enrolled' && i % 5 === 1) priorHours.set(id, 22 + (i % 3) * 2)
     const subjects = [pick(subjectNames), pick(subjectNames)].filter((v, idx, arr) => arr.indexOf(v) === idx)
     const parentFirst = pick(PARENT_FIRST)
     docs.push({
@@ -179,14 +182,15 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
         statusSource: 'auto',
         subjectIds: subjects.map((n) => subjectIdByName.get(n)),
         learningNote: '',
-        signUpDate: '2026-0' + String(1 + (i % 8)) + '-1' + String(i % 9),
+        // The last few sign-ups are recent and not yet followed up (Home card).
+        signUpDate: status === 'signed_up' ? addDays(opts.today, -(i - 21)) : '2026-0' + String(1 + (i % 8)) + '-1' + String(i % 9),
         firstSessionDate: null,
         lastSessionDate: null,
         nextSessionDate: null,
         totalSessionHours: 0,
         conference: { baselineHours: 0, lastNoteDate: null, lastResetAt: null },
         schoolRecord: { courses: {}, gradeSnapshots: [], plan: '' },
-        followUpReviewedAt: now,
+        followUpReviewedAt: status === 'signed_up' ? null : now,
         ...stamp,
       },
     })
@@ -350,9 +354,14 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
   }
   for (const d of docs) {
     if (!d.path.includes(`/${COL.students}/`) || d.path.includes('/private/')) continue
-    const stat = stats.get(d.path.split('/').pop()!)
-    if (!stat) continue
-    d.data.totalSessionHours = Math.round(stat.hours * 100) / 100
+    const id = d.path.split('/').pop()!
+    const prior = priorHours.get(id) ?? 0
+    const stat = stats.get(id)
+    if (!stat) {
+      d.data.totalSessionHours = prior
+      continue
+    }
+    d.data.totalSessionHours = Math.round((stat.hours + prior) * 100) / 100
     d.data.firstSessionDate = stat.first
     d.data.lastSessionDate = stat.last
     d.data.nextSessionDate = stat.next
@@ -480,6 +489,17 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
         updatedBy: 'seed',
       },
     })
+  }
+
+  // One shift yesterday was closed by the automatic clock-out (Home "needs attention").
+  const yesterday = addDays(opts.today, -1)
+  const autoShift = docs.find((d) => d.path.includes(`/${COL.clockShifts}/demo-shift-${yesterday}-`))
+  if (autoShift) {
+    autoShift.data.outDateKey = opts.today
+    autoShift.data.outMin = 0
+    autoShift.data.clockOutAt = toInstant(opts.today, 0, opts.timezone)
+    autoShift.data.autoClosed = true
+    autoShift.data.note = 'Closed automatically at 12:00 AM'
   }
 
   // Events ---------------------------------------------------------------
