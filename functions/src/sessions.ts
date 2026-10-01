@@ -64,7 +64,7 @@ async function logAi(content: LogContent, subject: string): Promise<LogAi> {
     homeworkAssigned: finish(out.homeworkAssigned),
     nextSessionPlan: finish(out.nextSessionPlan),
     riskAlert: finish(out.riskAlert),
-    provider: 'gemini',
+    provider: 'ai',
   }
 }
 
@@ -231,7 +231,7 @@ export const sessionAi = onCall({ secrets: [geminiKey], timeoutSeconds: 60 }, as
       learningInsight: pick('learningInsight'),
       nextFocus: pick('nextFocus'),
       homeworkGiven: pick('homeworkGiven'),
-      provider: out ? 'gemini' : 'local_fallback',
+      provider: out ? 'ai' : 'local_fallback',
     }
   }
 
@@ -283,7 +283,7 @@ export const sessionAi = onCall({ secrets: [geminiKey], timeoutSeconds: 60 }, as
       keyStrengths: list(out.keyStrengths),
       areasForImprovement: list(out.areasForImprovement),
       goalsAndActionPlan: list(out.goalsAndActionPlan),
-      provider: 'gemini',
+      provider: 'ai',
     } satisfies ReportNarrative
   }
   throw new HttpsError('invalid-argument', 'Unknown mode.')

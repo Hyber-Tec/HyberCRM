@@ -98,7 +98,8 @@ export interface ReportNarrative {
   keyStrengths: string[]
   areasForImprovement: string[]
   goalsAndActionPlan: string[]
-  provider: 'gemini' | 'local_fallback'
+  /** `gemini` on reports written before the app stopped naming the AI provider. */
+  provider: 'ai' | 'gemini' | 'local_fallback'
 }
 
 /** Deterministic narrative used when AI is off or unavailable. */

@@ -15,7 +15,8 @@ export interface LogAi {
   homeworkAssigned: string
   nextSessionPlan: string
   riskAlert: string
-  provider: 'gemini' | 'local_fallback'
+  /** `gemini` on logs written before the app stopped naming the AI provider. */
+  provider: 'ai' | 'gemini' | 'local_fallback'
 }
 
 /** `branches/{b}/sessionLogs/{sessionId}` (one log per session). */

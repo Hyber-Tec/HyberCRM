@@ -152,7 +152,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
       { kind: 'multiselect', path: 'sessionLogs.allowForStatuses', label: 'Sessions that can be logged', options: SESSION_STATUS_OPTIONS.slice(0, 3) },
       { kind: 'boolean', path: 'sessionLogs.tutorsSeeAllLogs', label: 'Tutors can read other tutors’ logs' },
       { kind: 'boolean', path: 'sessionLogs.allowEditAfterSubmit', label: 'Tutors can edit a log after submitting' },
-      { kind: 'boolean', path: 'sessionLogs.ai.enabled', label: 'AI summary, homework and next-session plan', help: 'Uses Google Gemini; the log (with the student’s name) is sent to Google.' },
+      { kind: 'boolean', path: 'sessionLogs.ai.enabled', label: 'AI summary, homework and next-session plan', help: 'The log, including the student’s name, is sent to an AI service to write these.' },
       { kind: 'number', path: 'sessionLogs.autosaveSeconds', label: 'Autosave drafts every', min: 5, max: 300, suffix: 'sec' },
     ],
   },
