@@ -27,6 +27,11 @@ export interface PricedSegment extends Segment {
 
 export const round2 = (x: number) => Math.round((x + Number.EPSILON) * 100) / 100
 
+/** "$1,234.50" (US dollars). */
+export function formatMoney(n: number): string {
+  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
 export function hoursOf(ms: number): number {
   return round2(ms / 3_600_000)
 }

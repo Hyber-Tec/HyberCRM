@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { COL, DOC } from '@shared/paths'
-import { totals } from '@shared/pay/segment'
+import { formatMoney, totals } from '@shared/pay/segment'
 import { addDays, formatDateKey, formatInstantTime } from '@shared/time'
 import type { Compensation, Staff } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
@@ -14,7 +14,7 @@ import { db } from '@/lib/firebase'
 import { effectiveRates, priceShifts, useSessionsRange, useShifts } from './api'
 import { PeriodPicker, type RangeValue, useDefaultRange } from './PeriodPicker'
 
-const money = (n: number) => `$${n.toFixed(2)}`
+const money = formatMoney
 
 /** A tutor's own worked time and pay for a pay period or range (read-only). */
 export function TutorPayrollPage() {
