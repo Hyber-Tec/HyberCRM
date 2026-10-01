@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { LuSearch } from 'react-icons/lu'
 import { toast } from 'sonner'
 import { STAFF_STATUSES, STAFF_STATUS_LABELS } from '@shared/people'
+import { ROLE_LABELS, isAdminRole } from '@shared/roles'
+import { PAY_MODEL_LABELS, payModelOn } from '@shared/settings/businessRules'
 import { todayKey } from '@shared/time'
 import type { Compensation, Staff, StaffStatus, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
@@ -19,17 +21,30 @@ import { useDoc } from '@/lib/firestore'
 import { compensationRef, saveCompensation } from './api'
 
 export function PayRatesPage() {
+  const { rules, timezone } = useBranch()
   const { data: staff } = useStaffList()
   const [search, setSearch] = useState('')
+  const [role, setRole] = useState<'tutor' | 'admin' | 'all'>('tutor')
   const [status, setStatus] = useState<StaffStatus | 'all'>('active')
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return staff.filter((s) => (status === 'all' || s.status === status) && (!q || s.nameLower.includes(q)))
-  }, [staff, search, status])
+    return staff.filter(
+      (s) =>
+        (role === 'all' || (role === 'tutor' ? s.role === 'tutor' : isAdminRole(s.role))) &&
+        (status === 'all' || s.status === status) &&
+        (!q || s.nameLower.includes(q)),
+    )
+  }, [staff, search, role, status])
+  // Tutors' admin rate only matters while the branch pays admin time.
+  const usesAdminRate = rules.payModels.some((p) => p.model === 'teaching_admin')
+  const modelNow = payModelOn(rules, todayKey(timezone))
 
   return (
     <div className="max-w-5xl">
-      <PageHeader title="Pay Rates" description="Hourly rates per employee. Changes save when you leave a field and apply from today." />
+      <PageHeader
+        title="Pay Rates"
+        description={`Hourly rates per employee. Changes save when you leave a field and apply from today. Pay model: ${PAY_MODEL_LABELS[modelNow]}; owners and admins are paid their admin rate for all clocked time.`}
+      />
       <div className="mb-4 flex flex-col gap-3 sm:flex-row">
         <InputGroup className="sm:w-72">
           <InputGroupAddon>
@@ -37,6 +52,16 @@ export function PayRatesPage() {
           </InputGroupAddon>
           <InputGroupInput placeholder="Search by name…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </InputGroup>
+        <Select value={role} onValueChange={(v) => setRole(v as 'tutor' | 'admin' | 'all')}>
+          <SelectTrigger className="sm:w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="tutor">Tutors</SelectItem>
+            <SelectItem value="admin">Owners & admins</SelectItem>
+            <SelectItem value="all">All roles</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={status} onValueChange={(v) => setStatus(v as StaffStatus | 'all')}>
           <SelectTrigger className="sm:w-40">
             <SelectValue />
@@ -58,13 +83,12 @@ export function PayRatesPage() {
               <TableHead>Employee</TableHead>
               <TableHead className="w-40">Teaching rate</TableHead>
               <TableHead className="w-40">Admin rate</TableHead>
-              <TableHead className="hidden w-56 lg:table-cell">Pay model</TableHead>
               <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((s) => (
-              <RateRow key={s.id} staff={s} />
+              <RateRow key={s.id} staff={s} usesAdminRate={usesAdminRate} />
             ))}
           </TableBody>
         </Table>
@@ -73,7 +97,7 @@ export function PayRatesPage() {
   )
 }
 
-function RateRow({ staff }: { staff: WithId<Staff> }) {
+function RateRow({ staff, usesAdminRate }: { staff: WithId<Staff>; usesAdminRate: boolean }) {
   const { branchId, actor, timezone } = useBranch()
   const ref = useMemo(() => compensationRef(branchId, staff.id), [branchId, staff.id])
   const { data: comp } = useDoc<Compensation>(ref)
@@ -86,7 +110,9 @@ function RateRow({ staff }: { staff: WithId<Staff> }) {
     setAdmin(comp?.rates?.admin != null ? String(comp.rates.admin) : '')
   }, [comp])
 
-  async function commit(model?: Compensation['payModel']) {
+  const single = isAdminRole(staff.role)
+
+  async function commit() {
     const t = teaching === '' ? 0 : Number(teaching)
     const a = admin === '' ? 0 : Number(admin)
     if (!Number.isFinite(t) || !Number.isFinite(a)) {
@@ -100,7 +126,7 @@ function RateRow({ staff }: { staff: WithId<Staff> }) {
         actor,
         staff,
         comp,
-        { rates: { teaching: t, admin: a }, payModel: model ?? comp?.payModel ?? 'branch_default' },
+        { rates: { teaching: t, admin: a } },
         todayKey(timezone),
       )
     } catch (e) {
@@ -139,23 +165,16 @@ function RateRow({ staff }: { staff: WithId<Staff> }) {
           </Avatar>
           <div className="min-w-0">
             <div className="truncate font-medium">{staff.name}</div>
-            <StaffStatusBadge status={staff.status} className="mt-0.5 h-5" />
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">{ROLE_LABELS[staff.role] ?? ''}</span>
+              <StaffStatusBadge status={staff.status} className="h-5" />
+            </div>
           </div>
         </div>
       </TableCell>
-      <TableCell>{rateInput(teaching, setTeaching, 'Teaching rate')}</TableCell>
-      <TableCell>{rateInput(admin, setAdmin, 'Admin rate')}</TableCell>
-      <TableCell className="hidden lg:table-cell">
-        <Select value={comp?.payModel ?? 'branch_default'} onValueChange={(v) => void commit(v as Compensation['payModel'])}>
-          <SelectTrigger size="sm" className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="branch_default">Branch default</SelectItem>
-            <SelectItem value="teaching_admin_split">Teaching / admin</SelectItem>
-            <SelectItem value="single_rate">One rate (admin rate)</SelectItem>
-          </SelectContent>
-        </Select>
+      <TableCell>{single ? <span className="text-sm text-muted-foreground">Doesn’t teach</span> : rateInput(teaching, setTeaching, 'Teaching rate')}</TableCell>
+      <TableCell>
+        {single || usesAdminRate ? rateInput(admin, setAdmin, 'Admin rate') : <span className="text-sm text-muted-foreground">Not paid (teaching only)</span>}
       </TableCell>
       <TableCell>{busy ? <Spinner className="size-4" /> : null}</TableCell>
     </TableRow>

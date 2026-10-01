@@ -1,5 +1,6 @@
 import { dayStartInstant } from '../availability'
 import { STAFF_COLORS } from '../colors'
+import { type BusinessRules, PAY_MODEL_SINCE_START } from '../settings/businessRules'
 import { COL, DOC, availabilityDocId } from '../paths'
 import { DEFAULT_SETTINGS } from '../settings/defaults'
 import { businessRoundedHours } from '../schedule/hours'
@@ -29,6 +30,15 @@ export interface SeedOptions {
   today: string
   createdBy: string
   now?: Date
+  /** The branch's students-per-tutor rule; sample sessions never overlap more than this (default 3). */
+  maxStudentsPerTutor?: number
+}
+
+/** Demo Academy runs True Education's rules: Teaching + Admin pay, 3 students at once, conferences every 25 hours. */
+export const DEMO_BUSINESS_RULES: BusinessRules = {
+  payModels: [{ model: 'teaching_admin', from: PAY_MODEL_SINCE_START }],
+  maxStudentsPerTutor: 3,
+  conferences: { enabled: true, everyHours: 25 },
 }
 
 /** Small deterministic PRNG so the sample data is stable between runs. */
@@ -284,7 +294,7 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
     const st = DEMO_STAFF.find((x) => demoStaffId(x.first, x.last) === staffId)!
     const ranges = a.data.ranges as { startMin: number; endMin: number }[]
     const count = Math.floor(sessRand() * 4)
-    const laneEnds = [0, 0, 0]
+    const laneEnds = Array.from({ length: Math.max(1, opts.maxStudentsPerTutor ?? 3) }, () => 0)
     for (let n = 0; n < count; n++) {
       const r = ranges[Math.floor(sessRand() * ranges.length)]
       const len = lengths[Math.floor(sessRand() * lengths.length)]

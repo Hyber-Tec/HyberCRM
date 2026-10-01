@@ -105,20 +105,17 @@ export async function saveCompensation(
   actor: Actor,
   staff: WithId<Staff>,
   before: Compensation | null,
-  next: Pick<Compensation, 'rates' | 'payModel'>,
+  next: Pick<Compensation, 'rates'>,
   effectiveFrom: string,
 ) {
-  const changed =
-    !before || before.rates.teaching !== next.rates.teaching || before.rates.admin !== next.rates.admin || before.payModel !== next.payModel
+  const changed = !before || before.rates.teaching !== next.rates.teaching || before.rates.admin !== next.rates.admin
   if (!changed) return
-  const history = [...(before?.history ?? [])]
-  if (!before || before.rates.teaching !== next.rates.teaching || before.rates.admin !== next.rates.admin) {
-    history.push({ effectiveFrom, rates: next.rates, setAt: new Date().toISOString(), setBy: actor.email })
-  }
+  const history = [...(before?.history ?? []), { effectiveFrom, rates: next.rates, setAt: new Date().toISOString(), setBy: actor.email }]
+  // Owners and admins have one hourly rate, kept in `rates.admin`.
+  const single = staff.role === 'owner' || staff.role === 'admin'
   const batch = writeBatch(db)
   batch.set(compensationRef(branchId, staff.id), {
     rates: next.rates,
-    payModel: next.payModel,
     history,
     updatedAt: serverTimestamp(),
     updatedBy: actor.email,
@@ -136,9 +133,8 @@ export async function saveCompensation(
         ? [{ field: 'teaching', label: 'Teaching rate', from: before?.rates.teaching ?? null, to: next.rates.teaching }]
         : []),
       ...(before?.rates.admin !== next.rates.admin
-        ? [{ field: 'admin', label: 'Admin rate', from: before?.rates.admin ?? null, to: next.rates.admin }]
+        ? [{ field: 'admin', label: single ? 'Hourly rate' : 'Admin rate', from: before?.rates.admin ?? null, to: next.rates.admin }]
         : []),
-      ...(before?.payModel !== next.payModel ? [{ field: 'payModel', label: 'Pay model', from: before?.payModel ?? null, to: next.payModel }] : []),
     ],
   })
   await batch.commit()

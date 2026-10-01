@@ -70,7 +70,7 @@ function useTaughtStudentIds(enabled: boolean): Set<string> | null {
 }
 
 export function StudentDirectoryPage({ mode = 'admin' }: { mode?: 'admin' | 'tutor' }) {
-  const { branchId, actor, settings, timezone } = useBranch()
+  const { branchId, actor, rules, timezone } = useBranch()
   const navigate = useNavigate()
   const { data: students, loading } = useStudentList()
   const taught = useTaughtStudentIds(mode === 'tutor')
@@ -85,7 +85,9 @@ export function StudentDirectoryPage({ mode = 'admin' }: { mode?: 'admin' | 'tut
   const [creating, setCreating] = useState(false)
   const [advancing, setAdvancing] = useState(false)
 
-  const cycle = settings.students.conference.cycleHours
+  // Parent conferences are a branch rule; when off, nothing about them shows.
+  const conferencesOn = rules.conferences.enabled
+  const cycle = rules.conferences.everyHours
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
     const list = students
@@ -93,7 +95,7 @@ export function StudentDirectoryPage({ mode = 'admin' }: { mode?: 'admin' | 'tut
       .filter((s) => !q || s.nameLower.includes(q))
       .filter((s) => statuses.length === 0 || statuses.includes(s.status))
       .filter((s) => {
-        if (conference === 'all') return true
+        if (conference === 'all' || !conferencesOn) return true
         if (isInactiveStudent(s.status)) return false
         const c = conferenceState({ totalSessionHours: s.totalSessionHours, baselineHours: s.conference?.baselineHours ?? 0 }, cycle)
         return conference === 'needed' ? c.needed : !c.needed
@@ -116,7 +118,7 @@ export function StudentDirectoryPage({ mode = 'admin' }: { mode?: 'admin' | 'tut
         }
       }
     })
-  }, [students, taught, search, statuses, conference, sort, cycle])
+  }, [students, taught, search, statuses, conference, sort, cycle, conferencesOn])
 
   const header = (key: SortKey, label: string, className?: string) => (
     <TableHead className={className}>
@@ -180,16 +182,18 @@ export function StudentDirectoryPage({ mode = 'admin' }: { mode?: 'admin' | 'tut
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Select value={conference} onValueChange={(v) => setConference(v as ConferenceFilter)}>
-          <SelectTrigger className="sm:w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Conference: All</SelectItem>
-            <SelectItem value="needed">Conference: Needed</SelectItem>
-            <SelectItem value="ok">Conference: Not needed</SelectItem>
-          </SelectContent>
-        </Select>
+        {conferencesOn ? (
+          <Select value={conference} onValueChange={(v) => setConference(v as ConferenceFilter)}>
+            <SelectTrigger className="sm:w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Conference: All</SelectItem>
+              <SelectItem value="needed">Conference: Needed</SelectItem>
+              <SelectItem value="ok">Conference: Not needed</SelectItem>
+            </SelectContent>
+          </Select>
+        ) : null}
       </div>
       <Card className="py-0">
         <Table>
@@ -202,7 +206,7 @@ export function StudentDirectoryPage({ mode = 'admin' }: { mode?: 'admin' | 'tut
               <TableHead className="hidden md:table-cell">Last session</TableHead>
               <TableHead className="hidden md:table-cell">Next session</TableHead>
               {header('hours', 'Hours', 'hidden sm:table-cell')}
-              <TableHead className="hidden xl:table-cell">Conference</TableHead>
+              {conferencesOn ? <TableHead className="hidden xl:table-cell">Conference</TableHead> : null}
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -249,6 +253,7 @@ export function StudentDirectoryPage({ mode = 'admin' }: { mode?: 'admin' | 'tut
                   <TableCell className="hidden text-sm tabular-nums sm:table-cell">
                     {s.lastSessionDate ? `${Math.round((s.totalSessionHours ?? 0) * 10) / 10}h` : '—'}
                   </TableCell>
+                  {conferencesOn ? (
                   <TableCell className="hidden xl:table-cell">
                     {showConf ? (
                       <span
@@ -264,6 +269,7 @@ export function StudentDirectoryPage({ mode = 'admin' }: { mode?: 'admin' | 'tut
                       '—'
                     )}
                   </TableCell>
+                  ) : null}
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -275,7 +281,7 @@ export function StudentDirectoryPage({ mode = 'admin' }: { mode?: 'admin' | 'tut
                         <DropdownMenuItem onSelect={() => window.open(`${base}/${s.id}`, '_blank')}>
                           <LuExternalLink /> Open in new tab
                         </DropdownMenuItem>
-                        {isAdmin ? (
+                        {isAdmin && conferencesOn ? (
                           <>
                             <DropdownMenuItem onSelect={() => navigate(`${base}/${s.id}/conference`)}>
                               <LuMessageSquareText /> Conference notes

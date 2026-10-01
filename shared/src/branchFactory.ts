@@ -1,3 +1,4 @@
+import { type BusinessRules, DEFAULT_BUSINESS_RULES } from './settings/businessRules'
 import { DEFAULT_SETTINGS } from './settings/defaults'
 import type { Branch, BranchPublicProfile, Member } from './types'
 
@@ -7,6 +8,8 @@ export function newBranchData(input: {
   timezone: string
   createdBy: string
   shortName?: string
+  /** Chosen by the Super Admin at creation. */
+  businessRules?: BusinessRules
 }): Omit<Branch, 'createdAt' | 'updatedAt'> {
   return {
     name: input.name.trim(),
@@ -18,6 +21,7 @@ export function newBranchData(input: {
     branding: { logoUrl: null, logoPath: null, accentColor: null, sidebarTitle: null },
     contact: { email: '', phone: '', address: '', website: '' },
     settings: {},
+    businessRules: input.businessRules ?? DEFAULT_BUSINESS_RULES,
     extensions: [],
     createdBy: input.createdBy,
     updatedBy: input.createdBy,

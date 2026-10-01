@@ -145,7 +145,7 @@ function ScheduledHours({ staffId }: { staffId: string }) {
 }
 
 function WorkedHours({ staffId, mode }: { staffId: string; mode: 'clock' | 'teaching' | 'admin' }) {
-  const { settings, timezone } = useBranch()
+  const { settings, rules, timezone } = useBranch()
   const [range, setRange] = useState<{ from: string; to: string } | null>(null)
   const onRange = useCallback((from: string, to: string) => setRange({ from, to }), [])
   const from = range?.from ?? '0000-00-00'
@@ -160,8 +160,9 @@ function WorkedHours({ staffId, mode }: { staffId: string; mode: 'clock' | 'teac
       shifts: shifts.filter((s) => s.status === 'closed'),
       sessions,
       settings,
+      rules,
       timezone,
-      ratesFor: () => effectiveRates(staff.find((s) => s.id === staffId), comps.get(staffId), settings),
+      ratesFor: () => effectiveRates(staff.find((s) => s.id === staffId), comps.get(staffId)),
     })
     for (const p of priced) {
       const d = p.shift.dateKey
@@ -179,7 +180,7 @@ function WorkedHours({ staffId, mode }: { staffId: string; mode: 'clock' | 'teac
       if (cell.minutes > 0) m.set(d, cell)
     }
     return m
-  }, [shifts, sessions, settings, timezone, staff, comps, staffId, mode])
+  }, [shifts, sessions, settings, rules, timezone, staff, comps, staffId, mode])
   const notes = {
     clock: 'Worked time from clock-ins and time entries.',
     teaching: 'Clocked time inside sessions that count as teaching (logged sessions).',

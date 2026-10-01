@@ -10,12 +10,15 @@ import { SessionDialog, type SessionDialogState } from './dialogs/SessionDialog'
 
 /** Create/edit-session dialog usable outside the schedule page (student calendars). */
 export function useSessionDialog() {
-  const { branchId, actor, timezone, settings } = useBranch()
+  const { branchId, actor, timezone, settings, rules } = useBranch()
   const { data: staff } = useStaffList()
   const { data: students } = useStudentList()
   const { data: subjects } = useSubjects()
   const [state, setState] = useState<SessionDialogState>(null)
-  const ctx: ScheduleCtx = useMemo(() => ({ branchId, actor, timezone, settings }), [branchId, actor, timezone, settings])
+  const ctx: ScheduleCtx = useMemo(
+    () => ({ branchId, actor, timezone, settings, maxStudentsPerTutor: rules.maxStudentsPerTutor }),
+    [branchId, actor, timezone, settings, rules.maxStudentsPerTutor],
+  )
   const isLocked = useCallback((d: DateKey) => d < todayKey(timezone), [timezone])
 
   const openCreate = useCallback(

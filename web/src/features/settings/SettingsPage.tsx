@@ -6,7 +6,9 @@ import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { publicProfileFor } from '@shared/branchFactory'
 import { COL, DOC, ROOT } from '@shared/paths'
+import { PAY_MODEL_HELP, PAY_MODEL_LABELS, payModelOn } from '@shared/settings/businessRules'
 import { DEFAULT_SETTINGS, type BranchSettings } from '@shared/settings/defaults'
+import { formatDateKey, todayKey } from '@shared/time'
 import { type SettingsOverrides, getPath, setPath, unsetPath } from '@shared/settings/resolve'
 import type { Branch, BranchBranding, BranchContact } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
@@ -41,7 +43,7 @@ export function SettingsPage() {
   const setActive = (key: string) => navigate(`/${branchId}/admin/settings/${key}`)
   return (
     <div>
-      <PageHeader title="Settings" description="Your branch profile, branding and business rules. Defaults follow the standard Hyber setup." />
+      <PageHeader title="Settings" description="Your branch profile, branding and day-to-day settings. Defaults follow the standard Hyber setup." />
       <div className="flex flex-col gap-6 lg:flex-row">
         <nav className="lg:w-52 lg:shrink-0">
           <div className="lg:hidden">
@@ -77,7 +79,10 @@ export function SettingsPage() {
         </nav>
         <div className={cn('min-w-0 flex-1', active === 'audit-log' ? 'lg:max-w-5xl' : 'lg:max-w-3xl')}>
           {active === 'branch' ? (
-            <BranchProfileCard />
+            <div className="space-y-4">
+              <BranchProfileCard />
+              <BusinessRulesCard />
+            </div>
           ) : active === 'branding' ? (
             <BrandingCard />
           ) : active === 'audit-log' ? (
@@ -101,6 +106,47 @@ function useBranchWriter() {
     addAudit(batch, branchId, actor, audit)
     await batch.commit()
   }
+}
+
+/** Read-only: the core rules HyberTec chose when the branch was set up. */
+function BusinessRulesCard() {
+  const { rules, timezone } = useBranch()
+  const today = todayKey(timezone)
+  const now = payModelOn(rules, today)
+  const next = rules.payModels.find((p) => p.from > today)
+  const rows: { label: string; value: string; help?: string }[] = [
+    {
+      label: 'Pay model',
+      value: PAY_MODEL_LABELS[now],
+      help: next ? `Changes to ${PAY_MODEL_LABELS[next.model]} on ${formatDateKey(next.from, 'medium')}. ${PAY_MODEL_HELP[now]}` : PAY_MODEL_HELP[now],
+    },
+    { label: 'Students per tutor at once', value: String(rules.maxStudentsPerTutor), help: rules.maxStudentsPerTutor === 1 ? 'One-to-one sessions.' : undefined },
+    {
+      label: 'Parent conferences',
+      value: rules.conferences.enabled ? `Every ${rules.conferences.everyHours} tutoring hours` : 'Off',
+    },
+  ]
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Business rules</CardTitle>
+        <CardDescription>Chosen by HyberTec when your branch was set up. To change them, contact HyberTec.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <dl className="divide-y rounded-lg border text-sm">
+          {rows.map((r) => (
+            <div key={r.label} className="grid gap-1 px-3 py-2.5 sm:grid-cols-[14rem_1fr]">
+              <dt className="text-muted-foreground">{r.label}</dt>
+              <dd>
+                <div className="font-medium">{r.value}</div>
+                {r.help ? <div className="text-xs text-muted-foreground">{r.help}</div> : null}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </CardContent>
+    </Card>
+  )
 }
 
 function BranchProfileCard() {
@@ -323,9 +369,10 @@ function BrandingCard() {
 }
 
 function BusinessSection({ sectionKey }: { sectionKey: string }) {
-  const { branch, branchId, settings } = useBranch()
+  const { branch, branchId, settings, rules } = useBranch()
   const write = useBranchWriter()
-  const section = SETTINGS_SECTIONS.find((s) => s.key === sectionKey)!
+  const full = SETTINGS_SECTIONS.find((s) => s.key === sectionKey)!
+  const section = { ...full, fields: full.fields.filter((f) => !f.visible || f.visible(rules)) }
   const [draft, setDraft] = useState<BranchSettings>(settings)
   const [busy, setBusy] = useState(false)
 

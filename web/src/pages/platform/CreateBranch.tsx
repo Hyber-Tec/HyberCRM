@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { newBranchData, newMemberData, publicProfileFor } from '@shared/branchFactory'
 import { COL, DOC, ROOT, emailKey } from '@shared/paths'
+import { type BusinessRules, PAY_MODEL_LABELS, PAY_MODEL_SINCE_START, type PayModel } from '@shared/settings/businessRules'
 import { slugify, validateBranchId } from '@shared/slug'
 import { useAuth } from '@/auth/AuthProvider'
 import { PageHeader } from '@/components/app/PageHeader'
@@ -12,13 +13,14 @@ import { TimeZonePicker } from '@/components/app/TimeZonePicker'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSeparator, FieldSet } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { auditData } from '@/lib/audit'
 import { db } from '@/lib/firebase'
 import { seedDemoData } from '@/lib/seedDemo'
+import { type CapacityAndConferences, CapacityAndConferenceFields, PayModelChoice, conferenceHoursError } from './BusinessRulesFields'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -31,6 +33,8 @@ export function CreateBranch() {
   const [timezone, setTimezone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York')
   const [owners, setOwners] = useState('')
   const [sample, setSample] = useState(false)
+  const [payModel, setPayModel] = useState<PayModel>('teaching_only')
+  const [capacity, setCapacity] = useState<CapacityAndConferences>({ maxStudentsPerTutor: 1, conferencesEnabled: false, everyHours: '25' })
   const [busy, setBusy] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -49,6 +53,8 @@ export function CreateBranch() {
       .filter(Boolean)
     const bad = ownerEmails.find((o) => !EMAIL_RE.test(o))
     if (bad) next.owners = `“${bad}” isn’t a valid email address.`
+    const confError = conferenceHoursError(capacity)
+    if (confError) next.rules = confError
     setErrors(next)
     if (Object.keys(next).length > 0) return
 
@@ -60,7 +66,12 @@ export function CreateBranch() {
         setBusy(null)
         return
       }
-      const data = newBranchData({ name, timezone, createdBy: email })
+      const businessRules: BusinessRules = {
+        payModels: [{ model: payModel, from: PAY_MODEL_SINCE_START }],
+        maxStudentsPerTutor: capacity.maxStudentsPerTutor,
+        conferences: { enabled: capacity.conferencesEnabled, everyHours: Number(capacity.everyHours) || 25 },
+      }
+      const data = newBranchData({ name, timezone, createdBy: email, businessRules })
       const batch = writeBatch(db)
       batch.set(branchRef, { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
       batch.set(doc(db, ROOT.branches, effectiveId, COL.public, DOC.publicProfile), publicProfileFor(data))
@@ -85,6 +96,7 @@ export function CreateBranch() {
             entityType: 'branch',
             entityId: effectiveId,
             summary: `Created the branch ${name.trim()}`,
+            context: `${PAY_MODEL_LABELS[payModel]} · ${capacity.maxStudentsPerTutor} per tutor at once · conferences ${capacity.conferencesEnabled ? `every ${capacity.everyHours} h` : 'off'}`,
           },
         ),
       )
@@ -114,6 +126,7 @@ export function CreateBranch() {
         <CardContent>
           <form onSubmit={submit}>
             <FieldGroup>
+              <FieldLegend>Center</FieldLegend>
               <Field data-invalid={!!errors.name}>
                 <FieldLabel htmlFor="b-name">Branch name</FieldLabel>
                 <Input id="b-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Demo Academy" autoFocus />
@@ -142,6 +155,23 @@ export function CreateBranch() {
                 <TimeZonePicker id="b-tz" value={timezone} onChange={setTimezone} />
                 <FieldDescription>All dates, “today”, locks and cut-offs use this zone.</FieldDescription>
               </Field>
+              <FieldSeparator />
+              <FieldSet>
+                <FieldLegend>Business rules</FieldLegend>
+                <FieldDescription>
+                  How this center works, from your visit. The branch’s admins can’t change these; you can, later, from the branch’s Platform page.
+                </FieldDescription>
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel>Pay model</FieldLabel>
+                    <PayModelChoice value={payModel} onChange={setPayModel} idPrefix="cb-pay" />
+                  </Field>
+                  <CapacityAndConferenceFields value={capacity} onChange={setCapacity} idPrefix="cb" />
+                  {errors.rules ? <FieldError>{errors.rules}</FieldError> : null}
+                </FieldGroup>
+              </FieldSet>
+              <FieldSeparator />
+              <FieldLegend>People</FieldLegend>
               <Field data-invalid={!!errors.owners}>
                 <FieldLabel htmlFor="b-owners">Owner emails (optional)</FieldLabel>
                 <Textarea
@@ -152,7 +182,7 @@ export function CreateBranch() {
                   rows={2}
                 />
                 <FieldDescription>
-                  Each becomes an owner admin of the branch and is linked on their first Google sign-in.
+                  Each becomes an owner of the branch and is linked on their first Google sign-in.
                 </FieldDescription>
                 {errors.owners ? <FieldError>{errors.owners}</FieldError> : null}
               </Field>

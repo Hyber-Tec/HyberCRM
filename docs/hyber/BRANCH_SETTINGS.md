@@ -6,6 +6,18 @@
 >
 > The "Source" column points to the True Education doc and section that documents the original rule. Rows marked **(Q#)** depend on [QUESTIONS.md](QUESTIONS.md).
 
+## Business rules (Super Admin only, round 2)
+
+The core rules that shape a center live in `branches/{branchId}.businessRules`, not in `settings`. The Super Admin chooses them in **New branch** after visiting the center and changes them only from the branch's **Platform** page; branch admins see them read-only in Settings → Branch, and the security rules don't let them write the field. Nothing is hard-coded to True Education: Demo Academy just runs TE's values.
+
+| Key | New branch default | Demo Academy (TE) | Notes |
+|---|---|---|---|
+| `payModels` | `[{model: "teaching_only", from: "2000-01-01"}]` | `teaching_admin` from the start | A timeline: each entry applies from its date. Switching adds an entry from a chosen date after the last locked pay period, so earlier pay keeps its model. **Teaching only:** tutors are paid for time inside sessions with a submitted log, other clocked time is unpaid. **Teaching + Admin:** TE's split. Owners and admins never teach and are always paid one hourly rate (their admin rate). |
+| `maxStudentsPerTutor` | 1 | 3 | Enforced on create, move, resize, paste, duplicate, restore from Trash and in the session dialog. |
+| `conferences.enabled`, `conferences.everyHours` | off, 25 | on, 25 | Off: nothing is tracked or shown (no Conference tab, no Home card, no directory column, no bell item). |
+
+These used to be `settings.payroll.payModel`, `settings.payroll.adminStaffSingleRate`, `settings.schedule.maxConcurrentStudentsPerTutor` and `settings.students.conference.cycleHours`; `scripts/migrate-round2.ts` moves them.
+
 ## Branch profile (fields on the branch doc, not under `settings`)
 
 | Key | Default | Source | Notes |
@@ -33,7 +45,6 @@
 | `schedule.snapMinutes` | 5 | 03 §5.2 | Click/drag/resize snap and time-picker step |
 | `schedule.defaultSessionMinutes` | 110 | 03 §5.9, 04 §5.5 | New session length from a double-click |
 | `schedule.minSessionMinutes` | 5 | 04 §5.5 | |
-| `schedule.maxConcurrentStudentsPerTutor` | 3 | 03 §5.7–5.8 | Lanes, seats left, "already full" checks |
 | `schedule.lockPastDays` | `true` | 03 §5.16 | Past days read-only unless the admin has the `editPastDays` grant **(Q17)** (TE: Developer Mode password) |
 | `schedule.autoConfirm.enabled` | `true` | 03 §5.19 | |
 | `schedule.autoConfirm.hoursBefore` | 24 | 04 §5.8 | Pending → Confirmed when the start is within this window (on create and hourly) |
@@ -80,7 +91,6 @@
 | `students.autoStatus.enabled` | `true` | 08 §5.2 | Signed Up→Enrolled, Enrolled→Paused, Paused→Enrolled |
 | `students.autoStatus.inactivityPauseDays` | 20 | 08 §5.2 | |
 | `students.autoStatus.respectManual` | `true` | 08 §10 **(Q14)** | TE overwrote manual statuses (bug M4) |
-| `students.conference.cycleHours` | 25 | 08 §5.4 | "Conference Needed" after N hours since the last conference |
 | `students.hourRounding` | `te_business` | 04 §5.9, 06 §5.12 | Minutes → billed hours: ≤30 → 0.5 · ≤70 → 1 · 71–74 → 1.5 · **75 → 2** · 76–85 → 1.5 · 86–120 → 2 · >120 → `ceil((m−10)/30)×0.5` |
 | `students.gradeOptions` | Pre-K, K, 1–12, College, Adult, Other | 08 §5.6–5.8 | |
 | `students.tutorEditableTabs` | `["school"]` | 08 §1 | |
@@ -120,7 +130,6 @@ Student statuses are a **fixed enum** with TE's colors: Signed Up, Enrolled, Pau
 
 | Key | Default (TE) | Source | Notes |
 |---|---|---|---|
-| `payroll.payModel` | `teaching_admin_split` | 06 §5.1 | Or `single_rate` (all clocked time at one rate). More models can be added later. |
 | `payroll.payTypes` | `[{key: "teaching", label: "Teaching"}, {key: "admin", label: "Admin"}]` | 06 §9 #1 | Rate keys on `staff/*/private/compensation` |
 | `payroll.teachingSessionStatuses` | pending, confirmed, present, no_show | 06 §5.2 **(Q12)** | TE excludes only canceled and deleted sessions |
 | `payroll.mergeOverlappingSessions` | `true` | 06 §5.1 | Simultaneous students are paid once, by clock time |

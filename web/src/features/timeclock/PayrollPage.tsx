@@ -28,7 +28,7 @@ const hrs = (n: number) => `${n.toFixed(2)}h`
 
 /** Payroll report (TE's date-range report) with pay periods that can be locked. */
 export function PayrollPage() {
-  const { branchId, actor, settings, timezone } = useBranch()
+  const { branchId, actor, settings, rules, timezone } = useBranch()
   const { data: staff } = useStaffList()
   const [range, setRange] = useState<RangeValue>(useDefaultRange())
   const [status, setStatus] = useState<StaffStatus | 'all'>('all')
@@ -45,10 +45,11 @@ export function PayrollPage() {
         shifts,
         sessions,
         settings,
+        rules,
         timezone,
-        ratesFor: (id) => effectiveRates(staffById.get(id), comps.get(id), settings),
+        ratesFor: (id) => effectiveRates(staffById.get(id), comps.get(id)),
       }),
-    [shifts, sessions, settings, timezone, staffById, comps],
+    [shifts, sessions, settings, rules, timezone, staffById, comps],
   )
 
   const people = useMemo(() => {

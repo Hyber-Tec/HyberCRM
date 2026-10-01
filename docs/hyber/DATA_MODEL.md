@@ -46,6 +46,7 @@
 | `branding` | map | `{logoUrl, logoPath, primaryColor, accentColor, sidebarTitle, portalSubtitle}` |
 | `contact` | map | `{email, phone, address, website}` |
 | `settings` | map | **Overrides** of `shared/settings/defaults.js`; see [BRANCH_SETTINGS.md](BRANCH_SETTINGS.md) |
+| `businessRules` | map | Super Admin only: `payModels[]` (timeline), `maxStudentsPerTutor`, `conferences {enabled, everyHours}`; see [BRANCH_SETTINGS.md](BRANCH_SETTINGS.md#business-rules-super-admin-only-round-2) |
 | `extensions` | string[] | Enabled per-branch extension keys (PLAN §3.4) |
 | `createdAt`, `createdByUid`, `updatedAt`, `updatedByUid` | | |
 

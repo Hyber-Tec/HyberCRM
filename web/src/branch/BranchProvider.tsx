@@ -3,6 +3,7 @@ import { createContext, use, useCallback, useEffect, useMemo, useState, type Rea
 import { useParams } from 'react-router'
 import { COL, ROOT } from '@shared/paths'
 import { type Portal, type RestrictablePage, type Role, isAdminRole, portalOf } from '@shared/roles'
+import { type BusinessRules, resolveBusinessRules } from '@shared/settings/businessRules'
 import type { BranchSettings } from '@shared/settings/defaults'
 import { resolveSettings } from '@shared/settings/resolve'
 import type { Branch, Member, WithId } from '@shared/types'
@@ -26,6 +27,8 @@ export interface BranchContextValue {
   branchId: string
   branch: WithId<Branch>
   settings: BranchSettings
+  /** Core rules the Super Admin sets (pay model, students per tutor, conferences). */
+  rules: BusinessRules
   timezone: string
   /** The signed-in person's member doc (super admins may have none). */
   member: WithId<Member> | null
@@ -105,6 +108,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       branchId,
       branch,
       settings: resolveSettings(branch.settings),
+      rules: resolveBusinessRules(branch.businessRules),
       timezone: branch.timezone || 'America/New_York',
       member,
       role: role ?? 'student',

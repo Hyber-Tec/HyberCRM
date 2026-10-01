@@ -1,4 +1,5 @@
 import type { MemberStatus, RestrictablePage, Role } from './roles'
+import type { BusinessRules } from './settings/businessRules'
 import type { SessionStatus } from './settings/defaults'
 import type { SettingsOverrides } from './settings/resolve'
 import type { DateKey, Weekday } from './time'
@@ -67,6 +68,8 @@ export interface Branch extends AuditStamp {
   branding: BranchBranding
   contact: BranchContact
   settings: SettingsOverrides
+  /** Core rules the Super Admin sets at creation; admins can't change them (`resolveBusinessRules`). */
+  businessRules?: Partial<BusinessRules>
   extensions: string[]
 }
 
@@ -166,10 +169,13 @@ export interface StaffNotes {
 
 /** `staff/{id}/private/compensation`. */
 export interface Compensation {
-  /** Hourly rates by pay type key. */
+  /**
+   * Hourly rates. Tutors: `teaching` (and `admin` for non-teaching time under
+   * Teaching + Admin). Owners and admins: `admin` is their one hourly rate.
+   */
   rates: { teaching: number; admin: number }
-  /** Overrides the branch default for this person. */
-  payModel: 'branch_default' | 'teaching_admin_split' | 'single_rate'
+  /** Unused since round 2 (the pay model is a branch rule); kept on older records. */
+  payModel?: string
   history: { effectiveFrom: DateKey; rates: { teaching: number; admin: number }; setAt: string; setBy: string }[]
   updatedAt?: TimestampLike | null
   updatedBy?: string | null

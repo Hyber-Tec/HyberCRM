@@ -1,7 +1,8 @@
-import { type WriteBatch, deleteDoc, doc, increment, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore'
+import { type WriteBatch, deleteDoc, doc, getDocs, increment, query, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore'
 import { dayStartInstant } from '@shared/availability'
 import { COL, availabilityDocId } from '@shared/paths'
 import { billedHours } from '@shared/schedule/hours'
+import { type LaneItem, fitsCapacity } from '@shared/schedule/lanes'
 import { SESSION_STATUS_LABELS } from '@shared/schedule/status'
 import type { BranchSettings, SessionStatus } from '@shared/settings/defaults'
 import { type DateKey, dayEndInstant, formatDateKey, formatTimeRange, toInstant, weekdayOf } from '@shared/time'
@@ -15,6 +16,8 @@ export interface ScheduleCtx {
   actor: Actor
   timezone: string
   settings: BranchSettings
+  /** The branch rule: students a tutor can teach at the same time. */
+  maxStudentsPerTutor: number
 }
 
 export interface SessionDraft {
@@ -206,6 +209,16 @@ export async function deleteSession(ctx: ScheduleCtx, s: WithId<Session>) {
 }
 
 export async function restoreSession(ctx: ScheduleCtx, s: WithId<Session>) {
+  // Coming back must not put the tutor over the students-per-tutor limit.
+  if (s.status !== 'canceled') {
+    const snap = await getDocs(query(branchCol(ctx.branchId, COL.sessions), where('tutorId', '==', s.tutorId), where('dateKey', '==', s.dateKey)))
+    const others = snap.docs
+      .map((d) => ({ id: d.id, ...(d.data() as Session) }))
+      .filter((x) => x.id !== s.id && !x.isDeleted && x.status !== 'canceled')
+    if (!fitsCapacity(others, s.startMin, s.endMin, ctx.maxStudentsPerTutor)) {
+      throw new Error(`${s.tutorName} already has ${ctx.maxStudentsPerTutor} ${ctx.maxStudentsPerTutor === 1 ? 'student' : 'students'} at that time. Move a session first.`)
+    }
+  }
   const batch = writeBatch(db)
   batch.update(branchDocRef(ctx.branchId, COL.sessions, s.id), {
     isDeleted: false,
@@ -326,17 +339,39 @@ export async function duplicateIntoWeek(
     liveGrade: (studentId: string) => string | undefined
     label: string
   },
-): Promise<number> {
+): Promise<{ created: number; skipped: number }> {
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: ctx.timezone }).format(new Date())
   const days = opts.targetDays.filter((d) => d.open && d.dateKey >= today)
-  const plan = opts.sources.flatMap((src) => {
+  const wanted = opts.sources.flatMap((src) => {
     const day = days.find((d) => d.weekday === src.weekday)
     return day ? [{ src, dateKey: day.dateKey }] : []
   })
-  if (plan.length === 0) return 0
+  if (wanted.length === 0) return { created: 0, skipped: 0 }
   const toClear = ctx.settings.schedule.duplicate.overwriteTargetDays
     ? opts.existingTarget.filter((s) => !s.isDeleted && days.some((d) => d.dateKey === s.dateKey))
     : []
+  // The branch's students-per-tutor limit: sessions that would go over it are skipped.
+  const cleared = new Set(toClear.map((s) => s.id))
+  const seated = new Map<string, LaneItem[]>()
+  const seat = (tutorId: string, dateKey: string) => {
+    const k = `${tutorId}|${dateKey}`
+    if (!seated.has(k)) seated.set(k, [])
+    return seated.get(k)!
+  }
+  for (const s of opts.existingTarget) {
+    if (!s.isDeleted && !cleared.has(s.id) && s.status !== 'canceled') seat(s.tutorId, s.dateKey).push({ id: s.id, startMin: s.startMin, endMin: s.endMin })
+  }
+  const plan = wanted
+    .slice()
+    .sort((a, b) => a.dateKey.localeCompare(b.dateKey) || a.src.startMin - b.src.startMin)
+    .filter(({ src, dateKey }, i) => {
+      const placed = seat(src.tutorId, dateKey)
+      if (!fitsCapacity(placed, src.startMin, src.endMin, ctx.maxStudentsPerTutor)) return false
+      placed.push({ id: `new-${i}`, startMin: src.startMin, endMin: src.endMin })
+      return true
+    })
+  const skipped = wanted.length - plan.length
+  if (plan.length === 0) return { created: 0, skipped }
   const ops: ((b: WriteBatch) => void)[] = []
   for (const s of toClear) {
     ops.push((b) =>
@@ -386,10 +421,10 @@ export async function duplicateIntoWeek(
         category: 'schedule',
         entityType: 'session',
         entityId: 'many',
-        summary: `Duplicated ${plan.length} sessions (${opts.label})${toClear.length ? `, replacing ${toClear.length}` : ''}`,
+        summary: `Duplicated ${plan.length} sessions (${opts.label})${toClear.length ? `, replacing ${toClear.length}` : ''}${skipped ? `; skipped ${skipped} (tutor full)` : ''}`,
       })
     }
     await batch.commit()
   }
-  return plan.length
+  return { created: plan.length, skipped }
 }

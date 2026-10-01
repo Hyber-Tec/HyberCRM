@@ -21,6 +21,7 @@ import { db } from '@/lib/firebase'
 import { useDoc, useQuery } from '@/lib/firestore'
 import { seedDemoData } from '@/lib/seedDemo'
 import { STATUS_BADGE } from './PlatformHome'
+import { PlatformRulesCard } from './PlatformRulesCard'
 
 export function PlatformBranch() {
   const { branchId = '' } = useParams()
@@ -175,11 +176,13 @@ export function PlatformBranch() {
           </CardContent>
         </Card>
 
+        <PlatformRulesCard branchId={branchId} branch={branch} actor={actor} />
+
         <Card>
           <CardHeader>
             <CardTitle>Owners</CardTitle>
             <CardDescription>
-              Owner admins manage other admins and Access Control. Everyone else is managed from the branch’s Account page.
+              Owners run the branch: everything admins can do, plus managing admins and Access Control. Everyone else is managed from the branch’s Account page.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">

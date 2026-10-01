@@ -103,3 +103,56 @@ export async function commit(writes: Write[], onProgress?: (done: number, total:
     onProgress?.(Math.min(i + 400, writes.length), writes.length)
   }
 }
+
+/** Every document directly in a collection (paged). */
+export async function listDocuments(collectionPath: string): Promise<{ path: string; id: string; data: Record<string, unknown> }[]> {
+  const out: { path: string; id: string; data: Record<string, unknown> }[] = []
+  let pageToken = ''
+  do {
+    const res = await request(`${BASE}/${collectionPath}?pageSize=300${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`)
+    if (res.status === 404) break
+    const json = (await res.json()) as { documents?: { name: string; fields?: Record<string, Value> }[]; nextPageToken?: string }
+    for (const d of json.documents ?? []) {
+      const path = d.name.split('/documents/')[1]
+      out.push({ path, id: path.split('/').pop()!, data: decodeFields(d.fields ?? {}) })
+    }
+    pageToken = json.nextPageToken ?? ''
+  } while (pageToken)
+  return out
+}
+
+export interface Patch {
+  path: string
+  /** Fields to set (top-level keys). */
+  set?: Record<string, unknown>
+  /** Field paths to delete, e.g. `roles` or `settings.payroll.payModel`. */
+  remove?: string[]
+}
+
+/** Updates existing documents: sets some fields and deletes others, in atomic batches. */
+export async function patchDocuments(patches: Patch[]) {
+  for (let i = 0; i < patches.length; i += 400) {
+    const chunk = patches.slice(i, i + 400)
+    await request(`${BASE}:commit`, {
+      method: 'POST',
+      body: JSON.stringify({
+        writes: chunk.map((p) => ({
+          update: { name: `projects/${PROJECT_ID}/databases/(default)/documents/${p.path}`, fields: encodeFields(p.set ?? {}) },
+          updateMask: { fieldPaths: [...Object.keys(p.set ?? {}), ...(p.remove ?? [])] },
+          currentDocument: { exists: true },
+        })),
+      }),
+    })
+  }
+}
+
+/** Deletes documents by path, in batches. */
+export async function deleteDocuments(paths: string[]) {
+  for (let i = 0; i < paths.length; i += 400) {
+    const chunk = paths.slice(i, i + 400)
+    await request(`${BASE}:commit`, {
+      method: 'POST',
+      body: JSON.stringify({ writes: chunk.map((p) => ({ delete: `projects/${PROJECT_ID}/databases/(default)/documents/${p}` })) }),
+    })
+  }
+}

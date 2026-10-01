@@ -2,7 +2,8 @@ import type { Role } from '../roles'
 import type { Weekday } from '../time'
 
 /**
- * Every business rule that can differ between branches. A branch stores only
+ * Branch settings the branch's admins may change (the core rules the Super
+ * Admin sets live in `businessRules.ts`). A branch stores only
  * its overrides (`branches/{b}.settings`); everything reads
  * `resolveSettings(branch.settings)`. Defaults follow True Education's
  * behavior, adjusted by the owner's decisions (docs/hyber/DECISIONS.md).
@@ -23,7 +24,6 @@ export interface MinuteRange {
 }
 
 export type LeadTimeEnforcement = 'off' | 'warn' | 'block'
-export type PayModel = 'teaching_admin_split' | 'single_rate'
 export type PayPeriodType = 'weekly' | 'biweekly' | 'semimonthly' | 'monthly'
 export type HourRounding = 'te_business' | 'exact_quarter' | 'exact'
 export type ScheduleView = 'day' | 'week' | 'month'
@@ -39,7 +39,6 @@ export interface BranchSettings {
     snapMinutes: number
     defaultSessionMinutes: number
     minSessionMinutes: number
-    maxConcurrentStudentsPerTutor: number
     defaultView: ScheduleView
     /** Ordered staff IDs; staff not listed follow alphabetically. */
     tutorOrder: string[]
@@ -66,7 +65,6 @@ export interface BranchSettings {
   }
   students: {
     autoStatus: { enabled: boolean; inactivityPauseDays: number; respectManual: boolean }
-    conference: { cycleHours: number }
     hourRounding: HourRounding
     gradeOptions: string[]
   }
@@ -92,12 +90,10 @@ export interface BranchSettings {
     }
     maxTopics: number
   }
+  /** The pay model itself is a branch rule (`businessRules`); owners and admins are always paid one rate. */
   payroll: {
-    payModel: PayModel
     /** Sessions in these statuses count as teaching time (owner: only logged sessions). */
     teachingSessionStatuses: SessionStatus[]
-    /** Staff holding the admin role are paid one rate for the whole shift. */
-    adminStaffSingleRate: boolean
     hoursDecimals: number
     payPeriod: { type: PayPeriodType; anchorDate: string }
   }
@@ -155,7 +151,6 @@ export const DEFAULT_SETTINGS: BranchSettings = {
     snapMinutes: 5,
     defaultSessionMinutes: 110,
     minSessionMinutes: 5,
-    maxConcurrentStudentsPerTutor: 3,
     defaultView: 'day',
     tutorOrder: [],
     pasteStatus: 'pending',
@@ -182,7 +177,6 @@ export const DEFAULT_SETTINGS: BranchSettings = {
   },
   students: {
     autoStatus: { enabled: true, inactivityPauseDays: 20, respectManual: true },
-    conference: { cycleHours: 25 },
     hourRounding: 'te_business',
     gradeOptions: ['Pre-K', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'College', 'Adult', 'Other'],
   },
@@ -212,9 +206,7 @@ export const DEFAULT_SETTINGS: BranchSettings = {
     maxTopics: 30,
   },
   payroll: {
-    payModel: 'teaching_admin_split',
     teachingSessionStatuses: ['present'],
-    adminStaffSingleRate: true,
     hoursDecimals: 2,
     payPeriod: { type: 'biweekly', anchorDate: '2026-01-04' },
   },

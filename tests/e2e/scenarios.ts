@@ -55,6 +55,8 @@ export const SCENARIOS: Scenario[] = [
     expect: {
       '/app': ['Every tutoring center on Hyber', 'Demo Academy'],
       '/platform': ['Demo Academy'],
+      [`/platform/branches/${E2E_BRANCH}`]: ['Business rules', 'Teaching + Admin', 'from the start', 'Students per tutor at once'],
+      [`${b}/admin/settings`]: ['Business rules', 'Chosen by HyberTec', 'Every 25 tutoring hours'],
       [`${b}/admin/home`]: ['Super Admin', 'Upcoming Schedule & Events', 'Live Clock In / Out', 'Missing & Needs Attention', 'Conference Needed', 'New Students to Follow Up'],
       [`${b}/admin/announcements`]: ['Welcome to the new Demo Academy portal', 'Read: '],
       [`${b}/admin/announcements/demo-a-welcome`]: ['Looks great', 'Comments'],

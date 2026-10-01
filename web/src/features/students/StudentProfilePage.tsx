@@ -26,13 +26,14 @@ const TABS = [
 
 export function StudentProfilePage({ mode = 'admin' }: { mode?: 'admin' | 'tutor' }) {
   const { studentId = '', tab = 'sessions' } = useParams()
-  const { branchId, actor } = useBranch()
+  const { branchId, actor, rules } = useBranch()
   const navigate = useNavigate()
   const ref = useMemo(() => branchDocRef(branchId, COL.students, studentId), [branchId, studentId])
   const { data: student, loading } = useDoc<Student>(ref)
   const isAdmin = mode === 'admin'
   const base = `/${branchId}/${mode}/students`
-  const tabs = TABS.filter((t) => isAdmin || !t.adminOnly)
+  // No Conference tab when the branch doesn't track parent conferences.
+  const tabs = TABS.filter((t) => (isAdmin || !t.adminOnly) && (t.key !== 'conference' || rules.conferences.enabled))
   const active = tabs.some((t) => t.key === tab) ? tab : 'sessions'
 
   // First time an admin opens a new student: mark it reviewed (Home "new students to follow up").
@@ -81,7 +82,7 @@ export function StudentProfilePage({ mode = 'admin' }: { mode?: 'admin' | 'tutor
       {active === 'sessions' ? <SessionsTab student={s} mode={mode} /> : null}
       {active === 'info' ? <InfoTab student={s} readOnly={!isAdmin} /> : null}
       {active === 'school' ? <SchoolTab student={s} /> : null}
-      {active === 'conference' && isAdmin ? <ConferenceTab student={s} /> : null}
+      {active === 'conference' && isAdmin && rules.conferences.enabled ? <ConferenceTab student={s} /> : null}
       {active === 'calendar' ? <StudentCalendarView studentId={studentId} readOnly={!isAdmin} /> : null}
     </div>
   )

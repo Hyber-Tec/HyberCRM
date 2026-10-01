@@ -9,12 +9,12 @@ describe('settings resolver', () => {
 
   it('merges nested overrides and replaces arrays', () => {
     const s = resolveSettings({
-      schedule: { maxConcurrentStudentsPerTutor: 1, autoConfirm: { hoursBefore: 48 } },
+      schedule: { snapMinutes: 10, autoConfirm: { hoursBefore: 48 } },
       signup: { roles: ['tutor'] },
     })
-    expect(s.schedule.maxConcurrentStudentsPerTutor).toBe(1)
+    expect(s.schedule.snapMinutes).toBe(10)
     expect(s.schedule.autoConfirm).toEqual({ enabled: true, hoursBefore: 48 })
-    expect(s.schedule.snapMinutes).toBe(5)
+    expect(s.schedule.defaultSessionMinutes).toBe(110)
     expect(s.signup.roles).toEqual(['tutor'])
   })
 

@@ -3,6 +3,7 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https'
 import { db } from './app'
 import { pinHash } from './pins'
 import { DEMO_KIOSK_PINS, buildDemoData } from '@shared/demo/seed'
+import { type BusinessRules, resolveBusinessRules } from '@shared/settings/businessRules'
 import { COL, ROOT } from '@shared/paths'
 import { isValidTimeZone, todayKey } from '@shared/time'
 
@@ -24,7 +25,8 @@ export const seedDemoData = onCall({ timeoutSeconds: 300, memory: '512MiB' }, as
   const timezone = isValidTimeZone(tz) ? tz : 'America/New_York'
 
   const now = new Date()
-  const docs = buildDemoData({ branchId, timezone, today: todayKey(timezone), createdBy: email, now })
+  const rules = resolveBusinessRules(branch.get('businessRules') as Partial<BusinessRules> | undefined)
+  const docs = buildDemoData({ branchId, timezone, today: todayKey(timezone), createdBy: email, now, maxStudentsPerTutor: rules.maxStudentsPerTutor })
   const base = `${ROOT.branches}/${branchId}`
   for (const [staffId, pin] of Object.entries(DEMO_KIOSK_PINS)) {
     const hash = pinHash(branchId, pin)

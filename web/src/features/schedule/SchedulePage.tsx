@@ -151,7 +151,7 @@ export function SchedulePage() {
     return []
   }, [view, date, weekStartsOn, isClosed])
 
-  const maxLanes = settings.schedule.maxConcurrentStudentsPerTutor
+  const maxLanes = branch.rules.maxStudentsPerTutor
   const sections = useMemo(
     () =>
       days.map((d) => {
@@ -176,7 +176,7 @@ export function SchedulePage() {
     [days, hoursOf, today, nowMin, visibleTutors, data.availabilityByKey, data.sessionsByDate, data.eventsByDate, maxLanes, staffMap, clocksByKey],
   )
 
-  const ctx: ScheduleCtx = useMemo(() => ({ branchId, actor, timezone, settings }), [branchId, actor, timezone, settings])
+  const ctx: ScheduleCtx = useMemo(() => ({ branchId, actor, timezone, settings, maxStudentsPerTutor: maxLanes }), [branchId, actor, timezone, settings, maxLanes])
   const run = useCallback(async (fn: () => Promise<unknown>, ok?: string) => {
     try {
       await fn()
@@ -204,7 +204,7 @@ export function SchedulePage() {
       const st = studentMap.get(s.studentId)
       if (!st) return []
       const items: BellItem[] = []
-      const noteDate = st.conference?.lastNoteDate
+      const noteDate = branch.rules.conferences.enabled ? st.conference?.lastNoteDate : null
       const days = settings.schedule.alerts.conferenceNoteDays
       if (noteDate && diffDays(noteDate, today) >= 0 && diffDays(noteDate, today) <= days) {
         items.push({ kind: 'conference', title: 'Parent conference note', subtitle: `Date: ${formatDateKey(noteDate, 'medium')}` })

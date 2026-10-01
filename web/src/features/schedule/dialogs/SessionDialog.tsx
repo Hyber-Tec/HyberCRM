@@ -54,7 +54,7 @@ export function SessionDialog({
   onDelete: (s: WithId<Session>) => Promise<void>
   onOpenLog: (s: WithId<Session>) => void
 }) {
-  const { branchId, settings } = useBranch()
+  const { branchId, settings, rules } = useBranch()
   const [form, setForm] = useState<SessionDraft | null>(null)
   const [month, setMonth] = useState<DateKey>('')
   const [busy, setBusy] = useState(false)
@@ -117,10 +117,10 @@ export function SessionDialog({
       const a = avail.find((x) => x.staffId === t.id)
       const available = !!a && !a.unavailable && rangesContain(a.ranges, form.startMin, form.endMin)
       const items = daySessions.filter((s) => s.tutorId === t.id && !s.isDeleted && s.status !== 'canceled')
-      const left = seatsLeft(items, form.startMin, form.endMin, settings.schedule.maxConcurrentStudentsPerTutor, existing?.id)
+      const left = seatsLeft(items, form.startMin, form.endMin, rules.maxStudentsPerTutor, existing?.id)
       return { tutor: t, ok: hours.isOpen && available && left > 0, left }
     })
-  }, [form, hours, tutors, avail, daySessions, settings.schedule.maxConcurrentStudentsPerTutor, existing?.id])
+  }, [form, hours, tutors, avail, daySessions, rules.maxStudentsPerTutor, existing?.id])
 
   if (!state || !form) return null
   const set = (patch: Partial<SessionDraft>) => setForm((f) => (f ? { ...f, ...patch } : f))

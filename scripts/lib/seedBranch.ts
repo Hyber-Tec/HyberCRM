@@ -1,6 +1,6 @@
 import { newBranchData, newMemberData, publicProfileFor } from '../../shared/src/branchFactory'
 import { createHash } from 'node:crypto'
-import { DEMO_KIOSK_PINS, buildDemoData } from '../../shared/src/demo/seed'
+import { DEMO_BUSINESS_RULES, DEMO_KIOSK_PINS, buildDemoData } from '../../shared/src/demo/seed'
 import { COL, DOC, ROOT } from '../../shared/src/paths'
 import type { Role } from '../../shared/src/roles'
 import { todayKey } from '../../shared/src/time'
@@ -34,7 +34,11 @@ export async function seedBranch(opts: SeedBranchOptions) {
   const existing = await getDocument(branchPath)
   const timezone = (existing?.timezone as string | undefined) ?? opts.timezone
   if (!existing) {
-    const data = { ...newBranchData({ name: opts.name, timezone, createdBy: superAdmin }), createdAt: now, updatedAt: now }
+    const data = {
+      ...newBranchData({ name: opts.name, timezone, createdBy: superAdmin, businessRules: opts.sample ? DEMO_BUSINESS_RULES : undefined }),
+      createdAt: now,
+      updatedAt: now,
+    }
     writes.push({ path: branchPath, data })
     writes.push({ path: `${branchPath}/${COL.public}/${DOC.publicProfile}`, data: { ...publicProfileFor(data) } })
     writes.push({
@@ -52,7 +56,8 @@ export async function seedBranch(opts: SeedBranchOptions) {
   }
 
   if (opts.sample) {
-    const docs = buildDemoData({ branchId: opts.branchId, timezone, today: todayKey(timezone), createdBy: superAdmin, now })
+    const maxStudentsPerTutor = Number((existing?.businessRules as { maxStudentsPerTutor?: number } | undefined)?.maxStudentsPerTutor) || DEMO_BUSINESS_RULES.maxStudentsPerTutor
+    const docs = buildDemoData({ branchId: opts.branchId, timezone, today: todayKey(timezone), createdBy: superAdmin, now, maxStudentsPerTutor })
     writes.push(...docs)
     // Demo kiosk PINs (hashed exactly like the setKioskPin function).
     for (const [staffId, pin] of Object.entries(DEMO_KIOSK_PINS)) {

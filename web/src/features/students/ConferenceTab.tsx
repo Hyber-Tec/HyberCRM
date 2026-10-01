@@ -31,7 +31,7 @@ import {
 const SWATCHES = ['#2563eb', '#7c3aed', '#db2777', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2', '#475569']
 
 export function ConferenceTab({ student }: { student: WithId<Student> }) {
-  const { branchId, actor, settings } = useBranch()
+  const { branchId, actor, rules } = useBranch()
   const q = useMemo(() => query(collection(db, conferenceNotesCol(branchId, student.id)), orderBy('date', 'desc')), [branchId, student.id])
   const { data: notes, loading } = useQuery<ConferenceNote>(q, `conf-${student.id}`)
   const { data: categories } = useConferenceCategories()
@@ -40,7 +40,7 @@ export function ConferenceTab({ student }: { student: WithId<Student> }) {
   const catById = new Map(categories.map((c) => [c.id, c]))
   const conf = conferenceState(
     { totalSessionHours: student.totalSessionHours, baselineHours: student.conference?.baselineHours ?? 0 },
-    settings.students.conference.cycleHours,
+    rules.conferences.everyHours,
   )
 
   return (

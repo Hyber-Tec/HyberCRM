@@ -1,4 +1,5 @@
 import { ROLE_LABELS } from '@shared/roles'
+import type { BusinessRules } from '@shared/settings/businessRules'
 import { WEEKDAYS, WEEKDAY_LABELS } from '@shared/time'
 
 /** Declarative description of the per-branch business settings (docs/hyber/BRANCH_SETTINGS.md). */
@@ -7,6 +8,8 @@ interface Base {
   path: string
   label: string
   help?: string
+  /** Shown only when the branch's business rules need it (e.g. conferences on). */
+  visible?: (rules: BusinessRules) => boolean
 }
 
 export type FieldDef =
@@ -55,7 +58,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
     key: 'schedule',
     title: 'Schedule',
-    description: 'Opening hours, session defaults, capacity and automatic confirmation.',
+    description: 'Opening hours, session defaults and automatic confirmation.',
     fields: [
       {
         kind: 'select',
@@ -67,7 +70,6 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
       { kind: 'weekHours', path: 'schedule.defaultWeek', label: 'Default opening hours', help: 'Used for every date unless the day is edited on the schedule.' },
       { kind: 'number', path: 'schedule.defaultSessionMinutes', label: 'Default session length', min: 15, max: 480, step: 5, suffix: 'min' },
       { kind: 'number', path: 'schedule.snapMinutes', label: 'Time snap', min: 1, max: 60, step: 1, suffix: 'min', help: 'Clicks, drags and resizes snap to this step.' },
-      { kind: 'number', path: 'schedule.maxConcurrentStudentsPerTutor', label: 'Students per tutor at once', min: 1, max: 10, step: 1 },
       {
         kind: 'select',
         path: 'schedule.defaultView',
@@ -83,7 +85,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
       { kind: 'boolean', path: 'schedule.noShow.countsTowardStudentHours', label: 'No Show sessions count toward the student’s hours' },
       { kind: 'select', path: 'schedule.pasteStatus', label: 'Status of pasted and duplicated sessions', options: SESSION_STATUS_OPTIONS.slice(0, 2) },
       { kind: 'list', path: 'schedule.events.titlePresets', label: 'Event title presets', help: 'One per line. Offered when adding an event.' },
-      { kind: 'number', path: 'schedule.alerts.conferenceNoteDays', label: 'Bell: parent-conference note within', min: 0, max: 90, suffix: 'days' },
+      { kind: 'number', path: 'schedule.alerts.conferenceNoteDays', label: 'Bell: parent-conference note within', min: 0, max: 90, suffix: 'days', visible: (r) => r.conferences.enabled },
       { kind: 'boolean', path: 'schedule.alerts.firstSession', label: 'Bell: student’s first session' },
       { kind: 'number', path: 'trash.retentionDays', label: 'Keep deleted sessions in Trash for', min: 1, max: 365, suffix: 'days' },
     ],
@@ -122,12 +124,11 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
     key: 'students',
     title: 'Students',
-    description: 'Automatic status changes, parent conferences and billed hours.',
+    description: 'Automatic status changes and billed hours.',
     fields: [
       { kind: 'boolean', path: 'students.autoStatus.enabled', label: 'Update student statuses automatically', help: 'Signed Up → Enrolled after the first session; Enrolled ↔ Paused by activity.' },
       { kind: 'number', path: 'students.autoStatus.inactivityPauseDays', label: 'Pause after no sessions for', min: 1, max: 180, suffix: 'days' },
       { kind: 'boolean', path: 'students.autoStatus.respectManual', label: 'Keep a status set by hand', help: 'A manual status stops the automatic changes until someone changes it again.' },
-      { kind: 'number', path: 'students.conference.cycleHours', label: 'Parent conference every', min: 1, max: 200, suffix: 'hours' },
       {
         kind: 'select',
         path: 'students.hourRounding',
@@ -159,17 +160,8 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
     key: 'payroll',
     title: 'Payroll & time clock',
-    description: 'How clocked time is split and paid, pay periods and the automatic clock-out.',
+    description: 'What counts as teaching time, pay periods and the automatic clock-out.',
     fields: [
-      {
-        kind: 'select',
-        path: 'payroll.payModel',
-        label: 'Pay model',
-        options: [
-          { value: 'teaching_admin_split', label: 'Teaching and admin rates (time in sessions = teaching)' },
-          { value: 'single_rate', label: 'One rate for all clocked time' },
-        ],
-      },
       {
         kind: 'multiselect',
         path: 'payroll.teachingSessionStatuses',
@@ -177,7 +169,6 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
         options: SESSION_STATUS_OPTIONS.slice(0, 4),
         help: 'By default only sessions whose log was submitted.',
       },
-      { kind: 'boolean', path: 'payroll.adminStaffSingleRate', label: 'Pay admins one rate for the whole shift' },
       {
         kind: 'select',
         path: 'payroll.payPeriod.type',

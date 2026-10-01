@@ -22,7 +22,7 @@ import { DaySection } from './DaySection'
 
 /** The tutor's own schedule: read-only rows; clicking a session opens its log in a new tab. */
 export function TutorSchedulePage() {
-  const { branchId, staffId, settings, timezone } = useBranch()
+  const { branchId, staffId, settings, rules, timezone } = useBranch()
   const isMobile = useIsMobile()
   const [view, setView] = useState<'day' | 'week'>('week')
   const [today, setToday] = useState(() => todayKey(timezone))
@@ -72,7 +72,7 @@ export function TutorSchedulePage() {
     mode: 'tutor',
     today,
     nowMin,
-    maxLanes: settings.schedule.maxConcurrentStudentsPerTutor,
+    maxLanes: rules.maxStudentsPerTutor,
     loggableStatuses: settings.sessionLogs.allowForStatuses,
     snap: settings.schedule.snapMinutes,
     defaultDuration: settings.schedule.defaultSessionMinutes,
@@ -157,9 +157,9 @@ export function TutorSchedulePage() {
           shifts
             .filter((sh) => sh.dateKey === d)
             .map((sh) => ({ id: sh.id, startMin: sh.inMin, endMin: sh.status === 'open' ? (d === today ? nowMin : 1440) : sh.outDateKey && sh.outDateKey > sh.dateKey ? 1440 : (sh.outMin ?? sh.inMin), open: sh.status === 'open' })),
-        maxLanes: settings.schedule.maxConcurrentStudentsPerTutor,
+        maxLanes: rules.maxStudentsPerTutor,
         addEmptyLane: false,
-      }).map((r) => ({ ...r, laneCount: settings.schedule.maxConcurrentStudentsPerTutor }))
+      }).map((r) => ({ ...r, laneCount: rules.maxStudentsPerTutor }))
       return { d, hours, rows }
     })
     .filter((s) => s.hours.isOpen && s.rows.length > 0)

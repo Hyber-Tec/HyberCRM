@@ -71,7 +71,7 @@ export function DuplicateDialog({ open, onOpenChange, ctx, anchor }: { open: boo
       const configs = new Map(cSnap.docs.map((d) => [d.id, d.data() as DayConfig]))
       const existingTarget = tSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Session) }) as WithId<Session>)
       const grades = new Map(students.map((s) => [s.id, s.grade]))
-      const n = await duplicateIntoWeek(ctx, {
+      const { created: n, skipped } = await duplicateIntoWeek(ctx, {
         sources,
         targetDays: targetDays
           .filter((d) => selected.includes(weekdayOf(d)))
@@ -80,7 +80,9 @@ export function DuplicateDialog({ open, onOpenChange, ctx, anchor }: { open: boo
         liveGrade: (id) => grades.get(id),
         label,
       })
-      toast.success(n ? `Duplicated ${n} sessions` : 'Nothing to copy on those days (closed and past days are skipped).')
+      const full = skipped ? ` ${skipped} skipped: the tutor already had ${ctx.maxStudentsPerTutor} ${ctx.maxStudentsPerTutor === 1 ? 'student' : 'students'} at that time.` : ''
+      if (n) toast.success(`Duplicated ${n} sessions.${full}`)
+      else toast.info(skipped ? `Nothing copied.${full}` : 'Nothing to copy on those days (closed and past days are skipped).')
       if (n) onOpenChange(false)
     } catch (e) {
       toast.error('Duplicate failed', { description: (e as Error).message })

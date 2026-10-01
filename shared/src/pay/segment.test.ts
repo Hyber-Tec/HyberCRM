@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { recentPeriods, periodContaining } from './periods'
-import { priceShift, segmentShift, totals } from './segment'
+import { payModelFor, priceShift, segmentShift, totals } from './segment'
 
 const T = (hhmm: string) => {
   const [h, m, s = '0'] = hhmm.split(':')
@@ -8,7 +8,7 @@ const T = (hhmm: string) => {
 }
 const iv = (a: string, b: string) => ({ startMs: T(a), endMs: T(b) })
 const rates = { teaching: 35, admin: 20 }
-const price = (shift: ReturnType<typeof iv>, windows: ReturnType<typeof iv>[]) => priceShift(shift, windows, rates, 'teaching_admin_split')
+const price = (shift: ReturnType<typeof iv>, windows: ReturnType<typeof iv>[]) => priceShift(shift, windows, rates, 'teaching_admin')
 
 describe('pay segmentation (True Education worked examples)', () => {
   it('Ex1 typical day', () => {
@@ -51,7 +51,26 @@ describe('pay segmentation (True Education worked examples)', () => {
 
   it('single rate and forced types', () => {
     expect(priceShift(iv('14:00', '16:00'), [iv('14:00', '15:00')], rates, 'single_rate').map((s) => [s.type, s.pay])).toEqual([['admin', 40]])
-    expect(priceShift(iv('14:00', '16:00'), [], rates, 'teaching_admin_split', 'teaching').map((s) => [s.type, s.pay])).toEqual([['teaching', 70]])
+    expect(priceShift(iv('14:00', '16:00'), [], rates, 'teaching_admin', 'teaching').map((s) => [s.type, s.pay])).toEqual([['teaching', 70]])
+  })
+
+  it('teaching only pays the teaching time and leaves the rest unpaid', () => {
+    const segs = priceShift(iv('15:30', '22:15'), [iv('16:00', '17:50'), iv('18:00', '19:55')], rates, 'teaching_only')
+    expect(segs.map((s) => [s.type, s.hours, s.pay, s.unpaid ?? false])).toEqual([
+      ['admin', 0.5, 0, true],
+      ['teaching', 1.83, 64.05, false],
+      ['admin', 0.17, 0, true],
+      ['teaching', 1.92, 67.2, false],
+      ['admin', 2.33, 0, true],
+    ])
+    expect(totals(segs).total).toEqual({ hours: 3.75, pay: 131.25 })
+    expect(priceShift(iv('14:00', '16:00'), [], rates, 'teaching_only', 'admin')[0].pay).toBe(0)
+  })
+
+  it('owners and admins are paid one rate whatever the branch model', () => {
+    expect(payModelFor({ role: 'admin', branchModel: 'teaching_only' })).toBe('single_rate')
+    expect(payModelFor({ role: 'owner', branchModel: 'teaching_admin' })).toBe('single_rate')
+    expect(payModelFor({ role: 'tutor', branchModel: 'teaching_only' })).toBe('teaching_only')
   })
 
   it('handles empty shifts', () => {

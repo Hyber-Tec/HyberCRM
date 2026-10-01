@@ -21,6 +21,8 @@ export interface PricedSegment extends Segment {
   hours: number
   rate: number
   pay: number
+  /** Teaching only: clocked time outside sessions, which isn't paid. */
+  unpaid?: true
 }
 
 export const round2 = (x: number) => Math.round((x + Number.EPSILON) * 100) / 100
@@ -72,11 +74,17 @@ export interface Rates {
   admin: number
 }
 
-export type EffectivePayModel = 'teaching_admin_split' | 'single_rate'
+/**
+ * How a shift is paid. Tutors follow the branch's pay model on the shift's date
+ * (`teaching_admin`: TE's split; `teaching_only`: only time in sessions is paid);
+ * owners and admins never teach and are paid one rate (`single_rate`).
+ */
+export type EffectivePayModel = 'teaching_admin' | 'teaching_only' | 'single_rate'
 
 /**
- * Prices a shift. `single_rate` pays the whole shift at the admin rate (one
- * segment); a forced type pays the whole shift as that type.
+ * Prices a shift. `single_rate` pays the whole shift at the person's hourly rate
+ * (`rates.admin`); a forced type pays the whole shift as that type. Under
+ * Teaching only, admin time is kept (so the shift still adds up) but unpaid.
  */
 export function priceShift(
   shift: Interval,
@@ -87,13 +95,14 @@ export function priceShift(
 ): PricedSegment[] {
   if (shift.endMs <= shift.startMs) return []
   const segs: Segment[] =
-    forcedType
-      ? [{ type: forcedType, ...shift }]
-      : model === 'single_rate'
-        ? [{ type: 'admin', ...shift }]
+    model === 'single_rate'
+      ? [{ type: 'admin', ...shift }]
+      : forcedType
+        ? [{ type: forcedType, ...shift }]
         : segmentShift(shift, teachingWindows)
   return segs.map((s) => {
     const hours = hoursOf(s.endMs - s.startMs)
+    if (s.type === 'admin' && model === 'teaching_only') return { ...s, hours, rate: 0, pay: 0, unpaid: true as const }
     const rate = s.type === 'teaching' ? rates.teaching : rates.admin
     return { ...s, hours, rate, pay: round2(hours * rate) }
   })
@@ -105,9 +114,11 @@ export interface PayTotals {
   total: { hours: number; pay: number }
 }
 
+/** Paid hours and pay by type (unpaid Teaching-only time is left out). */
 export function totals(segments: readonly PricedSegment[]): PayTotals {
   const t = { teaching: { hours: 0, pay: 0 }, admin: { hours: 0, pay: 0 } }
   for (const s of segments) {
+    if (s.unpaid) continue
     t[s.type].hours += s.hours
     t[s.type].pay += s.pay
   }
@@ -117,14 +128,7 @@ export function totals(segments: readonly PricedSegment[]): PayTotals {
   return { teaching, admin, total: { hours: round2(teaching.hours + admin.hours), pay: round2(teaching.pay + admin.pay) } }
 }
 
-/** Which pay model applies to an employee. */
-export function payModelFor(opts: {
-  branchModel: EffectivePayModel
-  personModel: 'branch_default' | EffectivePayModel | undefined
-  isAdminStaff: boolean
-  adminStaffSingleRate: boolean
-}): EffectivePayModel {
-  if (opts.personModel && opts.personModel !== 'branch_default') return opts.personModel
-  if (opts.isAdminStaff && opts.adminStaffSingleRate) return 'single_rate'
-  return opts.branchModel
+/** Which pay model applies to an employee's shift: the branch model for tutors, one rate for owners and admins. */
+export function payModelFor(opts: { role: 'owner' | 'admin' | 'tutor' | undefined; branchModel: 'teaching_admin' | 'teaching_only' }): EffectivePayModel {
+  return opts.role === 'owner' || opts.role === 'admin' ? 'single_rate' : opts.branchModel
 }

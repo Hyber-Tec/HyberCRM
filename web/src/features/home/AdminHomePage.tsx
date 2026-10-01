@@ -63,7 +63,7 @@ function usePaths() {
 
 /** Admin → Home: today's dashboard (True Education's Home, without Diagnostics). */
 export function AdminHomePage() {
-  const { timezone } = useBranch()
+  const { timezone, rules } = useBranch()
   const attention = useAttention()
   const { today } = attention
   const [fixing, setFixing] = useState<WithId<ClockShift> | null>(null)
@@ -83,7 +83,7 @@ export function AdminHomePage() {
         <UpcomingCard today={today} now={attention.now} />
         <ClockCard shifts={attention.shifts} today={today} onFix={setFixing} />
         <AttentionCard items={attention.items} today={today} onFix={setFixing} />
-        <ConferenceCard />
+        {rules.conferences.enabled ? <ConferenceCard /> : null}
         <NewStudentsCard list={attention.newStudents} today={today} />
       </div>
       <ClockOutDialog shift={fixing} onClose={() => setFixing(null)} />
@@ -403,12 +403,12 @@ function AttentionCard({ items, today, onFix }: { items: AttentionItem[]; today:
 // ---------------------------------------------------------------- conference
 
 function ConferenceCard() {
-  const { branchId, settings, actor } = useBranch()
+  const { branchId, rules, actor } = useBranch()
   const navigate = useNavigate()
   const paths = usePaths()
   const { data: students } = useStudentList()
   const [skipping, setSkipping] = useState<WithId<Student> | null>(null)
-  const cycle = settings.students.conference.cycleHours
+  const cycle = rules.conferences.everyHours
   const due = useMemo(
     () =>
       students

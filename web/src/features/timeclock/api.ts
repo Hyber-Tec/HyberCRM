@@ -1,10 +1,11 @@
 import { type DocumentData, type Query, doc, query, serverTimestamp, where, writeBatch } from 'firebase/firestore'
 import { useMemo } from 'react'
 import { COL } from '@shared/paths'
-import { type EffectivePayModel, type PayType, type PricedSegment, type Rates, payModelFor, priceShift } from '@shared/pay/segment'
+import { type PayType, type PricedSegment, type Rates, payModelFor, priceShift } from '@shared/pay/segment'
+import { type BusinessRules, payModelOn } from '@shared/settings/businessRules'
 import type { BranchSettings } from '@shared/settings/defaults'
 import { type DateKey, addDays, formatDateKey, formatMinutes, minutesOf, toInstant } from '@shared/time'
-import type { Compensation, Session, Staff, TimestampLike, WithId } from '@shared/types'
+import type { Compensation, Session, Staff, StaffRole, TimestampLike, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { type Actor, addAudit } from '@/lib/audit'
 import { db } from '@/lib/firebase'
@@ -67,8 +68,10 @@ export function priceShifts(opts: {
   shifts: WithId<ClockShift>[]
   sessions: WithId<Session>[]
   settings: BranchSettings
+  /** The branch's pay model on each shift's date. */
+  rules: BusinessRules
   timezone: string
-  ratesFor: (staffId: string) => { rates: Rates; model: EffectivePayModel }
+  ratesFor: (staffId: string) => StaffPay
 }): ShiftPay[] {
   const counted = new Set(opts.settings.payroll.teachingSessionStatuses)
   return opts.shifts
@@ -79,7 +82,8 @@ export function priceShifts(opts: {
       const windows = opts.sessions
         .filter((s) => s.tutorId === shift.staffId && !s.isDeleted && counted.has(s.status))
         .map((s) => ({ startMs: s.startAt.toMillis(), endMs: s.endAt.toMillis() }))
-      const { rates, model } = opts.ratesFor(shift.staffId)
+      const { rates, role } = opts.ratesFor(shift.staffId)
+      const model = payModelFor({ role, branchModel: payModelOn(opts.rules, shift.dateKey) })
       const segments = priceShift(
         { startMs: shift.clockInAt.toMillis(), endMs: shift.clockOutAt.toMillis() },
         windows,
@@ -91,16 +95,14 @@ export function priceShifts(opts: {
     })
 }
 
-export function effectiveRates(staff: WithId<Staff> | undefined, comp: Compensation | null | undefined, settings: BranchSettings) {
-  return {
-    rates: comp?.rates ?? { teaching: 0, admin: 0 },
-    model: payModelFor({
-      branchModel: settings.payroll.payModel,
-      personModel: comp?.payModel,
-      isAdminStaff: staff?.role === 'owner' || staff?.role === 'admin',
-      adminStaffSingleRate: settings.payroll.adminStaffSingleRate,
-    }),
-  }
+export interface StaffPay {
+  rates: Rates
+  /** Owners and admins are paid one rate; tutors follow the branch pay model. */
+  role: StaffRole | undefined
+}
+
+export function effectiveRates(staff: WithId<Staff> | undefined, comp: Compensation | null | undefined): StaffPay {
+  return { rates: comp?.rates ?? { teaching: 0, admin: 0 }, role: staff?.role }
 }
 
 // ---------------------------------------------------------------- writes

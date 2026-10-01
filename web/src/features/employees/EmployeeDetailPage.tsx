@@ -7,6 +7,7 @@ import { STAFF_COLORS } from '@shared/colors'
 import { COL } from '@shared/paths'
 import { STAFF_STATUSES, STAFF_STATUS_LABELS } from '@shared/people'
 import { ROLE_LABELS, isAdminRole } from '@shared/roles'
+import { payModelOn } from '@shared/settings/businessRules'
 import { formatInstant, todayKey } from '@shared/time'
 import type { Compensation, Member, Staff, StaffNotes, StaffRole, StaffStatus } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
@@ -336,28 +337,31 @@ function AccessCard({ member }: { member: (Member & { id: string }) | null }) {
 }
 
 function PayCard({ staff }: { staff: Staff & { id: string } }) {
-  const { branchId, actor, timezone } = useBranch()
+  const { branchId, actor, timezone, rules } = useBranch()
   const ref = useMemo(() => compensationRef(branchId, staff.id), [branchId, staff.id])
   const { data: comp } = useDoc<Compensation>(ref)
   const [teaching, setTeaching] = useState('')
   const [admin, setAdmin] = useState('')
-  const [model, setModel] = useState<Compensation['payModel']>('branch_default')
   const [effective, setEffective] = useState(todayKey(timezone))
   const [busy, setBusy] = useState(false)
+  // Owners and admins have one hourly rate (kept as the admin rate); tutors follow the branch pay model.
+  const single = isAdminRole(staff.role)
+  const today = todayKey(timezone)
+  const modelNow = payModelOn(rules, today)
+  const usesAdminRate = rules.payModels.some((p) => p.model === 'teaching_admin')
 
   useEffect(() => {
     setTeaching(comp?.rates?.teaching != null ? String(comp.rates.teaching) : '')
     setAdmin(comp?.rates?.admin != null ? String(comp.rates.admin) : '')
-    setModel(comp?.payModel ?? 'branch_default')
   }, [comp])
 
   async function save() {
-    const t = Number(teaching)
-    const a = Number(admin)
-    if (!Number.isFinite(t) || !Number.isFinite(a) || t < 0 || a < 0) return toast.error('Enter valid pay rates.')
+    const t = single ? (comp?.rates?.teaching ?? 0) : Number(teaching)
+    const a = !single && !usesAdminRate ? (comp?.rates?.admin ?? 0) : Number(admin)
+    if (!Number.isFinite(t) || !Number.isFinite(a) || t < 0 || a < 0 || (single ? admin === '' : teaching === '')) return toast.error('Enter valid pay rates.')
     setBusy(true)
     try {
-      await saveCompensation(branchId, actor, staff, comp, { rates: { teaching: t, admin: a }, payModel: model }, effective)
+      await saveCompensation(branchId, actor, staff, comp, { rates: { teaching: t, admin: a } }, effective)
       toast.success('Pay saved')
     } catch (e) {
       toast.error('Could not save', { description: (e as Error).message })
@@ -366,19 +370,28 @@ function PayCard({ staff }: { staff: Staff & { id: string } }) {
     }
   }
 
+  const fields = single
+    ? [{ id: 'admin', label: 'Hourly rate', value: admin, set: setAdmin }]
+    : [
+        { id: 'teaching', label: 'Teaching rate', value: teaching, set: setTeaching },
+        ...(usesAdminRate ? [{ id: 'admin', label: 'Admin rate', value: admin, set: setAdmin }] : []),
+      ]
+  const description = single
+    ? 'Paid this hourly rate for all clocked time.'
+    : modelNow === 'teaching_only'
+      ? 'Paid for teaching time only: time inside sessions with a submitted log. Other clocked time is unpaid.'
+      : 'Time inside logged sessions is paid at the teaching rate; the rest of the shift at the admin rate.'
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Pay</CardTitle>
-        <CardDescription>Hourly rates. Time inside logged sessions is paid at the teaching rate; the rest of the shift at the admin rate.</CardDescription>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         <FieldGroup>
           <div className="grid gap-4 sm:grid-cols-3">
-            {[
-              { id: 'teaching', label: 'Teaching rate', value: teaching, set: setTeaching },
-              { id: 'admin', label: 'Admin rate', value: admin, set: setAdmin },
-            ].map((r) => (
+            {fields.map((r) => (
               <Field key={r.id}>
                 <FieldLabel htmlFor={`pay-${r.id}`}>{r.label}</FieldLabel>
                 <InputGroup>
@@ -397,19 +410,6 @@ function PayCard({ staff }: { staff: Staff & { id: string } }) {
               <Input id="pay-from" type="date" value={effective} onChange={(e) => setEffective(e.target.value)} />
             </Field>
           </div>
-          <Field>
-            <FieldLabel>Pay model</FieldLabel>
-            <Select value={model} onValueChange={(v) => setModel(v as Compensation['payModel'])}>
-              <SelectTrigger className="w-full sm:w-96">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="branch_default">Branch default</SelectItem>
-                <SelectItem value="teaching_admin_split">Teaching and admin rates</SelectItem>
-                <SelectItem value="single_rate">One rate for the whole shift (admin rate)</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
           {comp?.history?.length ? (
             <div className="rounded-lg border text-sm">
               <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">Rate history</div>
@@ -417,7 +417,7 @@ function PayCard({ staff }: { staff: Staff & { id: string } }) {
                 <div key={i} className="flex justify-between px-3 py-1.5">
                   <span>From {h.effectiveFrom}</span>
                   <span className="tabular-nums">
-                    ${h.rates.teaching} teaching · ${h.rates.admin} admin
+                    {single ? `$${h.rates.admin}/hr` : usesAdminRate ? `$${h.rates.teaching} teaching · $${h.rates.admin} admin` : `$${h.rates.teaching} teaching`}
                   </span>
                 </div>
               ))}

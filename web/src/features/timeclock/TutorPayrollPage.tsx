@@ -18,7 +18,7 @@ const money = (n: number) => `$${n.toFixed(2)}`
 
 /** A tutor's own worked time and pay for a pay period or range (read-only). */
 export function TutorPayrollPage() {
-  const { branchId, staffId, settings, timezone } = useBranch()
+  const { branchId, staffId, settings, rules, timezone } = useBranch()
   const [range, setRange] = useState<RangeValue>(useDefaultRange())
   const meRef = useMemo(() => (staffId ? branchDocRef(branchId, COL.staff, staffId) : null), [branchId, staffId])
   const compRef = useMemo(() => (staffId ? doc(db, branchCol(branchId, COL.staff).path, staffId, 'private', DOC.compensation) : null), [branchId, staffId])
@@ -28,8 +28,8 @@ export function TutorPayrollPage() {
   const { data: sessions } = useSessionsRange(addDays(range.from, -1), addDays(range.to, 1), staffId, !!staffId)
 
   const priced = useMemo(
-    () => priceShifts({ shifts, sessions, settings, timezone, ratesFor: () => effectiveRates(me ?? undefined, comp, settings) }),
-    [shifts, sessions, settings, timezone, me, comp],
+    () => priceShifts({ shifts, sessions, settings, rules, timezone, ratesFor: () => effectiveRates(me ?? undefined, comp) }),
+    [shifts, sessions, settings, rules, timezone, me, comp],
   )
   const t = totals(priced.flatMap((p) => p.segments))
   if (!staffId) return <p className="text-sm text-muted-foreground">Your employee record isn’t linked yet. Ask an admin.</p>
