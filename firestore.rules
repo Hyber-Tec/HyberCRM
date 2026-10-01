@@ -196,7 +196,7 @@ service cloud.firestore {
         allow create, delete: if isAdmin(b);
         allow update: if isAdmin(b)
           || (isTutor(b) && staffId == myStaffId(b)
-              && changed().hasOnly(['phone', 'notificationPrefs', 'subjectIds', 'updatedAt', 'updatedBy']));
+              && changed().hasOnly(['phone', 'dob', 'address', 'notificationPrefs', 'subjectIds', 'updatedAt', 'updatedBy']));
 
         match /private/{docId} {
           allow read: if (docId == 'compensation'
@@ -212,7 +212,10 @@ service cloud.firestore {
         allow read: if isStaff(b)
           || (hasRole(b, 'student') && studentId == myStudentId(b))
           || (hasRole(b, 'parent') && studentId in myStudentIds(b));
-        allow write: if isAdmin(b);
+        allow create, delete: if isAdmin(b);
+        // Tutors keep the School tab up to date.
+        allow update: if isAdmin(b)
+          || (isTutor(b) && changed().hasOnly(['schoolRecord', 'updatedAt', 'updatedBy']));
 
         // Contacts, parents, address, school login: admins only.
         match /private/{docId} {
@@ -234,6 +237,30 @@ service cloud.firestore {
       match /subjects/{id} {
         allow read: if isMember(b) || isSuperAdmin();
         allow write: if isAdmin(b);
+      }
+
+      match /conferenceCategories/{id} {
+        allow read: if isStaff(b);
+        allow write: if isAdmin(b);
+      }
+
+      // ------------------------------------------------------ schedule
+
+      // Nobody edits a session once its day is over (dayEndAt = next local midnight).
+      match /sessions/{sessionId} {
+        function dayOpen(data) {
+          return data.dayEndAt is timestamp && data.dayEndAt > request.time
+            && data.dayEndAt <= data.startAt + duration.value(25, 'h')
+            && data.dayEndAt > data.startAt;
+        }
+
+        allow read: if isAdmin(b)
+          || (isTutor(b) && resource.data.tutorId == myStaffId(b))
+          || (hasRole(b, 'student') && resource.data.studentId == myStudentId(b))
+          || (hasRole(b, 'parent') && resource.data.studentId in myStudentIds(b));
+        allow create: if isAdmin(b) && dayOpen(request.resource.data);
+        allow update: if isAdmin(b) && dayOpen(resource.data) && dayOpen(request.resource.data);
+        allow delete: if isAdmin(b) && dayOpen(resource.data);
       }
 
       // ------------------------------------------------------ audit log

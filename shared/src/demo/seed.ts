@@ -126,9 +126,10 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
         color: STAFF_COLORS[i % STAFF_COLORS.length],
         startDate: '2025-08-15',
         endDate: null,
+        dob: null,
+        address: '',
         hasKioskPin: false,
         notificationPrefs: { announcements: true, sessionCreated: true, sessionChanged: true, sessionCanceled: true },
-        profileNote: '',
         ...stamp,
       },
     })
@@ -174,7 +175,9 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
         lastSessionDate: null,
         nextSessionDate: null,
         totalSessionHours: 0,
-        conference: { lastCompletedAt: null, lastCompletedHours: 0, lastNoteAt: null },
+        conference: { baselineHours: 0, lastNoteDate: null, lastResetAt: null },
+        schoolRecord: { courses: {}, gradeSnapshots: [], plan: '' },
+        followUpReviewedAt: now,
         ...stamp,
       },
     })

@@ -45,3 +45,16 @@ export function BranchHomeRedirect() {
   const portal = remembered && roles.includes(remembered) ? remembered : primaryPortal(roles)
   return <Navigate to={`/${branchId}/${portal ?? 'admin'}`} replace />
 }
+
+/** Hides a page from admins an owner restricted (Access Control). */
+export function RequirePage({ page, children }: { page: import('@shared/roles').RestrictablePage; children: ReactNode }) {
+  const { can } = useBranch()
+  if (!can(page)) {
+    return (
+      <div className="py-16 text-center text-sm text-muted-foreground">
+        You don’t have access to this page. Ask a branch owner if you need it.
+      </div>
+    )
+  }
+  return children
+}

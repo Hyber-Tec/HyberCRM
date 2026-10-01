@@ -61,6 +61,7 @@ export function PortalLayout({ portal }: { portal: Role }) {
   useEffect(() => rememberPortal(branch.branchId, portal), [branch.branchId, portal])
 
   const current = navLeaves(nav).find((l) => isActivePath(pathname, base, l))
+  const currentGroup = nav.main.find((i) => isGroup(i) && i.children.some((c) => c.key === current?.key))
   useEffect(() => {
     document.title = `${current?.label ?? PORTAL_LABELS[portal]} | ${branch.branch.name}`
   }, [current?.label, portal, branch.branch.name])
@@ -73,7 +74,10 @@ export function PortalLayout({ portal }: { portal: Role }) {
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-1 data-[orientation=vertical]:h-4" />
-          <div className="min-w-0 flex-1 truncate text-sm font-medium">{current?.label ?? PORTAL_LABELS[portal]}</div>
+          <div className="min-w-0 flex-1 truncate text-sm font-medium">
+            {currentGroup ? <span className="text-muted-foreground">{currentGroup.label} / </span> : null}
+            {current?.label ?? PORTAL_LABELS[portal]}
+          </div>
           <div className="md:hidden">
             <UserMenu portal={portal} />
           </div>

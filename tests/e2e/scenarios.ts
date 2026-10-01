@@ -23,11 +23,24 @@ export const SCENARIOS: Scenario[] = [
   {
     name: 'super admin',
     email: 'goochoi913@gmail.com',
-    paths: ['/app', '/platform', '/platform/admins', `/platform/branches/${E2E_BRANCH}`, `${b}/admin/home`, `${b}/admin/account`, `${b}/admin/access-control`, `${b}/admin/settings`, `${b}/admin/scheduling/audit-log`],
+    paths: [
+      '/app', '/platform', '/platform/admins', `/platform/branches/${E2E_BRANCH}`, `${b}/admin/home`, `${b}/admin/account`,
+      `${b}/admin/access-control`, `${b}/admin/settings`, `${b}/admin/scheduling/audit-log`,
+      `${b}/admin/employees/directory`, `${b}/admin/employees/directory/demo-maya-thompson`, `${b}/admin/employees/subjects`,
+      `${b}/admin/employees/pay-rates`, `${b}/admin/students/directory`, `${b}/admin/students/directory/demo-student-ava-patel/info`,
+      `${b}/admin/students/directory/demo-student-ava-patel/school`, `${b}/admin/students/directory/demo-student-ava-patel/conference`,
+      `${b}/admin/students/directory/demo-student-ava-patel/sessions`,
+    ],
     expect: {
       '/platform': ['Demo Academy'],
       [`${b}/admin/home`]: ['Super Admin'],
       [`${b}/admin/account`]: ['owner@e2e.test'],
+      [`${b}/admin/employees/directory`]: ['Maya Thompson'],
+      [`${b}/admin/employees/directory/demo-maya-thompson`]: ['Teaching rate', 'Internal notes'],
+      [`${b}/admin/employees/subjects`]: ['Test Prep'],
+      [`${b}/admin/employees/pay-rates`]: ['Daniel Kim'],
+      [`${b}/admin/students/directory`]: ['Ava Patel'],
+      [`${b}/admin/students/directory/demo-student-ava-patel/info`]: ['Parents / guardians'],
     },
   },
   {
@@ -39,8 +52,12 @@ export const SCENARIOS: Scenario[] = [
   {
     name: 'tutor',
     email: 'tutor@e2e.test',
-    paths: ['/app', `${b}/admin/home`],
-    expect: { '/app': ['Announcements'] },
+    paths: ['/app', `${b}/admin/home`, `${b}/tutor/students`, `${b}/tutor/my-info/profile`, `${b}/tutor/my-info/subjects`, `${b}/tutor/students/demo-student-ava-patel/info`],
+    expect: {
+      '/app': ['Announcements'],
+      [`${b}/tutor/my-info/profile`]: ['Maya Thompson', 'Teaching rate'],
+      [`${b}/tutor/my-info/subjects`]: ['Test Prep'],
+    },
   },
   { name: 'admin + tutor', email: 'multi@e2e.test', paths: ['/app', `${b}/tutor`] },
   { name: 'parent', email: 'parent@e2e.test', paths: ['/app'], expect: { '/app': ['Upcoming Sessions'] } },

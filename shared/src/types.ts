@@ -149,9 +149,17 @@ export interface Staff extends AuditStamp {
   color: string
   startDate: DateKey | null
   endDate: DateKey | null
+  dob: DateKey | null
+  address: string
   hasKioskPin: boolean
   notificationPrefs: NotificationPrefs
-  profileNote: string
+}
+
+/** `staff/{id}/private/notes`: admin-only. */
+export interface StaffNotes {
+  adminNote: string
+  updatedAt?: TimestampLike | null
+  updatedBy?: string | null
 }
 
 /** `staff/{id}/private/compensation`. */
@@ -185,11 +193,39 @@ export interface Student extends AuditStamp {
   lastSessionDate: DateKey | null
   nextSessionDate: DateKey | null
   totalSessionHours: number
-  conference: {
-    lastCompletedAt: TimestampLike | null
-    lastCompletedHours: number
-    lastNoteAt: TimestampLike | null
-  }
+  conference: StudentConference
+  schoolRecord: StudentSchool
+  /** Set when an admin first opens a new student (Home "new students to follow up"). */
+  followUpReviewedAt: TimestampLike | null
+}
+
+export interface StudentConference {
+  /** Student hours when the last conference was held or the cycle was restarted. */
+  baselineHours: number
+  /** Date of the latest conference note. */
+  lastNoteDate: DateKey | null
+  lastResetAt: TimestampLike | null
+}
+
+export interface StudentSchool {
+  /** Grade column ("1"…"12") → course names, one per row. */
+  courses: Record<string, string[]>
+  /** Dated report-card snapshots: course name → grade. */
+  gradeSnapshots: { date: DateKey; grades: Record<string, string> }[]
+  plan: string
+}
+
+/** `students/{id}/conferenceNotes/{noteId}`: admin-only. */
+export interface ConferenceNote extends AuditStamp {
+  date: DateKey
+  text: string
+  categoryId: string | null
+  authorName: string
+}
+
+export interface ConferenceCategory {
+  name: string
+  color: string
 }
 
 export interface ParentContact {

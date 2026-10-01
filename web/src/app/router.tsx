@@ -11,7 +11,7 @@ import { PlatformBranch } from '@/pages/platform/PlatformBranch'
 import { PlatformHome } from '@/pages/platform/PlatformHome'
 import { PlatformLayout } from '@/pages/platform/PlatformLayout'
 import { PortalLayout } from '@/portals/PortalLayout'
-import { BranchHomeRedirect, RequireAuth, RequirePortal, RequireSuperAdmin } from './guards'
+import { BranchHomeRedirect, RequireAuth, RequirePage, RequirePortal, RequireSuperAdmin } from './guards'
 
 /** Lazy route helper: `page(() => import('./x'), 'X')`. */
 function page<M extends Record<string, unknown>>(load: () => Promise<M>, name: keyof M): RouteObject['lazy'] {
@@ -28,20 +28,30 @@ const adminRoutes: RouteObject[] = [
   { path: 'scheduling/schedule/*', element: soon('Schedule') },
   { path: 'scheduling/audit-log', lazy: page(() => import('@/features/audit/AuditLogPage'), 'AuditLogPage') },
   { path: 'students', element: <Navigate to="directory" replace /> },
-  { path: 'students/directory/*', element: soon('Students') },
+  { path: 'students/directory', lazy: page(() => import('@/features/students/StudentDirectoryPage'), 'StudentDirectoryPage') },
+  { path: 'students/directory/:studentId/:tab?', lazy: page(() => import('@/features/students/StudentProfilePage'), 'StudentProfilePage') },
   { path: 'students/calendar', element: soon('Student Calendar') },
   { path: 'employees', element: <Navigate to="directory" replace /> },
-  { path: 'employees/directory/*', element: soon('Employees') },
+  { path: 'employees/directory', lazy: page(() => import('@/features/employees/EmployeeDirectoryPage'), 'EmployeeDirectoryPage') },
+  { path: 'employees/directory/:staffId', lazy: page(() => import('@/features/employees/EmployeeDetailPage'), 'EmployeeDetailPage') },
   { path: 'employees/calendar', element: soon('Employee Calendar') },
-  { path: 'employees/subjects', element: soon('Subjects') },
-  { path: 'employees/pay-rates', element: soon('Pay Rates') },
-  { path: 'employees/payroll', element: soon('Payroll') },
-  { path: 'employees/time-entries', element: soon('Time Entries') },
+  { path: 'employees/subjects', lazy: page(() => import('@/features/employees/SubjectsPage'), 'SubjectsPage') },
+  {
+    path: 'employees/pay-rates',
+    element: <RequirePage page="payRates"><Outlet /></RequirePage>,
+    children: [{ index: true, lazy: page(() => import('@/features/employees/PayRatesPage'), 'PayRatesPage') }],
+  },
+  { path: 'employees/payroll', element: <RequirePage page="payroll">{soon('Payroll')}</RequirePage> },
+  { path: 'employees/time-entries', element: <RequirePage page="timeEntries">{soon('Time Entries')}</RequirePage> },
   { path: 'sessions', element: <Navigate to="log" replace /> },
   { path: 'sessions/log/*', element: soon('Session Log') },
   { path: 'sessions/progress-reports/*', element: soon('Progress Reports') },
   { path: 'account', lazy: page(() => import('@/features/access/AccountPage'), 'AccountPage') },
-  { path: 'access-control', lazy: page(() => import('@/features/access/AccessControlPage'), 'AccessControlPage') },
+  {
+    path: 'access-control',
+    element: <RequirePage page="accessControl"><Outlet /></RequirePage>,
+    children: [{ index: true, lazy: page(() => import('@/features/access/AccessControlPage'), 'AccessControlPage') }],
+  },
   { path: 'settings', lazy: page(() => import('@/features/settings/SettingsPage'), 'SettingsPage') },
   { path: '*', element: <Navigate to="home" replace /> },
 ]
@@ -54,11 +64,12 @@ const tutorRoutes: RouteObject[] = [
   { path: 'sessions', element: <Navigate to="log" replace /> },
   { path: 'sessions/log/*', element: soon('Session Log') },
   { path: 'sessions/progress-reports/*', element: soon('Progress Reports') },
-  { path: 'students/*', element: soon('Students') },
+  { path: 'students', lazy: page(() => import('@/features/students/StudentDirectoryPage'), 'TutorStudentDirectoryPage') },
+  { path: 'students/:studentId/:tab?', lazy: page(() => import('@/features/students/StudentProfilePage'), 'TutorStudentProfilePage') },
   { path: 'payroll', element: soon('Payroll') },
   { path: 'my-info', element: <Navigate to="profile" replace /> },
-  { path: 'my-info/profile', element: soon('Profile') },
-  { path: 'my-info/subjects', element: soon('My Subjects') },
+  { path: 'my-info/profile', lazy: page(() => import('@/features/tutor/MyProfilePage'), 'MyProfilePage') },
+  { path: 'my-info/subjects', lazy: page(() => import('@/features/tutor/MySubjectsPage'), 'MySubjectsPage') },
   { path: '*', element: <Navigate to="announcements" replace /> },
 ]
 

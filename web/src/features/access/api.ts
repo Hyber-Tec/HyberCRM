@@ -47,9 +47,10 @@ export function newStaffData(input: {
     color: pickStaffColor(Math.floor(Math.random() * 10)),
     startDate: null,
     endDate: null,
+    dob: null,
+    address: '',
     hasKioskPin: false,
     notificationPrefs: { announcements: true, sessionCreated: true, sessionChanged: true, sessionCanceled: true },
-    profileNote: '',
     createdBy: input.createdBy,
     updatedBy: input.createdBy,
   }
@@ -76,7 +77,9 @@ export function newStudentData(input: { firstName: string; lastName: string; cre
     lastSessionDate: null,
     nextSessionDate: null,
     totalSessionHours: 0,
-    conference: { lastCompletedAt: null, lastCompletedHours: 0, lastNoteAt: null },
+    conference: { baselineHours: 0, lastNoteDate: null, lastResetAt: null },
+    schoolRecord: { courses: {}, gradeSnapshots: [], plan: '' },
+    followUpReviewedAt: null,
     createdBy: input.createdBy,
     updatedBy: input.createdBy,
   }
