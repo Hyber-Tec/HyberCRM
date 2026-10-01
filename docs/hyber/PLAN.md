@@ -14,7 +14,7 @@
 3. **Every rule that could differ between centers is a setting.** TE's hard-coded values become the **defaults**, so a branch with default settings behaves exactly like TE.
 4. **Security is enforced on the server.** Firestore rules and Cloud Functions enforce branch isolation, roles and money-related writes. The UI only mirrors them. TE enforces most rules in the UI only.
 5. **Branch time zone, not the browser's.** All dates, "today", locks and cut-offs are computed in the branch's IANA time zone. A super admin in another country sees the same schedule as the branch admin.
-6. **Real project from day one.** `npm run dev` runs against the real `hyber-crm` Firebase project; rules, indexes, functions and Hosting (`hybercrm.web.app`) are deployed as the build progresses (DECISIONS §1).
+6. **Real project from day one.** `npm run dev` runs against the real `hyber-crm` Firebase project; rules, indexes, functions and Hosting (https://hybercrm.com) are deployed as the build progresses (DECISIONS §1).
 
 ---
 
@@ -370,7 +370,7 @@ Details: doc 03 and doc 04.
 
 Each phase ends with a working, testable slice. Phases 0–1 are the foundation the owner asked for first; Phase 4 is the Schedule.
 
-**Status (2026-10-01):** phases 0–9 are built and deployed to `hybercrm.web.app`, with these changes from the plan, all recorded in `DECISIONS.md`:
+**Status (2026-10-01):** phases 0–9 are built and deployed to https://hybercrm.com, with these changes from the plan, all recorded in `DECISIONS.md`:
 - FCM push waits for the phone app; notifications go to the in-app inbox for now.
 - Suggestions were dropped (Q7).
 - Google Calendar/Sheets sync is optional and not built yet.

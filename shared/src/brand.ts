@@ -1,7 +1,9 @@
 /** Who makes Hyber CRM, where it lives, and the address its emails come from. */
 export const PRODUCT_NAME = 'Hyber CRM'
 export const COMPANY_NAME = 'HyberTec LLC'
-export const APP_URL = 'https://hybercrm.web.app'
+/** The website (owner, 2026-10-01): the only address in links and emails. */
+export const APP_DOMAIN = 'hybercrm.com'
+export const APP_URL = `https://${APP_DOMAIN}`
 export const SENDER_EMAIL = 'hybertecofficial@gmail.com'
 
 /** The sign-in link for a branch; `email` pre-selects that Google account. */

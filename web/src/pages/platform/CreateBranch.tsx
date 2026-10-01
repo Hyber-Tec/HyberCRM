@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { LuArrowLeft } from 'react-icons/lu'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
+import { APP_DOMAIN } from '@shared/brand'
 import { newBranchData, newMemberData, publicProfileFor } from '@shared/branchFactory'
 import { COL, DOC, ROOT, emailKey } from '@shared/paths'
 import { type BusinessRules, PAY_MODEL_LABELS, PAY_MODEL_SINCE_START, type PayModel } from '@shared/settings/businessRules'
@@ -145,7 +146,7 @@ export function CreateBranch() {
                   placeholder="demo-academy"
                 />
                 <FieldDescription>
-                  Used in links, e.g. hybercrm.web.app/<span className="font-mono">{effectiveId || 'demo-academy'}</span>/signup. It
+                  Used in links, e.g. {APP_DOMAIN}/<span className="font-mono">{effectiveId || 'demo-academy'}</span>/signup. It
                   can’t be changed later.
                 </FieldDescription>
                 {errors.id ? <FieldError>{errors.id}</FieldError> : null}

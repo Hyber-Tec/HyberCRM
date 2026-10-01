@@ -7,6 +7,7 @@ Read first: [`docs/hyber/DECISIONS.md`](docs/hyber/DECISIONS.md) (owner answers,
 ## Owner, accounts, permissions
 
 - Solo developer. Everything for this project runs under **goochoi913@gmail.com** (Firebase, GitHub, the only Super Admin). Never use any other account.
+- The website is **https://hybercrm.com**, the only address we use (the Firebase Hosting site `hybercrm`, whose own `hybercrm.web.app` and `hybercrm.firebaseapp.com` addresses forward to it). Links and emails take it from `APP_URL` in `shared/src/brand.ts`.
 - Hyber CRM is a product of **HyberTec LLC**. Outgoing email (invites, new accounts) is sent from the company address **hybertecofficial@gmail.com** through Gmail; its app password lives in the `GMAIL_APP_PASSWORD` secret ([`docs/hyber/EMAIL_SETUP.md`](docs/hyber/EMAIL_SETUP.md)).
 - Full permission to deploy Firestore/Storage rules, indexes, Cloud Functions and Hosting to `hyber-crm`, to seed data, and to push to `main`. Do it without asking or announcing each time, unless the owner sets a limit.
 - When a detail is unclear, decide it (and record notable calls in DECISIONS.md §3) instead of asking.

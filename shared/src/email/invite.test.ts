@@ -18,7 +18,7 @@ describe('invite emails', () => {
     expect(e.text).toContain('Hi Maya,')
     expect(e.text).toContain('Grace Liu added you to Demo Academy on Hyber CRM as a tutor.')
     expect(e.text).toContain('use maya@school.org')
-    expect(e.html).toContain('href="https://hybercrm.web.app/login?next=%2Fdemo-academy&amp;email=maya%40school.org"')
+    expect(e.html).toContain('href="https://hybercrm.com/login?next=%2Fdemo-academy&amp;email=maya%40school.org"')
     expect(e.text).toContain('Hyber CRM is software by HyberTec LLC.')
   })
 
