@@ -2,8 +2,10 @@ import { createContext, useContext, useEffect, useMemo } from 'react'
 import { LuArrowLeftRight, LuChevronRight, LuShieldCheck } from 'react-icons/lu'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { PORTAL_LABELS, type Role } from '@shared/roles'
+import { useUnreadAnnouncementCount } from '@/features/announcements/api'
 import { ActivityToasts } from '@/features/audit/ActivityToasts'
 import { useAttention } from '@/features/home/attention'
+import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { useBranch } from '@/branch/BranchProvider'
 import { BrandMark } from '@/components/app/BrandMark'
 import { UserMenu, rememberPortal } from '@/components/app/UserMenu'
@@ -41,13 +43,14 @@ import {
 import { cn } from '@/lib/utils'
 import { type NavGroup, type NavItem, type NavLeaf, PORTAL_NAV, isGroup, navLeaves } from './nav'
 
-/** Live counts shown next to nav entries, by nav key (Home: needs attention). */
+/** Live counts shown next to nav entries, by nav key (Home: needs attention; tutor Announcements: unread). */
 const NavBadges = createContext<Record<string, number>>({})
 
 function NavBadgesProvider({ portal, children }: { portal: Role; children: React.ReactNode }) {
   const attention = useAttention(portal === 'admin')
+  const unread = useUnreadAnnouncementCount(portal === 'tutor')
   const total = portal === 'admin' ? attention.total : 0
-  const value = useMemo(() => ({ home: total }), [total])
+  const value = useMemo(() => ({ home: total, announcements: unread }), [total, unread])
   return <NavBadges.Provider value={value}>{children}</NavBadges.Provider>
 }
 
@@ -96,6 +99,7 @@ export function PortalLayout({ portal }: { portal: Role }) {
             {currentGroup ? <span className="text-muted-foreground">{currentGroup.label} / </span> : null}
             {current?.label ?? PORTAL_LABELS[portal]}
           </div>
+          {portal === 'tutor' ? <NotificationBell /> : null}
           <div className="md:hidden">
             <UserMenu portal={portal} />
           </div>

@@ -293,4 +293,5 @@ export const onSessionCreated = onDocumentCreated(`${ROOT.branches}/{branchId}/$
 })
 
 export { submitSessionLog, sessionAi } from './sessions'
+export { onAnnouncementComment, onAnnouncementRead, onAnnouncementWritten } from './announcements'
 export { seedDemoData } from './platform'

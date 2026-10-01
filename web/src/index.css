@@ -128,3 +128,61 @@
     @apply font-sans;
     }
 }
+/* Rich text (announcements): editor and rendered posts share these styles. */
+@layer components {
+  .rich-content {
+    @apply text-sm leading-relaxed break-words;
+  }
+  .rich-content > * + * {
+    @apply mt-3;
+  }
+  .rich-content h1 {
+    @apply text-xl font-semibold tracking-tight;
+  }
+  .rich-content h2 {
+    @apply text-lg font-semibold tracking-tight;
+  }
+  .rich-content h3 {
+    @apply text-base font-semibold;
+  }
+  .rich-content ul {
+    @apply list-disc pl-6;
+  }
+  .rich-content ol {
+    @apply list-decimal pl-6;
+  }
+  .rich-content li + li {
+    @apply mt-1;
+  }
+  .rich-content li > p {
+    @apply m-0;
+  }
+  .rich-content blockquote {
+    @apply border-l-2 pl-4 text-muted-foreground;
+  }
+  .rich-content a {
+    @apply text-blue-600 underline underline-offset-2 dark:text-blue-400;
+  }
+  .rich-content img {
+    @apply my-2 h-auto max-w-full rounded-lg border;
+  }
+  .rich-content img.ProseMirror-selectednode {
+    @apply ring-2 ring-ring;
+  }
+  .rich-content code {
+    @apply rounded bg-muted px-1 py-0.5 font-mono text-[0.85em];
+  }
+  .rich-content pre {
+    @apply overflow-x-auto rounded-lg bg-muted p-3 font-mono text-xs;
+  }
+  .rich-content pre code {
+    @apply bg-transparent p-0;
+  }
+  .rich-content hr {
+    @apply my-4;
+  }
+  .rich-content p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    @apply pointer-events-none float-left h-0 text-muted-foreground;
+  }
+}

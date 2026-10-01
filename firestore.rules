@@ -115,6 +115,11 @@ service cloud.firestore {
       allow read: if signedIn() && resource.data.email == emailKey();
     }
 
+    // "Which announcements have I read?" — my own read receipts across posts.
+    match /{path=**}/reads/{readerKey} {
+      allow read: if signedIn() && resource.data.email == emailKey();
+    }
+
     // ------------------------------------------------------------- branches
 
     match /branches/{b} {
@@ -396,6 +401,72 @@ service cloud.firestore {
           || (hasRole(b, 'student') && resource.data.studentId == myStudentId(b) && resource.data.sharedWithParents == true);
         allow create: if isStaff(b);
         allow update, delete: if isAdmin(b);
+      }
+
+      // ------------------------------------------------------ communication
+
+      // Tutors see posts for everyone plus posts addressed to them; admins see all.
+      function seesAnnouncement(data) {
+        return isAdmin(b)
+          || (isTutor(b) && (data.audienceType == 'all' || emailKey() in data.audienceKeys));
+      }
+
+      match /announcements/{announcementId} {
+        function post() {
+          return get(/databases/$(database)/documents/branches/$(b)/announcements/$(announcementId)).data;
+        }
+
+        function validPost(data) {
+          return data.title is string && data.title.size() > 0 && data.title.size() <= 200
+            && data.audienceType in ['all', 'members']
+            && data.audienceKeys is list
+            && (data.audienceType == 'all' || data.audienceKeys.size() > 0);
+        }
+
+        allow read: if seesAnnouncement(resource.data);
+        // Read and comment counters are kept by Cloud Functions.
+        allow create: if isAdmin(b) && validPost(request.resource.data)
+          && request.resource.data.authorKey == emailKey()
+          && request.resource.data.readCount == 0
+          && request.resource.data.commentCount == 0;
+        allow update: if isAdmin(b) && validPost(request.resource.data)
+          && !changed().hasAny(['readCount', 'commentCount', 'authorKey']);
+        allow delete: if isAdmin(b);
+
+        // Read receipts: written once by the reader, never changed.
+        match /reads/{readerKey} {
+          allow read: if isAdmin(b) || (signedIn() && readerKey == emailKey());
+          allow create: if signedIn() && readerKey == emailKey()
+            && request.resource.data.email == emailKey()
+            && request.resource.data.branchId == b
+            && request.resource.data.announcementId == announcementId
+            && request.resource.data.readAt == request.time
+            && seesAnnouncement(post());
+          allow update, delete: if false;
+        }
+
+        match /comments/{commentId} {
+          allow read: if seesAnnouncement(post());
+          allow create: if seesAnnouncement(post())
+            && (isAdmin(b) || post().commentsEnabled == true)
+            && request.resource.data.authorKey == emailKey()
+            && request.resource.data.createdAt == request.time
+            && request.resource.data.text is string
+            && request.resource.data.text.size() > 0
+            && request.resource.data.text.size() <= 2000;
+          allow update: if false;
+          allow delete: if isAdmin(b) || (signedIn() && resource.data.authorKey == emailKey());
+        }
+      }
+
+      // In-app inbox. Items are written by Cloud Functions; people read,
+      // mark read and delete their own.
+      match /notifications/{notificationId} {
+        allow read: if (isMember(b) || isSuperAdmin()) && resource.data.recipientKey == emailKey();
+        allow update: if (isMember(b) || isSuperAdmin()) && resource.data.recipientKey == emailKey()
+          && changed().hasOnly(['readAt']);
+        allow delete: if (isMember(b) || isSuperAdmin()) && resource.data.recipientKey == emailKey();
+        allow create: if false;
       }
 
       // ------------------------------------------------------ audit log

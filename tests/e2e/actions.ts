@@ -115,9 +115,41 @@ const homeClockFix: Step = async (page, base) => {
   await expectText(page, 'Clock-out time updated')
 }
 
+/** Admin publishes an announcement with comments allowed. */
+const announcementPublish: Step = async (page, base) => {
+  await page.goto(`${base}/${E2E_BRANCH}/admin/announcements/new`, { waitUntil: 'load' })
+  await page.getByLabel('Title').fill('E2E announcement')
+  await page.locator('.ProseMirror').click()
+  await page.keyboard.type('Hello tutors, this is a test.')
+  await page.getByRole('button', { name: 'Next' }).click()
+  await expectText(page, 'Audience & settings')
+  await page.getByRole('switch', { name: 'Allow comments' }).click()
+  await page.getByRole('button', { name: 'Publish' }).click()
+  await page.getByRole('button', { name: 'Yes, publish' }).click()
+  await expectText(page, 'Announcement published.')
+  await expectText(page, 'E2E announcement')
+}
+
+/** The tutor sees it as unread, opens it, comments, and finds it in notifications. */
+const announcementTutor: Step = async (page, base) => {
+  await page.goto(`${base}/${E2E_BRANCH}/tutor/announcements`, { waitUntil: 'load' })
+  const card = page.getByTestId('announcement-card').filter({ hasText: 'E2E announcement' })
+  await card.waitFor({ timeout: 15000 })
+  await card.locator('[aria-label="Unread"]').waitFor({ timeout: 8000 })
+  await card.getByRole('link', { name: 'E2E announcement' }).click()
+  await expectText(page, 'Hello tutors, this is a test.')
+  await page.getByLabel('Write a comment').fill('Thanks from e2e')
+  await page.getByRole('button', { name: 'Post comment' }).click()
+  await page.getByTestId('announcement-comments').getByText('Thanks from e2e').waitFor({ timeout: 8000 })
+  await page.getByRole('button', { name: /^Notifications/ }).click()
+  await expectText(page, 'New announcement', 15000)
+}
+
 export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'schedule create/status/delete', email: 'goochoi913@gmail.com', run: scheduleCrud },
   { name: 'kiosk clock in/out', email: 'goochoi913@gmail.com', run: kiosk },
   { name: 'tutor submits a session log', email: 'tutor@e2e.test', run: sessionLog },
   { name: 'home fixes an automatic clock-out', email: 'goochoi913@gmail.com', run: homeClockFix },
+  { name: 'admin publishes an announcement', email: 'goochoi913@gmail.com', run: announcementPublish },
+  { name: 'tutor reads and comments on it', email: 'tutor@e2e.test', run: announcementTutor },
 ]

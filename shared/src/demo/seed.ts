@@ -502,6 +502,59 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
     autoShift.data.note = 'Closed automatically at 12:00 AM'
   }
 
+  // Announcements ----------------------------------------------------------
+  const daysAgo = (n: number, minutes = 600) => toInstant(addDays(opts.today, -n), minutes, opts.timezone)
+  const post = (id: string, n: number, data: Record<string, unknown>) =>
+    docs.push({
+      path: `${base}/${COL.announcements}/${id}`,
+      data: {
+        category: 'General',
+        audienceType: 'all',
+        audienceKeys: [],
+        commentsEnabled: false,
+        pinned: false,
+        pinnedAt: null,
+        archived: false,
+        notifyRequestedAt: null,
+        attachments: [],
+        authorKey: 'grace.liu@example.com',
+        authorName: 'Grace Liu',
+        readCount: 0,
+        commentCount: 0,
+        createdAt: daysAgo(n),
+        createdBy,
+        updatedAt: daysAgo(n),
+        updatedBy: createdBy,
+        ...data,
+      },
+    })
+  post('demo-a-welcome', 12, {
+    title: 'Welcome to the new Demo Academy portal',
+    contentHtml:
+      '<p>Hi everyone! This is where schedule changes, policies and news will be posted from now on.</p><ul><li>Check <strong>Schedule</strong> for your sessions.</li><li>Keep your <strong>Availability</strong> up to date at least two weeks ahead.</li><li>Submit each <strong>session log</strong> on the day of the session.</li></ul><p>Questions? Leave a comment below.</p>',
+    contentText:
+      'Hi everyone! This is where schedule changes, policies and news will be posted from now on. Check Schedule for your sessions. Keep your Availability up to date at least two weeks ahead. Submit each session log on the day of the session. Questions? Leave a comment below.',
+    pinned: true,
+    pinnedAt: daysAgo(12),
+    commentsEnabled: true,
+    commentCount: 1,
+  })
+  docs.push({
+    path: `${base}/${COL.announcements}/demo-a-welcome/comments/demo-c-1`,
+    data: { authorKey: 'maya.thompson@example.com', authorName: 'Maya Thompson', authorRole: 'tutor', text: 'Looks great — thank you!', createdAt: daysAgo(11, 900) },
+  })
+  post('demo-a-sat', 5, {
+    title: 'New SAT practice sets are ready',
+    category: 'Updates',
+    contentHtml: '<p>Four new full-length SAT practice sets are in the shared folder. Please use <em>Set 3</em> with students who test next month.</p>',
+    contentText: 'Four new full-length SAT practice sets are in the shared folder. Please use Set 3 with students who test next month.',
+  })
+  post('demo-a-closure', 1, {
+    title: 'Closed next Saturday for building maintenance',
+    contentHtml: '<p>The center is closed next Saturday. Sessions on that day have been moved; check your schedule for the new times.</p>',
+    contentText: 'The center is closed next Saturday. Sessions on that day have been moved; check your schedule for the new times.',
+  })
+
   // Events ---------------------------------------------------------------
   const evt = (id: string, data: Record<string, unknown>) =>
     docs.push({ path: `${base}/${COL.events}/${id}`, data: { notes: '', googleSync: null, createdAt: now, createdBy, updatedAt: now, updatedBy: createdBy, ...data } })

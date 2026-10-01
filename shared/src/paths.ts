@@ -30,7 +30,6 @@ export const COL = {
   sessionLogs: 'sessionLogs',
   progressReports: 'progressReports',
   announcements: 'announcements',
-  announcementCategories: 'announcementCategories',
   conferenceCategories: 'conferenceCategories',
   notifications: 'notifications',
 } as const

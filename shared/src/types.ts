@@ -323,7 +323,7 @@ export interface DayConfig extends AuditStamp {
 
 // -------------------------------------------------------------------- audit
 
-export type AuditCategory = 'schedule' | 'event' | 'availability' | 'people' | 'pay' | 'sessions' | 'settings' | 'access'
+export type AuditCategory = 'schedule' | 'event' | 'availability' | 'people' | 'pay' | 'sessions' | 'announcements' | 'settings' | 'access'
 
 export interface AuditChange {
   field: string

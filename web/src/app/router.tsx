@@ -23,7 +23,13 @@ const soon = (title: string, description?: string) => <ComingSoon title={title} 
 const adminRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="home" replace /> },
   { path: 'home', lazy: page(() => import('@/features/home/AdminHomePage'), 'AdminHomePage') },
-  { path: 'announcements', element: soon('Announcements') },
+  { path: 'announcements', lazy: page(() => import('@/features/announcements/AnnouncementsPage'), 'AnnouncementsPage') },
+  { path: 'announcements/new', lazy: page(() => import('@/features/announcements/AnnouncementEditorPage'), 'AnnouncementEditorPage') },
+  { path: 'announcements/:announcementId', lazy: page(() => import('@/features/announcements/AnnouncementsPage'), 'AnnouncementPostPage') },
+  {
+    path: 'announcements/:announcementId/edit',
+    lazy: page(() => import('@/features/announcements/AnnouncementEditorPage'), 'AnnouncementEditorPage'),
+  },
   { path: 'scheduling', element: <Navigate to="schedule" replace /> },
   { path: 'scheduling/schedule/*', lazy: page(() => import('@/features/schedule/SchedulePage'), 'SchedulePage') },
   { path: 'scheduling/audit-log', lazy: page(() => import('@/features/audit/AuditLogPage'), 'AuditLogPage') },
@@ -66,7 +72,8 @@ const adminRoutes: RouteObject[] = [
 
 const tutorRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="announcements" replace /> },
-  { path: 'announcements', element: soon('Announcements') },
+  { path: 'announcements', lazy: page(() => import('@/features/announcements/AnnouncementsPage'), 'TutorAnnouncementsPage') },
+  { path: 'announcements/:announcementId', lazy: page(() => import('@/features/announcements/AnnouncementsPage'), 'TutorAnnouncementPostPage') },
   { path: 'schedule', lazy: page(() => import('@/features/schedule/TutorSchedulePage'), 'TutorSchedulePage') },
   { path: 'availability', lazy: page(() => import('@/features/availability/TutorAvailabilityPage'), 'TutorAvailabilityPage') },
   { path: 'sessions', element: <Navigate to="log" replace /> },

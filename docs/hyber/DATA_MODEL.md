@@ -108,7 +108,6 @@
 - `branches/{b}/subjectCategories/{id}`: `{name, order}`. TE: slug IDs, linked by name.
 - `branches/{b}/subjects/{id}`: `{name, nameLower, categoryId, order, createdAt}`. TE linked to categories by name.
 - `branches/{b}/conferenceCategories/{id}`: `{name, color, createdAt}`.
-- `branches/{b}/announcementCategories/{id}`: `{name, order}`.
 
 ## 4. Scheduling
 
@@ -220,10 +219,11 @@ TE fields: `{studentId, studentName, startDate, endDate, generatedAt, generatedB
 
 ## 7. Communication
 
-- `branches/{b}/announcements/{id}`: `{title, contentHtml (sanitized), contentText, categoryId, audience {type: all_tutors|all_staff|roles|members, roles[], memberKeys[]}, commentsEnabled, pinned, pinnedAt, archived, notify, notificationTriggeredAt, attachments[{name, url, path, size, contentType}], authorUid, authorName, createdAt, updatedAt}`.
-  - `…/reads/{memberKey}`: `{uid, name, readAt}`. Read receipts.
-  - `…/comments/{id}`: `{authorUid, authorName, authorRole, text, createdAt}`. The author is validated by the rules (TE allowed impersonation).
-- `branches/{b}/notifications/{id}`: the in-app inbox (TE `tutor_notifications`). `{recipientKey (member email key), type, title, body, link, refs {sessionId, announcementId, dateKey}, createdAt, readAt}`. Retention: `notifications.retentionDays` (14).
+- `branches/{b}/announcements/{id}`: `{title, contentHtml (sanitized), contentText, category, audienceType: all|members, audienceKeys[] (member email keys), commentsEnabled, pinned, pinnedAt, archived, notifyRequestedAt, attachments[{name, url, path, size, contentType}], authorKey, authorName, readCount, commentCount, createdAt/By, updatedAt/By}`. `notifyRequestedAt` is set on publish with "Notify" and bumped by "Notify again"; the `onAnnouncementWritten` function writes inbox items when it changes. Counters are maintained by functions. Categories: `announcements.defaultCategories` (settings) plus any used on posts; there is no category collection.
+  - `…/reads/{memberKey}`: `{email, name, branchId, announcementId, readAt}`. Write-once read receipts; a collection-group query on `email` gives a person's read posts.
+  - `…/comments/{id}`: `{authorKey, authorName, authorRole, text, createdAt}`. The author is validated by the rules (TE allowed impersonation).
+  - Storage: `branches/{b}/announcements/{id}/images/*` (inline images) and `…/files/*` (attachments).
+- `branches/{b}/notifications/{id}`: the in-app inbox (TE `tutor_notifications`). `{recipientKey (member email key), type, title, body, link (path below the branch), refs {sessionId, announcementId, dateKey}, createdAt, readAt}`. Written by functions only; the recipient may set `readAt` or delete. Retention: `notifications.retentionDays` (14).
 - `branches/{b}/suggestions/{id}`: only if kept (Q7). TE fields: `{title, description, urgency, status, createdByUid, createdByName, read*/completed*/edited* audit}`.
 - `branches/{b}/intake/{id}`: only if a public intake form is kept (Q4). It creates a pending lead, never a login.
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LuCheck, LuChevronsUpDown, LuX } from 'react-icons/lu'
+import { LuCheck, LuChevronsUpDown, LuPlus, LuX } from 'react-icons/lu'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
@@ -23,6 +23,7 @@ export function OptionPicker({
   id,
   disabled,
   className,
+  allowCreate,
 }: {
   value: string | null
   onChange: (value: string) => void
@@ -32,9 +33,14 @@ export function OptionPicker({
   id?: string
   disabled?: boolean
   className?: string
+  /** Offer the typed text as a new value when nothing matches it exactly. */
+  allowCreate?: boolean
 }) {
   const [open, setOpen] = useState(false)
-  const selected = options.find((o) => o.value === value)
+  const [search, setSearch] = useState('')
+  const typed = search.trim()
+  const canCreate = !!allowCreate && !!typed && !options.some((o) => o.label.toLowerCase() === typed.toLowerCase())
+  const selected = options.find((o) => o.value === value) ?? (allowCreate && value ? { value, label: value } : undefined)
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -51,9 +57,9 @@ export function OptionPicker({
       </PopoverTrigger>
       <PopoverContent className="w-(--radix-popover-trigger-width) min-w-64 p-0" align="start">
         <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+          <CommandInput placeholder={searchPlaceholder} value={search} onValueChange={setSearch} />
           <CommandList>
-            <CommandEmpty>Nothing found.</CommandEmpty>
+            {canCreate ? null : <CommandEmpty>Nothing found.</CommandEmpty>}
             <CommandGroup>
               {options.map((o) => (
                 <CommandItem
@@ -63,6 +69,7 @@ export function OptionPicker({
                   onSelect={() => {
                     onChange(o.value)
                     setOpen(false)
+                    setSearch('')
                   }}
                 >
                   <LuCheck className={cn('size-4', value === o.value ? 'opacity-100' : 'opacity-0')} />
@@ -70,6 +77,19 @@ export function OptionPicker({
                   {o.hint ? <span className="text-xs text-muted-foreground">{o.hint}</span> : null}
                 </CommandItem>
               ))}
+              {canCreate ? (
+                <CommandItem
+                  value={`__create__ ${typed}`}
+                  onSelect={() => {
+                    onChange(typed)
+                    setOpen(false)
+                    setSearch('')
+                  }}
+                >
+                  <LuPlus className="size-4" />
+                  <span className="flex-1 truncate">Add “{typed}”</span>
+                </CommandItem>
+              ) : null}
             </CommandGroup>
           </CommandList>
         </Command>

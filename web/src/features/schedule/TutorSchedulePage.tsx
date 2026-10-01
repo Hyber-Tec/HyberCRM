@@ -1,12 +1,13 @@
 import { query, where } from 'firebase/firestore'
 import { useEffect, useMemo, useState } from 'react'
 import { LuChevronLeft, LuChevronRight, LuFileText } from 'react-icons/lu'
+import { useSearchParams } from 'react-router'
 import { dayHours } from '@shared/availability'
 import { COL } from '@shared/paths'
 import { studentLabel } from '@shared/people'
 import { buildDayRows } from '@shared/schedule/dayModel'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_STYLE } from '@shared/schedule/status'
-import { type DateKey, addDays, formatDateKey, formatTimeRange, nowMinutes, todayKey, weekDays } from '@shared/time'
+import { type DateKey, addDays, formatDateKey, formatTimeRange, isDateKey, nowMinutes, todayKey, weekDays } from '@shared/time'
 import type { Availability, Session, Staff, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { PageHeader } from '@/components/app/PageHeader'
@@ -26,7 +27,13 @@ export function TutorSchedulePage() {
   const [view, setView] = useState<'day' | 'week'>('week')
   const [today, setToday] = useState(() => todayKey(timezone))
   const [nowMin, setNowMin] = useState(() => nowMinutes(timezone))
-  const [anchor, setAnchor] = useState(today)
+  const [search] = useSearchParams()
+  const dateParam = search.get('date')
+  const [anchor, setAnchor] = useState(() => (dateParam && isDateKey(dateParam) ? dateParam : today))
+  // Notifications link here with ?date=… to jump to the session's week.
+  useEffect(() => {
+    if (dateParam && isDateKey(dateParam)) setAnchor(dateParam)
+  }, [dateParam])
   useEffect(() => {
     const t = setInterval(() => {
       setToday(todayKey(timezone))
