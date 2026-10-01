@@ -30,7 +30,7 @@ const adminRoutes: RouteObject[] = [
   { path: 'students', element: <Navigate to="directory" replace /> },
   { path: 'students/directory', lazy: page(() => import('@/features/students/StudentDirectoryPage'), 'StudentDirectoryPage') },
   { path: 'students/directory/:studentId/:tab?', lazy: page(() => import('@/features/students/StudentProfilePage'), 'StudentProfilePage') },
-  { path: 'students/calendar', element: soon('Student Calendar') },
+  { path: 'students/calendar', lazy: page(() => import('@/features/students/StudentCalendarPage'), 'StudentCalendarPage') },
   { path: 'employees', element: <Navigate to="directory" replace /> },
   { path: 'employees/directory', lazy: page(() => import('@/features/employees/EmployeeDirectoryPage'), 'EmployeeDirectoryPage') },
   { path: 'employees/directory/:staffId', lazy: page(() => import('@/features/employees/EmployeeDetailPage'), 'EmployeeDetailPage') },
@@ -59,7 +59,7 @@ const adminRoutes: RouteObject[] = [
 const tutorRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="announcements" replace /> },
   { path: 'announcements', element: soon('Announcements') },
-  { path: 'schedule', element: soon('Schedule') },
+  { path: 'schedule', lazy: page(() => import('@/features/schedule/TutorSchedulePage'), 'TutorSchedulePage') },
   { path: 'availability', lazy: page(() => import('@/features/availability/TutorAvailabilityPage'), 'TutorAvailabilityPage') },
   { path: 'sessions', element: <Navigate to="log" replace /> },
   { path: 'sessions/log/*', element: soon('Session Log') },

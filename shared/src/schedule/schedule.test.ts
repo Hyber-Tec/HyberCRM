@@ -122,3 +122,10 @@ describe('events', () => {
     expect([lanes.get('a'), lanes.get('b'), lanes.get('c')]).toEqual([0, 1, 0])
   })
 })
+
+describe('scheduled hours', () => {
+  it('counts overlapping students once (TE worked example: 3.75h)', async () => {
+    const { unionMinutes } = await import('./lanes')
+    expect(unionMinutes([s('a', 960, 1070), s('b', 960, 1070), s('c', 960, 1070), s('d', 1080, 1195)])).toBe(225)
+  })
+})

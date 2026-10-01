@@ -45,7 +45,9 @@ export function SessionCard({ session, left, width, top, readOnly, bounds, segme
   const bell = ui.mode === 'admin' && !ui.master ? ui.bellFor(session) : []
   const ended = ui.today > session.dateKey || (ui.today === session.dateKey && session.endMin <= ui.nowMin)
   const logSubmitted = session.logStatus === 'submitted'
-  const showLog = !ui.master && (logSubmitted || ended)
+  // Only sessions that can be logged (by branch setting) show the missing-log warning.
+  const loggable = (ui.loggableStatuses ?? ['pending', 'confirmed', 'present']).includes(session.status)
+  const showLog = !ui.master && (logSubmitted || (ended && loggable))
   const canEdit = !readOnly && ui.mode === 'admin'
 
   const startMin = preview?.startMin ?? session.startMin

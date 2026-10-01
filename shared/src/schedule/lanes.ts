@@ -68,3 +68,20 @@ export function seatsLeft(items: readonly LaneItem[], startMin: number, endMin: 
 export function fitsCapacity(items: readonly LaneItem[], startMin: number, endMin: number, maxLanes: number, excludeId?: string): boolean {
   return peakConcurrency(items, startMin, endMin, excludeId) < maxLanes
 }
+
+/** Total minutes covered by the union of intervals (overlapping students count once). */
+export function unionMinutes(intervals: readonly { startMin: number; endMin: number }[]): number {
+  const sorted = [...intervals].filter((i) => i.endMin > i.startMin).sort((a, b) => a.startMin - b.startMin)
+  let total = 0
+  let curStart = Number.NEGATIVE_INFINITY
+  let curEnd = Number.NEGATIVE_INFINITY
+  for (const i of sorted) {
+    if (i.startMin > curEnd) {
+      if (curEnd > curStart) total += curEnd - curStart
+      curStart = i.startMin
+      curEnd = i.endMin
+    } else curEnd = Math.max(curEnd, i.endMin)
+  }
+  if (curEnd > curStart) total += curEnd - curStart
+  return total
+}

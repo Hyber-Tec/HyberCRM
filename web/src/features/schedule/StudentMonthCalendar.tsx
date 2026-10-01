@@ -32,6 +32,7 @@ export function StudentMonthCalendar({
   onPickSession,
   highlightSessionId,
   compact = false,
+  tutorId,
 }: {
   studentId: string | null
   month: DateKey
@@ -41,6 +42,8 @@ export function StudentMonthCalendar({
   onPickSession?: (s: WithId<Session>) => void
   highlightSessionId?: string | null
   compact?: boolean
+  /** Tutors may only read their own sessions. */
+  tutorId?: string | null
 }) {
   const { branchId, settings, timezone } = useBranch()
   const weekStartsOn = settings.general.weekStartsOn
@@ -50,11 +53,13 @@ export function StudentMonthCalendar({
   const q = useMemo(
     () =>
       studentId
-        ? query(branchCol(branchId, COL.sessions), where('studentId', '==', studentId), where('dateKey', '>=', from), where('dateKey', '<=', to))
+        ? tutorId
+          ? query(branchCol(branchId, COL.sessions), where('studentId', '==', studentId), where('tutorId', '==', tutorId), where('dateKey', '>=', from), where('dateKey', '<=', to))
+          : query(branchCol(branchId, COL.sessions), where('studentId', '==', studentId), where('dateKey', '>=', from), where('dateKey', '<=', to))
         : null,
-    [branchId, studentId, from, to],
+    [branchId, studentId, from, to, tutorId],
   )
-  const { data } = useQuery<Session>(q, `student-cal-${studentId}-${from}`)
+  const { data } = useQuery<Session>(q, `student-cal-${studentId}-${tutorId ?? 'all'}-${from}`)
   const { map: dayConfigs } = useDayConfigs(from, to)
   const byDate = useMemo(() => {
     const m = new Map<DateKey, WithId<Session>[]>()

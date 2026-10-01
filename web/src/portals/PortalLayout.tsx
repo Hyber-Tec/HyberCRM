@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { LuArrowLeftRight, LuChevronRight, LuShieldCheck } from 'react-icons/lu'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { PORTAL_LABELS, type Role } from '@shared/roles'
+import { ActivityToasts } from '@/features/audit/ActivityToasts'
 import { useBranch } from '@/branch/BranchProvider'
 import { BrandMark } from '@/components/app/BrandMark'
 import { UserMenu, rememberPortal } from '@/components/app/UserMenu'
@@ -86,6 +87,7 @@ export function PortalLayout({ portal }: { portal: Role }) {
           <Outlet />
         </div>
         {nav.mobileTabs ? <MobileTabs tabs={nav.mobileTabs} base={base} /> : null}
+        {portal === 'admin' ? <ActivityToasts /> : null}
       </SidebarInset>
     </SidebarProvider>
   )

@@ -5,7 +5,6 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { COL } from '@shared/paths'
 import type { Student } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
-import { ComingSoon } from '@/components/app/ComingSoon'
 import { StudentStatusBadge } from '@/components/app/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -15,6 +14,7 @@ import { ConferenceTab } from './ConferenceTab'
 import { InfoTab } from './InfoTab'
 import { SchoolTab } from './SchoolTab'
 import { SessionsTab } from './SessionsTab'
+import { StudentCalendarView } from './StudentCalendarPage'
 
 const TABS = [
   { key: 'sessions', label: 'Sessions', adminOnly: false },
@@ -82,7 +82,7 @@ export function StudentProfilePage({ mode = 'admin' }: { mode?: 'admin' | 'tutor
       {active === 'info' ? <InfoTab student={s} readOnly={!isAdmin} /> : null}
       {active === 'school' ? <SchoolTab student={s} /> : null}
       {active === 'conference' && isAdmin ? <ConferenceTab student={s} /> : null}
-      {active === 'calendar' ? <ComingSoon title="Calendar" description="The student calendar arrives with the Schedule." /> : null}
+      {active === 'calendar' ? <StudentCalendarView studentId={studentId} readOnly={!isAdmin} /> : null}
     </div>
   )
 }

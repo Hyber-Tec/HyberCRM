@@ -22,6 +22,8 @@ export interface ScheduleUi {
   today: DateKey
   nowMin: number
   maxLanes: number
+  /** Statuses a log can be written for (settings.sessionLogs.allowForStatuses). */
+  loggableStatuses?: string[]
   snap: number
   defaultDuration: number
   selection: Selection

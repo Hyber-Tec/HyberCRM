@@ -395,6 +395,7 @@ export function SchedulePage() {
     today,
     nowMin,
     maxLanes,
+    loggableStatuses: settings.sessionLogs.allowForStatuses,
     snap: settings.schedule.snapMinutes,
     defaultDuration: settings.schedule.defaultSessionMinutes,
     selection,
