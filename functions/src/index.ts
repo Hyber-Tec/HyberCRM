@@ -1,6 +1,6 @@
-import { createHash } from 'node:crypto'
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { db } from './app'
+import { pinHash } from './pins'
 import { onDocumentCreated } from 'firebase-functions/v2/firestore'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
@@ -40,11 +40,6 @@ async function loadBranch(branchId: string): Promise<{ branch: Branch; settings:
   if (!snap.exists) throw new HttpsError('not-found', 'Branch not found.')
   const branch = snap.data() as Branch
   return { branch, settings: resolveSettings(branch.settings) }
-}
-
-/** PINs are stored only as hashes, keyed per branch. */
-function pinHash(branchId: string, pin: string): string {
-  return createHash('sha256').update(`hyber-kiosk:${branchId}:${pin}`).digest('hex')
 }
 
 function audit(branchId: string, entry: Record<string, unknown>) {
@@ -298,3 +293,4 @@ export const onSessionCreated = onDocumentCreated(`${ROOT.branches}/{branchId}/$
 })
 
 export { submitSessionLog, sessionAi } from './sessions'
+export { seedDemoData } from './platform'

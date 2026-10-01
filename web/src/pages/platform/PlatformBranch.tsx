@@ -4,9 +4,7 @@ import { LuArrowLeft, LuArrowRight, LuCopy, LuDatabase, LuTrash2, LuUserPlus } f
 import { Link, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { newMemberData, publicProfileFor } from '@shared/branchFactory'
-import { buildDemoData } from '@shared/demo/seed'
 import { COL, DOC, ROOT, emailKey } from '@shared/paths'
-import { todayKey } from '@shared/time'
 import type { Branch, BranchStatus, Member } from '@shared/types'
 import { useAuth } from '@/auth/AuthProvider'
 import { BrandMark } from '@/components/app/BrandMark'
@@ -21,7 +19,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { auditData } from '@/lib/audit'
 import { db } from '@/lib/firebase'
 import { useDoc, useQuery } from '@/lib/firestore'
-import { writeSeedDocs } from '@/lib/seedWriter'
+import { seedDemoData } from '@/lib/seedDemo'
 import { STATUS_BADGE } from './PlatformHome'
 
 export function PlatformBranch() {
@@ -123,8 +121,7 @@ export function PlatformBranch() {
     if (!existing.empty && !window.confirm('This branch already has employees. Add (or refresh) the sample data anyway?')) return
     setBusy('Adding sample data…')
     try {
-      const docs = buildDemoData({ branchId, timezone: branch.timezone, today: todayKey(branch.timezone), createdBy: email! })
-      await writeSeedDocs(docs, (done, total) => setBusy(`Adding sample data… ${done}/${total}`))
+      await seedDemoData({ branchId })
       toast.success('Sample data added')
     } catch (e) {
       toast.error('Could not add sample data', { description: (e as Error).message })

@@ -4,10 +4,8 @@ import { LuArrowLeft } from 'react-icons/lu'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { newBranchData, newMemberData, publicProfileFor } from '@shared/branchFactory'
-import { buildDemoData } from '@shared/demo/seed'
 import { COL, DOC, ROOT, emailKey } from '@shared/paths'
 import { slugify, validateBranchId } from '@shared/slug'
-import { todayKey } from '@shared/time'
 import { useAuth } from '@/auth/AuthProvider'
 import { PageHeader } from '@/components/app/PageHeader'
 import { TimeZonePicker } from '@/components/app/TimeZonePicker'
@@ -20,7 +18,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { auditData } from '@/lib/audit'
 import { db } from '@/lib/firebase'
-import { writeSeedDocs } from '@/lib/seedWriter'
+import { seedDemoData } from '@/lib/seedDemo'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -94,8 +92,7 @@ export function CreateBranch() {
 
       if (sample) {
         setBusy('Adding sample data…')
-        const docs = buildDemoData({ branchId: effectiveId, timezone, today: todayKey(timezone), createdBy: email })
-        await writeSeedDocs(docs, (done, total) => setBusy(`Adding sample data… ${done}/${total}`))
+        await seedDemoData({ branchId: effectiveId })
       }
       toast.success(`${name.trim()} created`)
       navigate(`/platform/branches/${effectiveId}`)

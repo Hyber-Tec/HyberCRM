@@ -60,3 +60,4 @@
 | Past-day lock | Sessions carry `dayEndAt` (the next local midnight); rules refuse client writes to sessions whose day has ended. Session-log submission and scheduled jobs run on the server. |
 | Kiosk PINs | Hashed on the server, stored where clients can't read them (`branches/{b}/kioskPins/*`), unique per branch, set by an admin through a callable. |
 | Notifications | In-app inbox docs (`notifications`) and per-person preferences now; FCM push later with the phone app. |
+| Sample data | "Add sample data" (Super Admin) runs the `seedDemoData` function: the data set includes submitted logs, counters and other people's comments that clients may not write. |
