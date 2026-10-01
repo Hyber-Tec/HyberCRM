@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clipToHours, dayHours, effectiveLockDays, isLockedForTutor, normalizeRanges, rangesContain, weeklyRepeats } from './availability'
+import { clipToHours, dayHours, effectiveLockDays, effectiveRanges, isLockedForTutor, normalizeRanges, rangesContain, weeklyRepeats, fitRangesToDay } from './availability'
 import { DEFAULT_SETTINGS } from './settings/defaults'
 
 const NY = 'America/New_York'
@@ -51,5 +51,39 @@ describe('availability', () => {
 
   it('repeats weekly', () => {
     expect(weeklyRepeats('2026-09-30', 2)).toEqual(['2026-10-07', '2026-10-14'])
+  })
+})
+
+describe('availability that counts on a date', () => {
+  it('clips saved ranges to the date’s hours', () => {
+    expect(effectiveRanges([{ startMin: 840, endMin: 1080 }], { isOpen: true, openMin: 960, closeMin: 1260 })).toEqual([{ startMin: 960, endMin: 1080 }])
+  })
+  it('drops ranges entirely outside the hours', () => {
+    expect(effectiveRanges([{ startMin: 600, endMin: 720 }], { isOpen: true, openMin: 840, closeMin: 1260 })).toEqual([])
+  })
+  it('counts nothing on a closed day', () => {
+    expect(effectiveRanges([{ startMin: 840, endMin: 1260 }], { isOpen: false, openMin: 840, closeMin: 1260 })).toEqual([])
+  })
+})
+
+describe('fitting availability to opening hours', () => {
+  const open = { isOpen: true, openMin: 840, closeMin: 1260 }
+  const opts = { minBlockMinutes: 30, maxRangesPerDay: 2 }
+  it('keeps ranges inside the hours and merges touching ones', () => {
+    expect(fitRangesToDay([{ startMin: 900, endMin: 1000 }, { startMin: 1000, endMin: 1100 }], open, opts)).toEqual({
+      ok: true,
+      ranges: [{ startMin: 900, endMin: 1100 }],
+      trimmed: false,
+    })
+  })
+  it('trims to the hours and drops slivers', () => {
+    expect(fitRangesToDay([{ startMin: 600, endMin: 900 }], open, opts)).toEqual({ ok: true, ranges: [{ startMin: 840, endMin: 900 }], trimmed: true })
+    expect(fitRangesToDay([{ startMin: 600, endMin: 860 }], open, opts)).toEqual({ ok: false, reason: 'outside' })
+  })
+  it('refuses closed days and too many ranges, but always allows clearing', () => {
+    expect(fitRangesToDay([{ startMin: 900, endMin: 1000 }], { ...open, isOpen: false }, opts)).toEqual({ ok: false, reason: 'closed' })
+    expect(fitRangesToDay([], { ...open, isOpen: false }, opts)).toEqual({ ok: true, ranges: [], trimmed: false })
+    const three = [{ startMin: 850, endMin: 900 }, { startMin: 950, endMin: 1000 }, { startMin: 1050, endMin: 1100 }]
+    expect(fitRangesToDay(three, open, opts)).toEqual({ ok: false, reason: 'too_many' })
   })
 })

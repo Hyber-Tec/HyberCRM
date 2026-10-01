@@ -77,7 +77,7 @@ These used to be `settings.payroll.payModel`, `settings.payroll.adminStaffSingle
 | `availability.lockedActions` | `["edit","delete","dragFrom"]` | 05 §5.4 **(Q10)** | TE doesn't lock creating, pasting or dragging *into* the window (loopholes) |
 | `availability.enforceOnServer` | `true` | 05 §10.2 | Rules check the lock with server time (TE: browser only) |
 | `availability.stepMinutes` | 30 | 05 §5.1 | Picker step |
-| `availability.pickerRange` | 09:00–22:00 | 05 §5.1 | TE's fixed picker range |
+| ~~`availability.pickerRange`~~ | — | 05 §5.1 | Removed in round 2: the picker offers that date's opening hours (TE offered a fixed 9:00–22:00 and trimmed on save). |
 | `availability.minBlockMinutes` | 30 | 05 §5.1 | |
 | `availability.clampToOpenHours` | `true` | 05 §5.1 | Hyber warns instead of silently clamping (TE bug) |
 | `availability.maxRangesPerDay` | 1 | 05 §5.1 **(Q11)** | |

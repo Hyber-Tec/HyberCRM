@@ -59,7 +59,6 @@ export interface BranchSettings {
     /** Tutors can't create, change or delete availability that starts within this many days. 0 = no lock. */
     lockWindowDays: number
     stepMinutes: number
-    pickerRange: MinuteRange
     minBlockMinutes: number
     maxRangesPerDay: number
   }
@@ -171,7 +170,6 @@ export const DEFAULT_SETTINGS: BranchSettings = {
     leadTimeEnforcement: 'warn',
     lockWindowDays: 7,
     stepMinutes: 30,
-    pickerRange: { startMin: 540, endMin: 1320 },
     minBlockMinutes: 30,
     maxRangesPerDay: 4,
   },

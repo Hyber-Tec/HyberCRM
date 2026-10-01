@@ -118,7 +118,6 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
       { kind: 'number', path: 'availability.maxRangesPerDay', label: 'Time ranges per day', min: 1, max: 6 },
       { kind: 'number', path: 'availability.stepMinutes', label: 'Picker step', min: 5, max: 60, step: 5, suffix: 'min' },
       { kind: 'number', path: 'availability.minBlockMinutes', label: 'Shortest range', min: 5, max: 240, step: 5, suffix: 'min' },
-      { kind: 'range', path: 'availability.pickerRange', label: 'Times offered in the picker', step: 30 },
     ],
   },
   {

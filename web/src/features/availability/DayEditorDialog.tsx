@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { LuLock, LuPlus, LuTrash2, LuTriangleAlert } from 'react-icons/lu'
-import { clipToHours, normalizeRanges } from '@shared/availability'
+import { fitRangesToDay, normalizeRanges } from '@shared/availability'
 import type { DayHours } from '@shared/settings/defaults'
 import { formatDateKey, formatTimeRange } from '@shared/time'
 import type { AvailabilityRange } from '@shared/types'
@@ -42,7 +42,7 @@ export function DayEditorDialog({
       state
         ? state.ranges.length
           ? state.ranges
-          : [{ startMin: Math.max(state.hours.openMin, a.pickerRange.startMin), endMin: Math.min(state.hours.closeMin, a.pickerRange.endMin) }]
+          : [{ startMin: state.hours.openMin, endMin: state.hours.closeMin }]
         : [],
     )
   }
@@ -56,13 +56,20 @@ export function DayEditorDialog({
       if (r.endMin <= r.startMin) return setError('End time must be after start time.')
       if (r.endMin - r.startMin < a.minBlockMinutes) return setError(`Each range must be at least ${a.minBlockMinutes} minutes.`)
     }
-    const { ranges: clipped } = clipToHours(next, state!.hours)
-    if (next.length > 0 && clipped.length === 0) {
-      return setError(`Choose a time within opening hours (${formatTimeRange(state!.hours.openMin, state!.hours.closeMin)}).`)
+    // Availability follows this date's opening hours (owner rule).
+    const fit = fitRangesToDay(next, state!.hours, a)
+    if (!fit.ok) {
+      return setError(
+        fit.reason === 'closed'
+          ? 'The center is closed on this day.'
+          : fit.reason === 'too_many'
+            ? `Use at most ${a.maxRangesPerDay} time ranges per day.`
+            : `Choose a time within opening hours (${formatTimeRange(state!.hours.openMin, state!.hours.closeMin)}).`,
+      )
     }
     setBusy(true)
     try {
-      await onSave(clipped)
+      await onSave(fit.ranges)
       onClose()
     } catch (e) {
       setError((e as Error).message.includes('permission') ? 'This day is locked. Please contact an admin.' : (e as Error).message)
@@ -102,8 +109,8 @@ export function DayEditorDialog({
               <TimeSelect
                 value={r.startMin}
                 step={step}
-                min={a.pickerRange.startMin}
-                max={a.pickerRange.endMin - step}
+                min={state.hours.openMin}
+                max={state.hours.closeMin - step}
                 disabled={locked}
                 onChange={(m) => setRanges(ranges.map((x, idx) => (idx === i ? { ...x, startMin: m } : x)))}
               />
@@ -111,8 +118,8 @@ export function DayEditorDialog({
               <TimeSelect
                 value={r.endMin}
                 step={step}
-                min={a.pickerRange.startMin + step}
-                max={a.pickerRange.endMin}
+                min={state.hours.openMin + step}
+                max={state.hours.closeMin}
                 disabled={locked}
                 onChange={(m) => setRanges(ranges.map((x, idx) => (idx === i ? { ...x, endMin: m } : x)))}
               />
@@ -123,25 +130,24 @@ export function DayEditorDialog({
               ) : null}
             </div>
           ))}
-          {!locked && ranges.length < a.maxRangesPerDay ? (
+          {!locked && ranges.length < a.maxRangesPerDay && roomAfter(ranges, state.hours.closeMin, a.minBlockMinutes) ? (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
-                const last = ranges[ranges.length - 1]
-                const start = last ? Math.min(last.endMin + 60, a.pickerRange.endMin - 60) : state.hours.openMin
-                setRanges([...ranges, { startMin: start, endMin: Math.min(start + 120, a.pickerRange.endMin) }])
+                const last = normalizeRanges(ranges).pop()
+                const start = last ? Math.min(last.endMin + step, state.hours.closeMin - a.minBlockMinutes) : state.hours.openMin
+                setRanges([...ranges, { startMin: start, endMin: Math.min(start + 120, state.hours.closeMin) }])
               }}
             >
               <LuPlus /> Add a time range
             </Button>
           ) : null}
           {ranges.length === 0 ? <p className="text-sm text-muted-foreground">No availability on this day.</p> : null}
-          {outside && !locked ? (
-            <p className="text-xs text-muted-foreground">
-              Open {formatTimeRange(state.hours.openMin, state.hours.closeMin)}; times outside opening hours are trimmed.
-            </p>
-          ) : null}
+          <p className="text-xs text-muted-foreground">
+            Open {formatTimeRange(state.hours.openMin, state.hours.closeMin)} this day
+            {outside && !locked ? '; times outside opening hours are trimmed.' : '.'}
+          </p>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </div>
         <DialogFooter className="gap-2 sm:justify-between">
@@ -166,4 +172,10 @@ export function DayEditorDialog({
       </DialogContent>
     </Dialog>
   )
+}
+
+/** Whether another range still fits after the last one before closing. */
+function roomAfter(ranges: AvailabilityRange[], closeMin: number, minBlock: number): boolean {
+  const last = normalizeRanges(ranges).pop()
+  return !last || last.endMin + minBlock <= closeMin
 }

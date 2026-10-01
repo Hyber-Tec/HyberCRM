@@ -38,6 +38,39 @@ export function clipToHours(ranges: readonly AvailabilityRange[], hours: DayHour
   return { ranges: out, clipped }
 }
 
+/**
+ * The part of saved availability that counts on a date: clipped to that date's
+ * opening hours, none when the center is closed. Saved ranges stay as they are,
+ * so reopening a day or widening its hours brings them back.
+ */
+export function effectiveRanges(ranges: readonly AvailabilityRange[], hours: DayHours): AvailabilityRange[] {
+  return hours.isOpen ? clipToHours(ranges, hours).ranges : []
+}
+
+export type FitResult =
+  | { ok: true; ranges: AvailabilityRange[]; trimmed: boolean }
+  | { ok: false; reason: 'closed' | 'outside' | 'too_many' }
+
+/**
+ * Availability must sit inside that date's opening hours (per-date hours
+ * included) and closed days take none (owner rule, round 2). Ranges are merged,
+ * trimmed to the hours, and slivers shorter than the minimum dropped.
+ */
+export function fitRangesToDay(
+  ranges: readonly AvailabilityRange[],
+  hours: DayHours,
+  opts: { minBlockMinutes: number; maxRangesPerDay: number },
+): FitResult {
+  const merged = normalizeRanges(ranges)
+  if (merged.length === 0) return { ok: true, ranges: [], trimmed: false }
+  if (!hours.isOpen) return { ok: false, reason: 'closed' }
+  const { ranges: clipped, clipped: wasClipped } = clipToHours(merged, hours)
+  const kept = clipped.filter((r) => r.endMin - r.startMin >= opts.minBlockMinutes)
+  if (kept.length === 0) return { ok: false, reason: 'outside' }
+  if (kept.length > opts.maxRangesPerDay) return { ok: false, reason: 'too_many' }
+  return { ok: true, ranges: kept, trimmed: wasClipped || kept.length !== clipped.length }
+}
+
 /** True when [startMin, endMin] lies fully inside one of the ranges. */
 export function rangesContain(ranges: readonly AvailabilityRange[], startMin: number, endMin: number): boolean {
   return ranges.some((r) => r.startMin <= startMin && r.endMin >= endMin)
