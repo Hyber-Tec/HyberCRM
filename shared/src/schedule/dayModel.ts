@@ -50,8 +50,6 @@ export interface DayModelInput<S extends ModelSession> {
   maxLanes: number
   /** Admin views add an empty lane for creating; the tutor view doesn't. */
   addEmptyLane: boolean
-  /** Master template: no past lock. */
-  master?: boolean
   /** Unknown tutors (e.g. a finished employee) still get a row when they have sessions. */
   nameFor?: (staffId: string) => string
 }
@@ -68,7 +66,7 @@ function overlaps(r: AvailabilityRange, open: number, close: number) {
  */
 export function buildDayRows<S extends ModelSession>(input: DayModelInput<S>): TutorRow<S>[] {
   const { hours, maxLanes } = input
-  const isPast = !input.master && input.dateKey < input.today
+  const isPast = input.dateKey < input.today
   const byTutor = new Map<string, S[]>()
   for (const s of input.sessions) byTutor.set(s.tutorId, [...(byTutor.get(s.tutorId) ?? []), s])
 

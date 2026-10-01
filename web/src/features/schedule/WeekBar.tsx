@@ -34,7 +34,6 @@ export interface WeekBarProps {
   view: ScheduleView
   date: DateKey
   today: DateKey
-  master: boolean
   weekStartsOn: Weekday
   isClosed: (d: DateKey) => boolean
   onView: (v: ScheduleView) => void
@@ -47,7 +46,6 @@ export interface WeekBarProps {
   onTutorFilter: (id: string | null) => void
   zoom: number
   onZoom: (z: number) => void
-  onToggleMaster: () => void
   onDuplicate: () => void
   onTrash: () => void
   onTutorOrder: () => void
@@ -64,10 +62,7 @@ export function WeekBar(p: WeekBarProps) {
 
   let title = ''
   let subtitle = ''
-  if (p.master) {
-    title = 'Master Schedule'
-    subtitle = 'Weekly template'
-  } else if (p.view === 'day') {
+  if (p.view === 'day') {
     title = formatDateKey(p.date, 'weekdayLong').split(',')[0]
     subtitle = formatDateKey(p.date, 'long')
   } else if (p.view === 'week') {
@@ -80,7 +75,6 @@ export function WeekBar(p: WeekBarProps) {
   }
 
   const isActive = (d: DateKey) => {
-    if (p.master) return false
     if (p.view === 'day') return d === p.date
     if (p.view === 'week') return weekSet.has(d) && !p.isClosed(d)
     return isSameMonth(d, p.date) && !p.isClosed(d)
@@ -92,8 +86,7 @@ export function WeekBar(p: WeekBarProps) {
         <div className="text-xl font-bold tracking-tight">{title}</div>
         <div className="text-sm text-muted-foreground">{subtitle}</div>
       </div>
-      {!p.master ? (
-        <>
+      <>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" className="rounded-full" aria-label="Previous" onClick={p.onPrev}>
               <LuChevronLeft />
@@ -161,7 +154,6 @@ export function WeekBar(p: WeekBarProps) {
             ))}
           </div>
         </>
-      ) : null}
       <div className="flex items-center gap-2">
         <Select value={p.tutorFilter ?? 'all'} onValueChange={(v) => p.onTutorFilter(v === 'all' ? null : v)}>
           <SelectTrigger className="min-w-0 flex-1">
@@ -183,9 +175,6 @@ export function WeekBar(p: WeekBarProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onSelect={p.onToggleMaster} className={cn(p.master && 'font-semibold text-emerald-600')}>
-              {p.master ? 'Exit Master Schedule' : 'Master Schedule'}
-            </DropdownMenuItem>
             <DropdownMenuItem onSelect={p.onDuplicate}>
               <IoDuplicate /> Duplicate week
             </DropdownMenuItem>

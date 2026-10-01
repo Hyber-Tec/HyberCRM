@@ -42,12 +42,12 @@ export function SessionCard({ session, left, width, top, readOnly, bounds, segme
   const cardRef = useRef<HTMLDivElement>(null)
   const st = SESSION_STATUS_STYLE[session.status] ?? SESSION_STATUS_STYLE.pending
   const selected = ui.selection?.kind === 'session' && ui.selection.id === session.id
-  const bell = ui.mode === 'admin' && !ui.master ? ui.bellFor(session) : []
+  const bell = ui.mode === 'admin' ? ui.bellFor(session) : []
   const ended = ui.today > session.dateKey || (ui.today === session.dateKey && session.endMin <= ui.nowMin)
   const logSubmitted = session.logStatus === 'submitted'
   // Only sessions that can be logged (by branch setting) show the missing-log warning.
   const loggable = (ui.loggableStatuses ?? ['pending', 'confirmed', 'present']).includes(session.status)
-  const showLog = !ui.master && (logSubmitted || (ended && loggable))
+  const showLog = logSubmitted || (ended && loggable)
   const canEdit = !readOnly && ui.mode === 'admin'
 
   const startMin = preview?.startMin ?? session.startMin
@@ -205,7 +205,7 @@ export function SessionCard({ session, left, width, top, readOnly, bounds, segme
     card
   )
 
-  if (!canEdit || ui.master) return withNote
+  if (!canEdit) return withNote
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{withNote}</ContextMenuTrigger>

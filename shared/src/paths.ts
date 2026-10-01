@@ -14,11 +14,8 @@ export const COL = {
   subjectCategories: 'subjectCategories',
   subjects: 'subjects',
   sessions: 'sessions',
-  masterSessions: 'masterSessions',
   availability: 'availability',
-  masterAvailability: 'masterAvailability',
   dayConfigs: 'dayConfigs',
-  masterDayConfigs: 'masterDayConfigs',
   events: 'events',
   auditLog: 'auditLog',
   clockShifts: 'clockShifts',
@@ -59,8 +56,4 @@ export function branchColPath(branchId: string, col: BranchCollection): string {
 
 export function availabilityDocId(staffId: string, dateKey: string): string {
   return `${staffId}_${dateKey}`
-}
-
-export function masterAvailabilityDocId(staffId: string, weekday: string): string {
-  return `${staffId}_${weekday}`
 }

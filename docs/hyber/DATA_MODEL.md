@@ -126,11 +126,8 @@
 | `attendanceMarkedAt`, `attendanceMarkedBy` | Timestamp, `session_log` \| `admin` | same | |
 | `logStatus`, `logSubmittedAt` | `none` \| `draft` \| `submitted`, Timestamp | (separate read of `session_logs`) | Drives the blue check / red triangle |
 | `confirmedAt`, `confirmedBy` | Timestamp, `auto` \| uid | — | |
-| `source` | `manual` \| `paste` \| `duplicate_week` \| `duplicate_master` \| `student_calendar` | — | |
+| `source` | `manual` \| `paste` \| `duplicate_week` \| `student_calendar` (older data may say `master`) | — | |
 | soft-delete + audit fields | | same | TE's `blockId` is **dropped** (placement by time) |
-
-### `branches/{b}/masterSessions/{id}` (TE `master_schedule_sessions`)
-Same fields as sessions, but with `weekday` + `startMin`/`endMin` and **no dates** (TE stored fake dates in January 2000).
 
 ### `branches/{b}/availability/{staffId}_{dateKey}` (TE `tutor_availability_blocks/day_{date}_{uid}`)
 | Field | Type | Notes |
@@ -142,11 +139,8 @@ Same fields as sessions, but with `weekday` + `startMin`/`endMin` and **no dates
 | `updatedVia` | `tutor` \| `admin_calendar` \| `admin_day_edit` | TE recorded no author |
 | audit fields | | |
 
-`branches/{b}/masterAvailability/{staffId}_{weekday}`: `{staffId, weekday, ranges, unavailable, hidden}` (TE `tutor_master_availability_blocks`).
-
 ### Day configuration
 - `branches/{b}/dayConfigs/{dateKey}`: `{dateKey, isClosed, openMin, closeMin, updatedAt, updatedByUid}`. TE: `schedule_day_configs/{date}` with `timelineStartMin/EndMin`.
-- `branches/{b}/masterDayConfigs/{weekday}`: the same, for the template week (TE: `schedule_day_configs/master_{day}`).
 - The **default week** lives in branch settings: `settings.schedule.defaultWeek` (TE: `settings/scheduleDefault`). Tutor order: `settings.schedule.tutorOrder` (TE: `settings/global_tutor_order`).
 
 ### `branches/{b}/events/{eventId}`
@@ -157,7 +151,7 @@ TE fields, with `date` → `dateKey` and `startTime`/`endTime` → `startMin`/`e
 |---|---|---|
 | `at` | serverTimestamp | |
 | `actorUid`, `actorEmail`, `actorName`, `actorRole` | | `role` includes `super_admin` and `system` (functions) |
-| `action` | string | `session.create`, `session.move`, `session.status`, `session.tutor`, `session.subject`, `session.note`, `session.multi`, `session.delete`, `session.restore`, `session.purge`, `schedule.duplicate_week`, `schedule.duplicate_master`, `master.*`, `event.*`, `dayConfig.update`, `availability.update`, `timeEntry.*`, `shift.*`, `sessionLog.submit`, `settings.update`, `member.*` … |
+| `action` | string | `session.create`, `session.move`, `session.status`, `session.tutor`, `session.subject`, `session.note`, `session.multi`, `session.delete`, `session.restore`, `session.purge`, `schedule.duplicate_week`, `event.*`, `dayConfig.update`, `availability.update`, `timeEntry.*`, `shift.*`, `sessionLog.submit`, `settings.update`, `member.*` … |
 | `category` | `schedule` \| `event` \| `availability` \| `people` \| `pay` \| `sessions` \| `settings` | Filter on the Audit Log page |
 | `entityType`, `entityId` | string | TE logged no IDs |
 | `studentId`, `studentName`, `tutorId`, `tutorName`, `dateKey` | | Search and display (TE: `meta.*Name`) |
@@ -261,7 +255,6 @@ Collection-scope indexes apply to every subcollection with that ID, i.e. to ever
 | `students` (+ `conferenceNotes`) | ✓ | ✓ | read all (TE behavior, Q21); edit School tab fields | linked (read) | own (read) |
 | `subjects`, categories | ✓ | ✓ | read; self-assign through `staff.subjectIds` | — | — |
 | `sessions` | ✓ | ✓ (past days need the `editPastDays` grant) | own (read; no writes, since attendance comes from the log) | linked (read) | own (read) |
-| `masterSessions`, `masterAvailability`, `masterDayConfigs` | ✓ | ✓ | — | — | — |
 | `availability` | ✓ | ✓ | own (read; write within lead-time/lock rules) | — | — |
 | `dayConfigs`, `events` | ✓ | ✓ | read | — | — |
 | `auditLog` | ✓ | read (create via app/functions) | — | — | — |

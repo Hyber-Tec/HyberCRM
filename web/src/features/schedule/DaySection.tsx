@@ -35,7 +35,6 @@ interface Props {
   hours: DayHours
   rows: TutorRow<WithId<Session>>[]
   events: WithId<EventDoc>[]
-  /** Master template: show the weekday only. */
   headerLabel?: string
   sectionId?: string
 }
@@ -43,7 +42,7 @@ interface Props {
 export function DaySection({ dateKey, hours, rows, events, headerLabel, sectionId }: Props) {
   const ui = useScheduleUi()
   const locked = ui.isLocked(dateKey)
-  const isToday = dateKey === ui.today && !ui.master
+  const isToday = dateKey === ui.today
   const openMin = Math.floor(hours.openMin / 5) * 5
   const closeMin = Math.max(openMin + 60, Math.ceil(hours.closeMin / 5) * 5)
   const width = timelineWidth(openMin, closeMin)
@@ -54,7 +53,7 @@ export function DaySection({ dateKey, hours, rows, events, headerLabel, sectionI
   const hourMarks: number[] = []
   for (let m = Math.ceil(openMin / 60) * 60; m <= closeMin; m += 60) hourMarks.push(m)
 
-  const showEvents = ui.mode === 'admin' && !ui.master
+  const showEvents = ui.mode === 'admin'
   const eventLanes = layoutEventLanes(events.map((e) => ({ id: e.id, startMin: e.startMin, endMin: e.endMin })))
   const usedEventLanes = events.length ? Math.max(...eventLanes.values()) + 1 : 0
   const eventLaneCount = showEvents ? (locked ? usedEventLanes : usedEventLanes + 1) : 0

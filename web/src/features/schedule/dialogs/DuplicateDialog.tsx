@@ -10,12 +10,10 @@ import { useBranch } from '@/branch/BranchProvider'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Spinner } from '@/components/ui/spinner'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useStudentList } from '@/features/data/hooks'
 import { branchCol } from '@/lib/firestore'
 import { cn } from '@/lib/utils'
 import { type DuplicateSource, type ScheduleCtx, duplicateIntoWeek } from '../api'
-import type { MasterSessionDoc } from '../MasterSchedule'
 
 function WeekPicker({ value, onChange }: { value: DateKey; onChange: (d: DateKey) => void }) {
   const { settings } = useBranch()
@@ -35,11 +33,10 @@ function WeekPicker({ value, onChange }: { value: DateKey; onChange: (d: DateKey
   )
 }
 
-export function DuplicateDialog({ open, onOpenChange, ctx, anchor, defaultSource = 'week' }: { open: boolean; onOpenChange: (o: boolean) => void; ctx: ScheduleCtx; anchor: DateKey; defaultSource?: 'week' | 'master' }) {
+export function DuplicateDialog({ open, onOpenChange, ctx, anchor }: { open: boolean; onOpenChange: (o: boolean) => void; ctx: ScheduleCtx; anchor: DateKey }) {
   const { settings } = useBranch()
   const weekStartsOn = settings.general.weekStartsOn
   const { data: students } = useStudentList()
-  const [source, setSource] = useState<'week' | 'master'>(defaultSource)
   const [from, setFrom] = useState(startOfWeek(anchor, weekStartsOn))
   const [to, setTo] = useState(addDays(startOfWeek(anchor, weekStartsOn), 7))
   const [selected, setSelected] = useState<Weekday[]>([])
@@ -47,36 +44,26 @@ export function DuplicateDialog({ open, onOpenChange, ctx, anchor, defaultSource
 
   useEffect(() => {
     if (!open) return
-    setSource(defaultSource)
     setFrom(startOfWeek(anchor, weekStartsOn))
     setTo(addDays(startOfWeek(anchor, weekStartsOn), 7))
     setSelected([])
-  }, [open, anchor, weekStartsOn, defaultSource])
+  }, [open, anchor, weekStartsOn])
 
-  const same = source === 'week' && startOfWeek(from, weekStartsOn) === startOfWeek(to, weekStartsOn)
+  const same = startOfWeek(from, weekStartsOn) === startOfWeek(to, weekStartsOn)
   const weekdays = orderedWeekdays(weekStartsOn)
 
   async function run() {
     const targetDays = weekDays(to, weekStartsOn)
-    const label =
-      source === 'master' ? `Master Schedule → week of ${formatDateKey(targetDays[0], 'monthDay')}` : `${formatDateKey(startOfWeek(from, weekStartsOn), 'monthDay')} → ${formatDateKey(targetDays[0], 'monthDay')}`
+    const label = `${formatDateKey(startOfWeek(from, weekStartsOn), 'monthDay')} → ${formatDateKey(targetDays[0], 'monthDay')}`
     if (!window.confirm(`Duplicate ${selected.length} day${selected.length > 1 ? 's' : ''} (${label})? Sessions already on those days in the target week move to Trash.`)) return
     setBusy(true)
     try {
-      let sources: DuplicateSource[] = []
-      if (source === 'master') {
-        const snap = await getDocs(branchCol(ctx.branchId, COL.masterSessions))
-        sources = snap.docs
-          .map((d) => d.data() as MasterSessionDoc)
-          .filter((m) => !m.isDeleted && m.status !== 'canceled' && selected.includes(m.weekday as Weekday))
-      } else {
-        const srcDays = weekDays(from, weekStartsOn)
-        const snap = await getDocs(query(branchCol(ctx.branchId, COL.sessions), where('dateKey', '>=', srcDays[0]), where('dateKey', '<=', srcDays[6])))
-        sources = snap.docs
-          .map((d) => d.data() as Session)
-          .filter((s) => !s.isDeleted && s.status !== 'canceled' && selected.includes(weekdayOf(s.dateKey)))
-          .map((s) => ({ ...s, weekday: weekdayOf(s.dateKey) }))
-      }
+      const srcDays = weekDays(from, weekStartsOn)
+      const snap = await getDocs(query(branchCol(ctx.branchId, COL.sessions), where('dateKey', '>=', srcDays[0]), where('dateKey', '<=', srcDays[6])))
+      const sources: DuplicateSource[] = snap.docs
+        .map((d) => d.data() as Session)
+        .filter((s) => !s.isDeleted && s.status !== 'canceled' && selected.includes(weekdayOf(s.dateKey)))
+        .map((s) => ({ ...s, weekday: weekdayOf(s.dateKey) }))
       const [tSnap, cSnap] = await Promise.all([
         getDocs(query(branchCol(ctx.branchId, COL.sessions), where('dateKey', '>=', targetDays[0]), where('dateKey', '<=', targetDays[6]))),
         getDocs(query(branchCol(ctx.branchId, COL.dayConfigs), where('dateKey', '>=', targetDays[0]), where('dateKey', '<=', targetDays[6]))),
@@ -111,19 +98,7 @@ export function DuplicateDialog({ open, onOpenChange, ctx, anchor, defaultSource
         </DialogHeader>
         <div className="space-y-3">
           <div className="text-xs font-semibold text-muted-foreground uppercase">From</div>
-          <ToggleGroup type="single" variant="outline" value={source} onValueChange={(v) => v && setSource(v as 'week' | 'master')} className="w-full">
-            <ToggleGroupItem value="week" className="flex-1">
-              Existing week
-            </ToggleGroupItem>
-            <ToggleGroupItem value="master" className="flex-1">
-              Master Schedule
-            </ToggleGroupItem>
-          </ToggleGroup>
-          {source === 'week' ? (
-            <WeekPicker value={from} onChange={setFrom} />
-          ) : (
-            <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Copies from the Master Schedule template.</div>
-          )}
+          <WeekPicker value={from} onChange={setFrom} />
           <div className="flex justify-center text-muted-foreground">
             <LuArrowDown />
           </div>

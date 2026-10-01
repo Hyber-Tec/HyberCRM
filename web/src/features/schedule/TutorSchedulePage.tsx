@@ -70,7 +70,6 @@ export function TutorSchedulePage() {
 
   const ui: ScheduleUi = {
     mode: 'tutor',
-    master: false,
     today,
     nowMin,
     maxLanes: settings.schedule.maxConcurrentStudentsPerTutor,

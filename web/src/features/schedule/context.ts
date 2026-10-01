@@ -18,7 +18,6 @@ export interface BellItem {
 
 export interface ScheduleUi {
   mode: 'admin' | 'tutor'
-  master: boolean
   today: DateKey
   nowMin: number
   maxLanes: number

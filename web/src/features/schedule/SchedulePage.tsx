@@ -36,7 +36,6 @@ import { SessionDialog, type SessionDialogState } from './dialogs/SessionDialog'
 import { TrashDialog } from './dialogs/TrashDialog'
 import { TutorOrderDialog } from './dialogs/TutorOrderDialog'
 import { moveEventTime } from './eventsApi'
-import { MasterSchedule } from './MasterSchedule'
 import { MonthView } from './MonthView'
 import { useScheduleData } from './useScheduleData'
 import { useShifts } from '@/features/timeclock/api'
@@ -71,7 +70,7 @@ export function SchedulePage() {
   const { branchId, settings, timezone, actor } = branch
   const isMobile = useIsMobile()
   const route = useScheduleRoute(`/${branchId}/admin/schedule`)
-  const { view, date, master } = route
+  const { view, date } = route
   const weekStartsOn = settings.general.weekStartsOn
   const [today, setToday] = useState(() => todayKey(timezone))
   const [nowMin, setNowMin] = useState(() => nowMinutes(timezone))
@@ -122,7 +121,7 @@ export function SchedulePage() {
   }, [view, date, weekStartsOn])
 
   const data = useScheduleData(range.from, range.to, view === 'month' ? null : tutorFilter)
-  const { data: shifts } = useShifts(range.from, range.to, null, view !== 'month' && !master)
+  const { data: shifts } = useShifts(range.from, range.to, null, view !== 'month')
   const clocksByKey = useMemo(() => {
     const m = new Map<string, ClockInterval[]>()
     for (const sh of shifts) {
@@ -404,7 +403,6 @@ export function SchedulePage() {
 
   const ui: ScheduleUi = {
     mode: 'admin',
-    master: false,
     today,
     nowMin,
     maxLanes,
@@ -439,7 +437,6 @@ export function SchedulePage() {
       view={view}
       date={date}
       today={today}
-      master={master}
       weekStartsOn={weekStartsOn}
       isClosed={isClosed}
       onView={(v) => {
@@ -459,7 +456,6 @@ export function SchedulePage() {
       onTutorFilter={setTutorFilter}
       zoom={zoom}
       onZoom={setZoom}
-      onToggleMaster={() => route.go({ master: !master, view: 'week' })}
       onDuplicate={() => setDupOpen(true)}
       onTrash={() => setTrashOpen(true)}
       onTutorOrder={() => setOrderOpen(true)}
@@ -475,9 +471,7 @@ export function SchedulePage() {
               <LuPanelRight />
             </Button>
           ) : null}
-          {master ? (
-            <MasterSchedule tutorFilter={tutorFilter} zoom={zoom} />
-          ) : view === 'month' ? (
+          {view === 'month' ? (
             <MonthView
               month={startOfMonth(date)}
               eventsByDate={data.eventsByDate}
