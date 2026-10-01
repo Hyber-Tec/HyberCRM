@@ -1,13 +1,15 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { db } from './app'
 import { pinHash } from './pins'
+import { deliverSessionNotices, snapshotOf } from './sessionNotify'
 import { onDocumentCreated } from 'firebase-functions/v2/firestore'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 import { COL, ROOT } from '@shared/paths'
+import { sessionCreatedNotices } from '@shared/schedule/notify'
 import { resolveSettings } from '@shared/settings/resolve'
 import type { BranchSettings } from '@shared/settings/defaults'
-import { addDays, dateKeyOf, formatMinutes, minutesOf, parseHHMM, toInstant } from '@shared/time'
+import { addDays, dateKeyOf, formatMinutes, minutesOf, parseHHMM, toInstant, todayKey } from '@shared/time'
 import type { Branch } from '@shared/types'
 
 
@@ -284,14 +286,28 @@ export const autoConfirmSessions = onSchedule({ schedule: 'every 60 minutes', ti
   }
 })
 
-/** A session created inside the auto-confirm window is confirmed right away. */
+/**
+ * A session created inside the auto-confirm window is confirmed right away;
+ * if it is confirmed and starts inside the notification window, the tutor
+ * gets "Session Confirmed" in their inbox.
+ */
 export const onSessionCreated = onDocumentCreated(`${ROOT.branches}/{branchId}/${COL.sessions}/{sessionId}`, async (event) => {
   const snap = event.data
   if (!snap) return
-  const { settings } = await loadBranch(event.params.branchId)
-  await confirmIfDue(event.params.branchId, snap.ref, snap.data(), settings)
+  const { branchId, sessionId } = event.params
+  const { branch, settings } = await loadBranch(branchId)
+  const data = snap.data()
+  const confirmed = (await confirmIfDue(branchId, snap.ref, data, settings)) || data.status === 'confirmed'
+  if (!confirmed || branch.status !== 'active') return
+  const notices = sessionCreatedNotices(
+    { ...snapshotOf(data), status: 'confirmed' },
+    { now: Date.now(), today: todayKey(branch.timezone), windowHours: settings.notifications.sessionChangeWindowHours },
+  )
+  await deliverSessionNotices(branchId, sessionId, notices, `sess-${sessionId}-created`)
 })
 
 export { submitSessionLog, sessionAi } from './sessions'
 export { onAnnouncementComment, onAnnouncementRead, onAnnouncementWritten } from './announcements'
 export { seedDemoData } from './platform'
+export { onSessionUpdated } from './sessionNotify'
+export { purgeExpired, studentLifecycleDaily } from './jobs'

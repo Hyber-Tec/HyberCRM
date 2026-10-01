@@ -12,6 +12,7 @@ import { type ChildProcess, spawn } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright-core'
 import { ACTIONS } from '../tests/e2e/actions'
+import { soonSession } from '../tests/e2e/fixtures'
 import { E2E_BRANCH, E2E_MEMBERS, SCENARIOS } from '../tests/e2e/scenarios'
 import { seedBranch } from './lib/seedBranch'
 import { addDays, dayEndInstant, toInstant, todayKey, weekdayOf } from '../shared/src/time'
@@ -75,7 +76,7 @@ async function main() {
     superAdmin: 'goochoi913@gmail.com',
     sample: true,
     members: E2E_MEMBERS.map((m) => ({ ...m, roles: [...m.roles] })),
-    extraDocs: [e2eSession(), e2eAutoShift()],
+    extraDocs: [e2eSession(), e2eAutoShift(), soonSession('confirmed')],
     log: () => undefined,
   })
 

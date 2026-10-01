@@ -39,6 +39,42 @@ export function isInactiveStudent(status: StudentStatus): boolean {
   return INACTIVE_STUDENT_STATUSES.includes(status)
 }
 
+export interface LifecycleInput {
+  status: StudentStatus
+  statusSource: 'auto' | 'manual'
+  lastSessionDate: DateKey | null
+  /** A non-canceled, non-deleted session today or later. */
+  hasUpcoming: boolean
+}
+
+export interface LifecycleSettings {
+  enabled: boolean
+  inactivityPauseDays: number
+  respectManual: boolean
+}
+
+/**
+ * True Education's automatic status transitions (studentLifecycle.js):
+ * Signed Up → Enrolled once a session exists; Enrolled → Paused after N days
+ * without a session and none upcoming; Paused → Enrolled when a session is
+ * upcoming or recent. Other statuses, and (by default) statuses an admin set
+ * by hand, never change automatically. Returns null when nothing changes.
+ */
+export function autoStudentStatus(input: LifecycleInput, today: DateKey, settings: LifecycleSettings): StudentStatus | null {
+  if (!settings.enabled || (settings.respectManual && input.statusSource === 'manual')) return null
+  const idle = input.lastSessionDate ? diffDays(input.lastSessionDate, today) : null
+  switch (input.status) {
+    case 'signed_up':
+      return input.hasUpcoming || input.lastSessionDate ? 'enrolled' : null
+    case 'enrolled':
+      return !input.hasUpcoming && idle !== null && idle >= settings.inactivityPauseDays ? 'paused' : null
+    case 'paused':
+      return input.hasUpcoming || (idle !== null && idle < settings.inactivityPauseDays) ? 'enrolled' : null
+    default:
+      return null
+  }
+}
+
 // --------------------------------------------------------------------- staff
 
 export const STAFF_STATUSES: readonly StaffStatus[] = ['active', 'on_hold', 'finished']

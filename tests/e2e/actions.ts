@@ -1,4 +1,6 @@
 import type { Page } from 'playwright-core'
+import { commit } from '../../scripts/lib/firestore-rest'
+import { soonSession } from './fixtures'
 import { E2E_BRANCH } from './scenarios'
 
 type Step = (page: Page, base: string) => Promise<void>
@@ -145,6 +147,18 @@ const announcementTutor: Step = async (page, base) => {
   await expectText(page, 'New announcement', 15000)
 }
 
+/** A confirmed session about to start is canceled: the tutor gets both inbox items. */
+const sessionNotifications: Step = async (page, base) => {
+  const s = soonSession('canceled')
+  await commit([{ path: `branches/${E2E_BRANCH}/${s.path}`, data: s.data }])
+  await page.goto(`${base}/${E2E_BRANCH}/tutor/schedule`, { waitUntil: 'load' })
+  await page.getByRole('button', { name: /^Notifications/ }).click()
+  await expectText(page, 'Session Confirmed', 15000)
+  await expectText(page, 'Cancellation Alert', 15000)
+  await page.getByText('Cancellation Alert').first().click()
+  await page.waitForURL(/\/tutor\/schedule\?date=/, { timeout: 8000 })
+}
+
 export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'schedule create/status/delete', email: 'goochoi913@gmail.com', run: scheduleCrud },
   { name: 'kiosk clock in/out', email: 'goochoi913@gmail.com', run: kiosk },
@@ -152,4 +166,5 @@ export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'home fixes an automatic clock-out', email: 'goochoi913@gmail.com', run: homeClockFix },
   { name: 'admin publishes an announcement', email: 'goochoi913@gmail.com', run: announcementPublish },
   { name: 'tutor reads and comments on it', email: 'tutor@e2e.test', run: announcementTutor },
+  { name: 'session changes reach the tutor', email: 'tutor@e2e.test', run: sessionNotifications },
 ]

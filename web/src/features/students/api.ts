@@ -76,6 +76,22 @@ export async function setStudentStatus(branchId: string, actor: Actor, student: 
   await batch.commit()
 }
 
+/** Hands a hand-set status back to the automatic rules (applied by the daily job and on log submit). */
+export async function resumeAutoStatus(branchId: string, actor: Actor, student: WithId<Student>) {
+  const batch = writeBatch(db)
+  batch.update(branchDocRef(branchId, COL.students, student.id), { statusSource: 'auto', updatedAt: serverTimestamp(), updatedBy: actor.email })
+  addAudit(batch, branchId, actor, {
+    action: 'student.status_auto_resume',
+    category: 'people',
+    entityType: 'student',
+    entityId: student.id,
+    summary: `Let Hyber manage ${student.name}’s status again`,
+    studentId: student.id,
+    studentName: student.name,
+  })
+  await batch.commit()
+}
+
 const INFO_LABELS: Record<string, string> = {
   firstName: 'First name',
   lastName: 'Last name',

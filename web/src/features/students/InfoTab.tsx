@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { useDoc } from '@/lib/firestore'
-import { EMPTY_PRIVATE, saveStudentInfo, studentPrivateRef } from './api'
+import { EMPTY_PRIVATE, resumeAutoStatus, saveStudentInfo, studentPrivateRef } from './api'
 
 type PublicForm = Pick<Student, 'firstName' | 'lastName' | 'grade' | 'school' | 'status' | 'learningNote' | 'signUpDate'>
 
@@ -109,7 +109,21 @@ export function InfoTab({ student, readOnly }: { student: WithId<Student>; readO
                   </SelectContent>
                 </Select>
                 {!readOnly && student.statusSource === 'manual' && settings.students.autoStatus.respectManual ? (
-                  <FieldDescription>Set by hand, so automatic status changes are paused.</FieldDescription>
+                  <FieldDescription>
+                    Set by hand, so automatic status changes are paused.{' '}
+                    <button
+                      type="button"
+                      className="font-medium text-foreground underline underline-offset-2"
+                      onClick={() =>
+                        void resumeAutoStatus(branchId, actor, student).then(
+                          () => toast.success('Hyber will manage this status again'),
+                          (e) => toast.error((e as Error).message),
+                        )
+                      }
+                    >
+                      Let Hyber manage it again
+                    </button>
+                  </FieldDescription>
                 ) : null}
               </Field>
               <Field>
