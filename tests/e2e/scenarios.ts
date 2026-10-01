@@ -45,6 +45,8 @@ export const SCENARIOS: Scenario[] = [
       `${b}/admin/employees/time-entries`,
       `${b}/admin/employees/payroll`,
       `${b}/kiosk`,
+      `${b}/admin/sessions/log`,
+      `${b}/admin/sessions/progress-reports`,
     ],
     expect: {
       '/platform': ['Demo Academy'],

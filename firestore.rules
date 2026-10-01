@@ -368,6 +368,36 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // ------------------------------------------------------ sessions
+
+      function tutorsSeeAllLogs() {
+        return branchDoc(b).data.get('settings', {}).get('sessionLogs', {}).get('tutorsSeeAllLogs', true) == true;
+      }
+
+      function sessionOf(sessionId) {
+        return get(/databases/$(database)/documents/branches/$(b)/sessions/$(sessionId)).data;
+      }
+
+      // One log per session (doc ID = session ID). Drafts are written by the
+      // tutor or an admin; submitting goes through the submitSessionLog function.
+      match /sessionLogs/{sessionId} {
+        allow read: if isAdmin(b)
+          || (isTutor(b) && (tutorsSeeAllLogs() || resource.data.tutorId == myStaffId(b)));
+        allow create, update: if request.resource.data.status == 'draft'
+          && (resource == null || resource.data.status == 'draft')
+          && request.resource.data.sessionId == sessionId
+          && (isAdmin(b) || (isTutor(b) && sessionOf(sessionId).tutorId == myStaffId(b)));
+        allow delete: if isAdmin(b);
+      }
+
+      match /progressReports/{reportId} {
+        allow read: if isStaff(b)
+          || (hasRole(b, 'parent') && resource.data.studentId in myStudentIds(b) && resource.data.sharedWithParents == true)
+          || (hasRole(b, 'student') && resource.data.studentId == myStudentId(b) && resource.data.sharedWithParents == true);
+        allow create: if isStaff(b);
+        allow update, delete: if isAdmin(b);
+      }
+
       // ------------------------------------------------------ audit log
 
       match /auditLog/{entryId} {

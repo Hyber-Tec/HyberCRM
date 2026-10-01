@@ -57,7 +57,7 @@ export function TutorSchedulePage() {
   const { data: shifts } = useShifts(from, to, staffId, !!staffId)
   const studentMap = useMemo(() => new Map(students.map((s) => [s.id, s])), [students])
   const sessions = sessionsRaw.filter((s) => !s.isDeleted)
-  const openLog = (s: WithId<Session>) => window.open(`/${branchId}/tutor/sessions/log/${s.id}/edit`, '_blank', 'noopener')
+  const openLog = (s: WithId<Session>) => window.open(`/${branchId}/session-log/${s.id}`, '_blank', 'noopener')
 
   if (!staffId) return <p className="text-sm text-muted-foreground">Your employee record isn’t linked yet. Ask an admin.</p>
 

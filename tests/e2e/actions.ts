@@ -67,7 +67,44 @@ const kiosk: Step = async (page, base) => {
   step('clocked out')
 }
 
+/** Tutor fills in and submits a session log through the six steps. */
+const sessionLog: Step = async (page, base) => {
+  const step = (n: string) => process.env.E2E_VERBOSE && console.log(`     · ${n}`)
+  await page.goto(`${base}/${E2E_BRANCH}/session-log/e2e-log-session`, { waitUntil: 'load' })
+  await expectText(page, 'From last session', 15000)
+  await page.getByRole('button', { name: 'Session Info' }).click()
+  await page.getByRole('combobox').filter({ hasText: 'Select type…' }).click()
+  await page.getByRole('option', { name: 'School Help' }).click()
+  await page.getByPlaceholder('e.g. Linear equations, comma usage').fill('Quadratic equations')
+  await page.getByRole('combobox').filter({ hasText: 'Select…' }).click()
+  await page.getByRole('option', { name: 'Completed' }).click()
+  step('session info')
+  await page.getByRole('button', { name: 'Materials' }).click()
+  const mat = page.getByPlaceholder('Type a resource name or paste a link, then press Enter…')
+  await mat.fill('Workbook chapter 5')
+  await mat.press('Enter')
+  const nums = page.locator('input[inputmode="numeric"]')
+  await nums.nth(0).fill('12')
+  await nums.nth(1).fill('3')
+  step('materials')
+  await page.getByRole('button', { name: 'Notes' }).click()
+  const areas = page.locator('textarea')
+  for (let i = 0; i < 4; i++) await areas.nth(i).fill(`Note ${i + 1} about the session`)
+  step('notes')
+  await page.getByRole('button', { name: 'Evaluation' }).click()
+  const fours = page.getByRole('button', { name: '4 stars' })
+  for (let i = 0; i < (await fours.count()); i++) await fours.nth(i).click()
+  await page.getByRole('button', { name: 'On Track' }).click()
+  step('evaluation')
+  await page.getByRole('button', { name: 'Review & Submit' }).click()
+  await page.getByRole('button', { name: 'Submit log' }).click()
+  await expectText(page, 'Submitted', 30000)
+  await expectText(page, 'AI overview', 10000)
+  step('submitted')
+}
+
 export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'schedule create/status/delete', email: 'goochoi913@gmail.com', run: scheduleCrud },
   { name: 'kiosk clock in/out', email: 'goochoi913@gmail.com', run: kiosk },
+  { name: 'tutor submits a session log', email: 'tutor@e2e.test', run: sessionLog },
 ]

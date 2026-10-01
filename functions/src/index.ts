@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
-import { initializeApp } from 'firebase-admin/app'
-import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore'
-import { setGlobalOptions } from 'firebase-functions/v2'
+import { FieldValue, Timestamp } from 'firebase-admin/firestore'
+import { db } from './app'
 import { onDocumentCreated } from 'firebase-functions/v2/firestore'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
@@ -11,9 +10,6 @@ import type { BranchSettings } from '@shared/settings/defaults'
 import { addDays, dateKeyOf, formatMinutes, minutesOf, parseHHMM, toInstant } from '@shared/time'
 import type { Branch } from '@shared/types'
 
-initializeApp()
-setGlobalOptions({ region: 'us-central1', maxInstances: 10 })
-const db = getFirestore()
 
 // ------------------------------------------------------------------ helpers
 
@@ -300,3 +296,5 @@ export const onSessionCreated = onDocumentCreated(`${ROOT.branches}/{branchId}/$
   const { settings } = await loadBranch(event.params.branchId)
   await confirmIfDue(event.params.branchId, snap.ref, snap.data(), settings)
 })
+
+export { submitSessionLog, sessionAi } from './sessions'

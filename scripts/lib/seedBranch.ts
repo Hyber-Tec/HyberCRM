@@ -12,6 +12,8 @@ export interface SeedBranchOptions {
   timezone: string
   superAdmin: string
   sample: boolean
+  /** Extra documents (tests), with paths relative to the branch. */
+  extraDocs?: { path: string; data: Record<string, unknown> }[]
   /** Extra member docs (tests). */
   members?: { email: string; roles: Role[]; isOwner?: boolean; staffId?: string; studentId?: string; studentIds?: string[] }[]
   log?: (line: string) => void
@@ -63,6 +65,7 @@ export async function seedBranch(opts: SeedBranchOptions) {
     log(`+ ${docs.length} sample documents`)
   }
 
+  for (const d of opts.extraDocs ?? []) writes.push({ path: `${branchPath}/${d.path}`, data: d.data })
   for (const m of opts.members ?? []) {
     writes.push({
       path: `${branchPath}/${COL.members}/${m.email}`,

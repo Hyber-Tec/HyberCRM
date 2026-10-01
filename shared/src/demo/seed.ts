@@ -3,6 +3,8 @@ import { STAFF_COLORS } from '../colors'
 import { COL, DOC, availabilityDocId } from '../paths'
 import { DEFAULT_SETTINGS } from '../settings/defaults'
 import { businessRoundedHours } from '../schedule/hours'
+import { localLogAi, type LogContent } from '../sessions/logs'
+import { ACT_TOPICS, SAT_PSAT_TOPICS } from '../sessions/topics'
 import { addDays, dayEndInstant, toInstant, weekdayOf } from '../time'
 import type { StaffRole, StudentStatus } from '../types'
 
@@ -354,6 +356,88 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
     d.data.firstSessionDate = stat.first
     d.data.lastSessionDate = stat.last
     d.data.nextSessionDate = stat.next
+  }
+
+  // Session logs for the sessions whose log was submitted ------------------
+  const logRand = rng(9090)
+  const lp = <T,>(arr: readonly T[]) => arr[Math.floor(logRand() * arr.length)]
+  const activities = [
+    'Reviewed last week’s homework, then worked through a timed practice set',
+    'Introduced the new unit with worked examples and guided practice',
+    'Focused on error analysis from the practice test and redid missed questions',
+    'Built fluency with mixed review problems and short quizzes',
+  ]
+  const insights = [
+    'Understands the core concepts but rushes on multi-step problems',
+    'Strong on fundamentals; needs more practice applying them to word problems',
+    'Confidence is growing; still hesitant to show full work',
+    'Made clear progress since last session and asked good questions',
+  ]
+  const focusNext = ['Timed practice on the weakest topic', 'Review mistakes and start the next unit', 'Mixed review before the upcoming test', 'Word problems and showing full work']
+  const homeworkGiven = ['Practice set 3 (20 questions)', 'Finish the worksheet and review the notes', 'Two timed sections and an error log', 'Textbook problems 1–25 (odd)']
+  for (const d of [...docs]) {
+    if (!d.path.includes(`/${COL.sessions}/`) || d.data.logStatus !== 'submitted') continue
+    const sd = d.data
+    const subj = String(sd.subject)
+    const sessionType = /PSAT/.test(subj) ? 'PSAT' : /SAT/.test(subj) ? 'SAT' : /ACT/.test(subj) ? 'ACT' : lp(['School Help', 'Skill Building', 'Homework Support'])
+    let topics: string[] = []
+    if (sessionType === 'SAT' || sessionType === 'PSAT') {
+      const section = /Reading|Writing/.test(subj) ? 'Reading & Writing' : 'Math'
+      const domain = lp(Object.keys(SAT_PSAT_TOPICS[section]))
+      topics = [`${section} > ${domain} > ${lp(SAT_PSAT_TOPICS[section][domain])}`]
+    } else if (sessionType === 'ACT') {
+      const sub = /English/.test(subj) ? 'English' : /Science/.test(subj) ? 'Science' : 'Math'
+      topics = [`${sub} > ${lp(ACT_TOPICS[sub])}`]
+    }
+    const attempted = 10 + Math.floor(logRand() * 21)
+    const wrong = Math.floor(logRand() * Math.min(10, attempted))
+    const score = 3 + Math.floor(logRand() * 3)
+    const ratings = { effort: Math.min(5, score + (logRand() < 0.3 ? 1 : 0)), motivation: score, behavior: Math.min(5, score + 1), focus: Math.max(2, score - (logRand() < 0.3 ? 1 : 0)), confidence: score }
+    const avg = Object.values(ratings).reduce((a, b) => a + b, 0) / 5
+    const content: LogContent = {
+      sessionType,
+      topics,
+      topicCovered: topics.length ? topics.join('; ') : `${subj} review`,
+      homeworkStatus: lp(['Completed', 'Completed', 'Completed', 'Partially Done', 'Not Done', 'Not Assigned']),
+      homeworkComments: '',
+      materials: [{ label: lp(['Official practice test', 'Workbook chapter review', 'Class notes', 'Khan Academy unit quiz']), url: '', type: 'text' }],
+      questionsAttempted: attempted,
+      questionsWrong: wrong,
+      lessonActivity: lp(activities),
+      learningInsight: lp(insights),
+      nextFocus: lp(focusNext),
+      homeworkGiven: lp(homeworkGiven),
+      ratings,
+      studentFlag: avg >= 3.8 ? 'on_track' : avg >= 3 ? 'needs_attention' : 'at_risk',
+    }
+    const id = d.path.split('/').pop()!
+    docs.push({
+      path: `${base}/${COL.sessionLogs}/${id}`,
+      data: {
+        sessionId: id,
+        ...content,
+        accuracyPercent: Math.round(((attempted - wrong) / attempted) * 100),
+        status: 'submitted',
+        submittedAt: sd.logSubmittedAt,
+        tutorId: sd.tutorId,
+        tutorName: sd.tutorName,
+        studentId: sd.studentId,
+        studentName: sd.studentName,
+        subject: subj,
+        dateKey: sd.dateKey,
+        startMin: sd.startMin,
+        endMin: sd.endMin,
+        startAt: sd.startAt,
+        endAt: sd.endAt,
+        usedHours: businessRoundedHours((sd.endMin as number) - (sd.startMin as number)),
+        ai: localLogAi(content, subj),
+        enteredByAdmin: null,
+        createdAt: now,
+        createdBy: 'seed',
+        updatedAt: now,
+        updatedBy: 'seed',
+      },
+    })
   }
 
   // Clock shifts for past days: clocked in a bit before the first session and

@@ -224,7 +224,7 @@ export function SchedulePage() {
 
   // ------------------------------------------------------------- actions
   const openLog = useCallback(
-    (s: WithId<Session>) => window.open(`/${branchId}/admin/sessions/log/${s.id}/edit`, '_blank', 'noopener'),
+    (s: WithId<Session>) => window.open(`/${branchId}/session-log/${s.id}`, '_blank', 'noopener'),
     [branchId],
   )
 

@@ -57,7 +57,7 @@ export function useSessionDialog() {
         await deleteSession(ctx, s)
         toast.success('Session moved to Trash')
       }}
-      onOpenLog={(s) => window.open(`/${branchId}/admin/sessions/log/${s.id}/edit`, '_blank', 'noopener')}
+      onOpenLog={(s) => window.open(`/${branchId}/session-log/${s.id}`, '_blank', 'noopener')}
     />
   )
   return { element, openCreate, openEdit, isLocked }
