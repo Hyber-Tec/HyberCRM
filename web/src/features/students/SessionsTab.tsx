@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { openLog } from '@/features/sessions/SessionLogListPage'
-import { type ProgressReport, RISK_STYLE, reportTitle } from '@/features/sessions/ProgressReportsPage'
+import { type ProgressReport, RISK_STYLE, reportTitle } from '@/features/sessions/reportModel'
 import { FlagBadge, HomeworkBadge, StarRating } from '@/features/sessions/widgets'
 import { branchCol, useQuery } from '@/lib/firestore'
 

@@ -6,9 +6,9 @@ import { toast } from 'sonner'
 import { COL } from '@shared/paths'
 import { studentLabel } from '@shared/people'
 import { type SessionLog } from '@shared/sessions/logs'
-import { type ReportMetrics, type ReportNarrative, buildMetrics, localNarrative } from '@shared/sessions/reports'
-import { addDays, formatDateKey, formatInstant, todayKey } from '@shared/time'
-import type { TimestampLike, WithId } from '@shared/types'
+import { type ReportNarrative, buildMetrics, localNarrative } from '@shared/sessions/reports'
+import { addDays, formatInstant, todayKey } from '@shared/time'
+import type { WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { OptionPicker } from '@/components/app/OptionPicker'
 import { PageHeader } from '@/components/app/PageHeader'
@@ -27,38 +27,14 @@ import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useStudentList } from '@/features/data/hooks'
 import { addAudit } from '@/lib/audit'
+import { type ProgressReport, RISK_STYLE, reportTitle } from './reportModel'
 import { db, functions } from '@/lib/firebase'
 import { branchCol, branchDocRef, useQuery } from '@/lib/firestore'
 import { writeBatch } from 'firebase/firestore'
 
-export interface ProgressReport {
-  studentId: string
-  studentName: string
-  startDate: string
-  endDate: string
-  generatedAt: TimestampLike | null
-  generatedBy: string
-  generatedByName: string
-  sessionCount: number
-  sessionIds: string[]
-  lastSessionDateKey: string | null
-  metrics: ReportMetrics
-  narrative: ReportNarrative
-  customName: string | null
-  sharedWithParents: boolean
-}
-
 const aiCallable = httpsCallable<{ branchId: string; mode: 'report'; payload: Record<string, unknown> }, ReportNarrative>(functions, 'sessionAi')
 
-export function reportTitle(r: Pick<ProgressReport, 'customName' | 'studentName' | 'startDate' | 'endDate'>) {
-  return r.customName || `${r.studentName} — Progress Report — ${formatDateKey(r.startDate, 'medium')} – ${formatDateKey(r.endDate, 'medium')}`
-}
-
-export const RISK_STYLE: Record<string, string> = {
-  'On Track': 'border-green-200 bg-green-50 text-green-700',
-  'Needs Attention': 'border-amber-200 bg-amber-50 text-amber-800',
-  'At Risk': 'border-red-200 bg-red-50 text-red-700',
-}
+export { type ProgressReport, RISK_STYLE, reportTitle } from './reportModel'
 
 /** Session → Progress Reports (admin and tutor). */
 export function ProgressReportsPage({ mode = 'admin' }: { mode?: 'admin' | 'tutor' }) {

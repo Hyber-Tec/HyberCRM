@@ -9,7 +9,7 @@ import { FullPageMessage, FullPageSpinner } from '@/components/app/FullPage'
 import { Button } from '@/components/ui/button'
 import { branchDocRef, useDoc } from '@/lib/firestore'
 import { cn } from '@/lib/utils'
-import { type ProgressReport, reportTitle } from './ProgressReportsPage'
+import { type ProgressReport, reportTitle } from './reportModel'
 
 /** Printable student progress report (`/branch/progress-report/:id`). */
 export function ProgressReportPage() {
