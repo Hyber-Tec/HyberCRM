@@ -3,7 +3,8 @@ import { STAFF_COLORS } from '../colors'
 import { COL, DOC, availabilityDocId } from '../paths'
 import { DEFAULT_SETTINGS } from '../settings/defaults'
 import { businessRoundedHours } from '../schedule/hours'
-import { localLogAi, type LogContent } from '../sessions/logs'
+import { localLogAi, type LogContent, type SessionLog } from '../sessions/logs'
+import { buildMetrics, localNarrative } from '../sessions/reports'
 import { ACT_TOPICS, SAT_PSAT_TOPICS } from '../sessions/topics'
 import { addDays, dayEndInstant, toInstant, weekdayOf } from '../time'
 import type { StaffRole, StudentStatus } from '../types'
@@ -356,14 +357,11 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
     if (!d.path.includes(`/${COL.students}/`) || d.path.includes('/private/')) continue
     const id = d.path.split('/').pop()!
     const prior = priorHours.get(id) ?? 0
-    const stat = stats.get(id)
-    if (!stat) {
-      d.data.totalSessionHours = prior
-      continue
-    }
+    const stat = stats.get(id) ?? { hours: 0, first: null, last: null, next: null }
     d.data.totalSessionHours = Math.round((stat.hours + prior) * 100) / 100
-    d.data.firstSessionDate = stat.first
-    d.data.lastSessionDate = stat.last
+    // Prior hours stand for sessions before the generated weeks.
+    d.data.firstSessionDate = prior ? addDays(opts.today, -120) : stat.first
+    d.data.lastSessionDate = stat.last ?? (prior ? addDays(opts.today, -15) : null)
     d.data.nextSessionDate = stat.next
   }
 
@@ -445,6 +443,40 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
         createdBy: 'seed',
         updatedAt: now,
         updatedBy: 'seed',
+      },
+    })
+  }
+
+  // A progress report shared with each of a few families (parent portal) ------
+  const logsByStudent = new Map<string, SessionLog[]>()
+  for (const d of docs) {
+    if (!d.path.includes(`/${COL.sessionLogs}/`)) continue
+    const log = d.data as unknown as SessionLog
+    logsByStudent.set(log.studentId, [...(logsByStudent.get(log.studentId) ?? []), log])
+  }
+  const reportStudents = [...logsByStudent.entries()]
+    .sort((a, b) => Number(b[0] === 'demo-student-ava-patel') - Number(a[0] === 'demo-student-ava-patel') || b[1].length - a[1].length)
+    .slice(0, 3)
+  for (const [studentId, list] of reportStudents) {
+    const logs = list.slice().sort((a, b) => b.dateKey.localeCompare(a.dateKey))
+    const metrics = buildMetrics(logs, DEFAULT_SETTINGS.sessionLogs.ratingDimensions, DEFAULT_SETTINGS.progressReports.risk)
+    docs.push({
+      path: `${base}/${COL.progressReports}/demo-r-${studentId.replace('demo-student-', '')}`,
+      data: {
+        studentId,
+        studentName: logs[0].studentName,
+        startDate: logs[logs.length - 1].dateKey,
+        endDate: logs[0].dateKey,
+        generatedAt: now,
+        generatedBy: createdBy,
+        generatedByName: 'Grace Liu',
+        sessionCount: logs.length,
+        sessionIds: logs.map((l) => l.sessionId),
+        lastSessionDateKey: logs[0].dateKey,
+        metrics,
+        narrative: localNarrative(metrics, logs[0].studentName),
+        customName: null,
+        sharedWithParents: true,
       },
     })
   }

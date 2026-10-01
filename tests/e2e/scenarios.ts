@@ -89,7 +89,25 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   { name: 'admin + tutor', email: 'multi@e2e.test', paths: ['/app', `${b}/tutor`] },
-  { name: 'parent', email: 'parent@e2e.test', paths: ['/app'], expect: { '/app': ['Upcoming Sessions'] } },
-  { name: 'student', email: 'student@e2e.test', paths: ['/app'], expect: { '/app': ['My Info'] } },
+  {
+    name: 'parent',
+    email: 'parent@e2e.test',
+    paths: ['/app', `${b}/parent/progress-reports`, `${b}/progress-report/demo-r-ava-patel`],
+    expect: {
+      '/app': ['Upcoming sessions', 'Ava Patel'],
+      [`${b}/parent/progress-reports`]: ['Progress report ·', 'Open'],
+      [`${b}/progress-report/demo-r-ava-patel`]: ['Student Progress Report', 'Ava Patel'],
+    },
+  },
+  {
+    name: 'student',
+    email: 'student@e2e.test',
+    paths: ['/app', `${b}/student/calendar`, `${b}/student/profile`],
+    expect: {
+      '/app': ['NEXT SESSION', 'HOURS OF TUTORING', 'Coming up', 'Noah'],
+      [`${b}/student/calendar`]: ['Click a session for details'],
+      [`${b}/student/profile`]: ['Noah Nguyen', 'has on file for you'],
+    },
+  },
   { name: 'outsider', email: 'outsider@e2e.test', paths: ['/app'], expect: { '/app': ['No access yet'] } },
 ]

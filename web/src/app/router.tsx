@@ -1,6 +1,5 @@
 import { Navigate, Outlet, type RouteObject, createBrowserRouter } from 'react-router'
 import { BranchProvider } from '@/branch/BranchProvider'
-import { ComingSoon } from '@/components/app/ComingSoon'
 import { FullPageMessage } from '@/components/app/FullPage'
 import { AppResolver } from '@/pages/public/AppResolver'
 import { Landing } from '@/pages/public/Landing'
@@ -17,8 +16,6 @@ import { BranchHomeRedirect, RequireAuth, RequirePage, RequirePortal, RequireSup
 function page<M extends Record<string, unknown>>(load: () => Promise<M>, name: keyof M): RouteObject['lazy'] {
   return async () => ({ Component: (await load())[name] as React.ComponentType })
 }
-
-const soon = (title: string, description?: string) => <ComingSoon title={title} description={description} />
 
 const adminRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="home" replace /> },
@@ -90,16 +87,16 @@ const tutorRoutes: RouteObject[] = [
 
 const parentRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="home" replace /> },
-  { path: 'home', element: soon('Upcoming Sessions') },
-  { path: 'progress-reports/*', element: soon('Progress Reports') },
+  { path: 'home', lazy: page(() => import('@/features/family/FamilyPages'), 'ParentHomePage') },
+  { path: 'progress-reports', lazy: page(() => import('@/features/family/FamilyPages'), 'ParentReportsPage') },
   { path: '*', element: <Navigate to="home" replace /> },
 ]
 
 const studentRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="home" replace /> },
-  { path: 'home', element: soon('Home') },
-  { path: 'calendar', element: soon('Calendar') },
-  { path: 'profile', element: soon('My Info') },
+  { path: 'home', lazy: page(() => import('@/features/family/FamilyPages'), 'StudentHomePage') },
+  { path: 'calendar', lazy: page(() => import('@/features/family/FamilyPages'), 'StudentPortalCalendarPage') },
+  { path: 'profile', lazy: page(() => import('@/features/family/FamilyPages'), 'StudentInfoPage') },
   { path: '*', element: <Navigate to="home" replace /> },
 ]
 

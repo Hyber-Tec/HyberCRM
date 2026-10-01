@@ -370,6 +370,12 @@ Details: doc 03 and doc 04.
 
 Each phase ends with a working, testable slice. Phases 0–1 are the foundation the owner asked for first; Phase 4 is the Schedule.
 
+**Status (2026-10-01):** phases 0–9 are built and deployed to `hybercrm.web.app`, with these changes from the plan, all recorded in `DECISIONS.md`:
+- FCM push waits for the phone app; notifications go to the in-app inbox for now.
+- Suggestions were dropped (Q7).
+- Google Calendar/Sheets sync is optional and not built yet.
+- TE migration is not planned (Q9).
+
 | Phase | Scope | Done when |
 |---|---|---|
 | **0. Setup** | Repo layout, Vite app, Firebase init for `hyber-crm`, `shared/` with tests, `firebase.json` without hosting, base rules, `CLAUDE.md` with project conventions | `npm run dev` shows the landing page; `shared` tests pass |
