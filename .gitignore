@@ -16,7 +16,7 @@ service-account*.json
 # local-only material (live-system analysis and owner notes; this repo is public)
 docs/true-education/
 firebaseConfig.txt
-HyberCRM_Claude_Code_Prompt.md
+HyberCRM_*.md
 
 # editors / OS
 .DS_Store

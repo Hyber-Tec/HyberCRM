@@ -6,7 +6,8 @@ Read first: [`docs/hyber/DECISIONS.md`](docs/hyber/DECISIONS.md) (owner answers,
 
 ## Owner, accounts, permissions
 
-- Solo developer. Everything for this project runs under **goochoi913@gmail.com** (Firebase, GitHub, the only Super Admin). Never use any other address.
+- Solo developer. Everything for this project runs under **goochoi913@gmail.com** (Firebase, GitHub, the only Super Admin). Never use any other account.
+- Hyber CRM is a product of **HyberTec LLC**. Outgoing email (invites, new accounts) is sent from the company address **hybertecofficial@gmail.com** through Gmail; its app password lives in the `GMAIL_APP_PASSWORD` secret.
 - Full permission to deploy Firestore/Storage rules, indexes, Cloud Functions and Hosting to `hyber-crm`, to seed data, and to push to `main`. Do it without asking or announcing each time, unless the owner sets a limit.
 - When a detail is unclear, decide it (and record notable calls in DECISIONS.md §3) instead of asking.
 
@@ -30,11 +31,14 @@ Read first: [`docs/hyber/DECISIONS.md`](docs/hyber/DECISIONS.md) (owner answers,
 ## Conventions
 
 - **Tenancy:** all branch data under `branches/{branchId}/…`; root collections are only `platformAdmins`, `branches`, `users`. Every new collection gets explicit rules.
-- **Identity:** `branches/{b}/members/{emailLower}` with `roles: ("admin"|"tutor"|"parent"|"student")[]`; people records `staff/{id}` and `students/{id}` are referenced by ID only.
+- **Identity:** `branches/{b}/members/{emailLower}` with exactly **one** `role`: `"owner"|"admin"|"tutor"|"parent"|"student"` (permanent rule: one role per person). Only tutors teach. People records `staff/{id}` and `students/{id}` are referenced by ID only.
+- **Branch rules:** pay model, students per tutor at once and parent conferences live in `branches/{b}.businessRules`, set by the Super Admin at branch creation and changed only by the Super Admin (Platform page). Never put them in admin Settings and never hard-code True Education's values.
 - **Settings:** defaults in `shared/src/settings/defaults.ts` (TE behavior); a branch stores only overrides; always read through the resolver.
 - **Time:** branch IANA time zone only. Wall clock `dateKey` (`YYYY-MM-DD`) + `startMin`/`endMin`, plus absolute `startAt`/`endAt`. Use `shared/src/time.ts`, never the browser zone.
 - **Audit:** every schedule, availability, people, pay and settings mutation writes an append-only `auditLog` entry in the same batch.
 - **UI:** shadcn/ui components in `web/src/components/ui`, icons from react-icons. The Schedule keeps TE's layout; everything else may improve on TE.
+- **Month calendars (permanent rule):** every monthly calendar, on web and phone, scrolls vertically through months like the iOS Calendar app, built on the shared month scroller. Never static months with ‹ › arrows, including mini calendars and date pickers.
+- **AI naming (permanent rule):** the app never names the AI model or provider in labels, settings, messages or errors; it is always "AI".
 - **Secrets:** never commit API keys, service-account files, tokens, passwords or PINs. The Firebase web config lives in `web/.env.local` (git-ignored).
 
 ## Git and commits
