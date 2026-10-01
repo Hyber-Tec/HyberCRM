@@ -20,3 +20,8 @@ createRoot(document.getElementById('root')!).render(
     </ThemeProvider>
   </StrictMode>,
 )
+
+// Installable app ("Hyber CRM"). Not in dev or against the emulators.
+if ('serviceWorker' in navigator && import.meta.env.PROD && import.meta.env.VITE_USE_EMULATORS !== '1') {
+  window.addEventListener('load', () => void navigator.serviceWorker.register('/sw.js').catch(() => undefined))
+}

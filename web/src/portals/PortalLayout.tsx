@@ -51,6 +51,13 @@ function NavBadgesProvider({ portal, children }: { portal: Role; children: React
   const unread = useUnreadAnnouncementCount(portal === 'tutor')
   const total = portal === 'admin' ? attention.total : 0
   const value = useMemo(() => ({ home: total, announcements: unread }), [total, unread])
+  // Installed app icon: unread announcements in the tutor portal (TE's News count).
+  useEffect(() => {
+    if (portal !== 'tutor') return
+    const nav = navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> }
+    if (unread > 0) void nav.setAppBadge?.(unread).catch(() => undefined)
+    else void nav.clearAppBadge?.().catch(() => undefined)
+  }, [portal, unread])
   return <NavBadges.Provider value={value}>{children}</NavBadges.Provider>
 }
 
