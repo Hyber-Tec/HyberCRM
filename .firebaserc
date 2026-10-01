@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "hyber-crm"
+  },
+  "targets": {
+    "hyber-crm": {
+      "hosting": {
+        "app": ["hybercrm"]
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "hyber-crm",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm --prefix web run dev",
+    "build": "npm --prefix web run build",
+    "typecheck": "tsc -p shared --noEmit && npm --prefix web run typecheck && npm --prefix functions run typecheck",
+    "test": "vitest run --root shared",
+    "test:rules": "bash scripts/test-rules.sh",
+    "seed": "tsx scripts/seed.ts",
+    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage --project hyber-crm",
+    "deploy:functions": "firebase deploy --only functions --project hyber-crm",
+    "deploy:hosting": "npm run build && firebase deploy --only hosting --project hyber-crm",
+    "deploy": "npm run build && firebase deploy --project hyber-crm",
+    "e2e": "bash scripts/e2e.sh"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^12.19.0",
+    "playwright-core": "^1.63.0",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.3"
+  }
+}

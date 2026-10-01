@@ -1,0 +1,52 @@
+rules_version = '2';
+
+// Files are scoped by branch like Firestore data. Membership is checked in Firestore.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null
+        && request.auth.token.email is string
+        && request.auth.token.email_verified == true;
+    }
+
+    function emailKey() {
+      return request.auth.token.email.lower();
+    }
+
+    function isSuperAdmin() {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/platformAdmins/$(emailKey()));
+    }
+
+    function member(b) {
+      return firestore.get(/databases/(default)/documents/branches/$(b)/members/$(emailKey())).data;
+    }
+
+    function isMember(b) {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/branches/$(b)/members/$(emailKey()))
+        && member(b).status == 'active';
+    }
+
+    function isAdmin(b) {
+      return isSuperAdmin() || (isMember(b) && 'admin' in member(b).roles);
+    }
+
+    function isImage(maxBytes) {
+      return request.resource.size < maxBytes
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Logos are public so the branch sign-up page can show them.
+    match /branches/{b}/branding/{file} {
+      allow read: if true;
+      allow write: if isAdmin(b) && (request.resource == null || isImage(2 * 1024 * 1024));
+    }
+
+    match /branches/{b}/announcements/{rest=**} {
+      allow read: if isMember(b) || isSuperAdmin();
+      allow write: if isAdmin(b) && (request.resource == null || request.resource.size < 20 * 1024 * 1024);
+    }
+  }
+}

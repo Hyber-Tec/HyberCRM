@@ -1,0 +1,48 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "auditLog",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "category",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "at",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "members",
+      "fieldPath": "email",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "signupRequests",
+      "fieldPath": "email",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    }
+  ]
+}

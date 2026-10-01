@@ -1,0 +1,26 @@
+# dependencies and builds
+node_modules/
+dist/
+functions/lib/
+.firebase/
+*.tsbuildinfo
+
+# logs
+*.log
+
+# local env and secrets
+.env*.local
+*.local
+service-account*.json
+
+# local-only material (live-system analysis and owner notes; this repo is public)
+docs/true-education/
+firebaseConfig.txt
+HyberCRM_Claude_Code_Prompt.md
+
+# editors / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.claude/*.local.json
