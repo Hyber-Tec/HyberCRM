@@ -25,6 +25,7 @@ import { AuditLogSection } from '@/features/audit/AuditLogSection'
 import { type AuditInput, addAudit } from '@/lib/audit'
 import { db, storage } from '@/lib/firebase'
 import { cn } from '@/lib/utils'
+import { DateHoursCard } from './DateHoursCard'
 import { SettingField } from './SettingsFields'
 import { SETTINGS_SECTIONS, type FieldDef } from './schema'
 
@@ -45,7 +46,7 @@ export function SettingsPage() {
     <div>
       <PageHeader title="Settings" description="Your branch profile, branding and day-to-day settings. Defaults follow the standard Hyber setup." />
       <div className="flex flex-col gap-6 lg:flex-row">
-        <nav className="lg:w-52 lg:shrink-0">
+        <nav className="lg:sticky lg:top-4 lg:w-52 lg:shrink-0 lg:self-start">
           <div className="lg:hidden">
             <Select value={active} onValueChange={setActive}>
               <SelectTrigger className="w-full">
@@ -87,6 +88,11 @@ export function SettingsPage() {
             <BrandingCard />
           ) : active === 'audit-log' ? (
             <AuditLogSection />
+          ) : active === 'schedule' ? (
+            <div className="space-y-4">
+              <BusinessSection sectionKey={active} />
+              <DateHoursCard />
+            </div>
           ) : (
             <BusinessSection sectionKey={active} />
           )}
@@ -371,8 +377,10 @@ function BrandingCard() {
 function BusinessSection({ sectionKey }: { sectionKey: string }) {
   const { branch, branchId, settings, rules } = useBranch()
   const write = useBranchWriter()
-  const full = SETTINGS_SECTIONS.find((s) => s.key === sectionKey)!
-  const section = { ...full, fields: full.fields.filter((f) => !f.visible || f.visible(rules)) }
+  const section = useMemo(() => {
+    const full = SETTINGS_SECTIONS.find((s) => s.key === sectionKey)!
+    return { ...full, fields: full.fields.filter((f) => !f.visible || f.visible(rules)) }
+  }, [sectionKey, rules])
   const [draft, setDraft] = useState<BranchSettings>(settings)
   const [busy, setBusy] = useState(false)
 
