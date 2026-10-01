@@ -1,6 +1,9 @@
 import { cn } from '@/lib/utils'
 
-/** The Hyber CRM logo mark (HyberTec LLC's vector, `public/brand/hybercrm-logo.svg`), drawn in the current text color. */
+/**
+ * The Hyber CRM logo (HyberTec LLC's vector, `public/brand/hybercrm-logo.svg`), drawn in the current text color.
+ * The favicon, app icons and email logo are built from the same file by `scripts/brand-icons.ts`.
+ */
 export function HyberLogo({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 801 781" fill="currentColor" className={className} aria-hidden="true">
@@ -9,13 +12,11 @@ export function HyberLogo({ className }: { className?: string }) {
   )
 }
 
-/** The Hyber CRM product mark (used outside branch context): the logo on a rounded tile. */
+/** The Hyber CRM product mark (used outside branch context): the black logo, white in dark mode. */
 export function HyberMark({ className, withName = false }: { className?: string; withName?: boolean }) {
   return (
     <div className={cn('flex items-center gap-2', className)}>
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-        <HyberLogo className="size-[70%]" />
-      </span>
+      <HyberLogo className="size-7 shrink-0" />
       {withName ? <span className="text-lg font-semibold tracking-tight">Hyber CRM</span> : null}
     </div>
   )

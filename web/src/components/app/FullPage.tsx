@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { HyberMark } from './HyberMark'
+import { HyberLogo } from './HyberMark'
 
 export function FullPageSpinner({ label }: { label?: string }) {
   return (
@@ -33,7 +33,7 @@ export function FullPageMessage({
   return (
     <div className="flex min-h-svh flex-col items-center justify-center bg-muted/40 px-4 py-10">
       <div className="w-full max-w-md rounded-2xl border bg-card p-8 text-center shadow-sm">
-        <HyberMark className="mx-auto mb-6 w-fit" />
+        <HyberLogo className="mx-auto mb-6 size-10" />
         <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
         {description ? <div className="mt-2 text-sm text-muted-foreground">{description}</div> : null}
         {children}
