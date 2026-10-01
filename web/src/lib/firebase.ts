@@ -4,13 +4,12 @@ import { connectFirestoreEmulator, initializeFirestore } from 'firebase/firestor
 import { connectFunctionsEmulator, getFunctions } from 'firebase/functions'
 import { connectStorageEmulator, getStorage } from 'firebase/storage'
 
-// On Firebase Hosting, use the page's own domain for the auth handler so sign-in
-// keeps working when browsers block third-party storage.
-const onHostedDomain = /\.(web\.app|firebaseapp\.com)$/.test(window.location.hostname)
-
+// Google only accepts sign-in return addresses registered on the project's OAuth
+// client, which by default is just `https://{project}.firebaseapp.com/__/auth/handler`.
+// Register another domain's `/__/auth/handler` there before pointing authDomain at it.
 export const firebaseApp = initializeApp({
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: onHostedDomain ? window.location.hostname : import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,

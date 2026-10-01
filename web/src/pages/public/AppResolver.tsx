@@ -42,8 +42,9 @@ export function AppResolver() {
   if (!ready) return <FullPageSpinner label="Checking your access…" />
 
   if (!choose) {
-    if (active.length === 1 && !isSuperAdmin) return <Navigate to={`/${active[0].branchId}`} replace />
-    if (active.length === 0 && isSuperAdmin) return <Navigate to="/platform" replace />
+    // Super admins always start on the platform dashboard; any branch is one click away.
+    if (isSuperAdmin) return <Navigate to="/platform" replace />
+    if (active.length === 1) return <Navigate to={`/${active[0].branchId}`} replace />
   }
 
   if (active.length === 0 && !isSuperAdmin) {

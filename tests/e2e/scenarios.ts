@@ -52,6 +52,7 @@ export const SCENARIOS: Scenario[] = [
       `${b}/admin/announcements/new`,
     ],
     expect: {
+      '/app': ['Every tutoring center on Hyber', 'Demo Academy'],
       '/platform': ['Demo Academy'],
       [`${b}/admin/home`]: ['Super Admin', 'Upcoming Schedule & Events', 'Live Clock In / Out', 'Missing & Needs Attention', 'Conference Needed', 'New Students to Follow Up'],
       [`${b}/admin/announcements`]: ['Welcome to the new Demo Academy portal', 'Read: '],
