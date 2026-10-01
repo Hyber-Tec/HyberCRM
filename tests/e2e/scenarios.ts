@@ -13,6 +13,8 @@ export const E2E_BRANCH = 'demo-academy'
 
 /** Today in the branch zone (the seed is relative to it). */
 export const TODAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
+const FOUR_WEEKS_AGO = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date(Date.now() - 28 * 86_400_000))
+const PAYROLL_REPORT = `/${E2E_BRANCH}/admin/employees/payroll?employee=demo-maya-thompson&from=${FOUR_WEEKS_AGO}&to=${TODAY}`
 
 export const E2E_MEMBERS: { email: string; role: Role; staffId?: string; studentId?: string; studentIds?: string[] }[] = [
   { email: 'owner@e2e.test', role: 'owner' },
@@ -45,6 +47,9 @@ export const SCENARIOS: Scenario[] = [
       `${b}/admin/employees/calendar?staff=demo-maya-thompson&mode=teaching`,
       `${b}/admin/employees/time-entries`,
       `${b}/admin/employees/payroll`,
+      PAYROLL_REPORT,
+      `${b}/admin/settings/schedule`,
+      `${b}/admin/settings/signup`,
       `${b}/kiosk`,
       `${b}/admin/sessions/log`,
       `${b}/admin/sessions/progress-reports`,
@@ -55,13 +60,13 @@ export const SCENARIOS: Scenario[] = [
     expect: {
       '/app': ['Every tutoring center on Hyber', 'Demo Academy'],
       '/platform': ['Demo Academy'],
-      [`/platform/branches/${E2E_BRANCH}`]: ['Business rules', 'Teaching + Admin', 'from the start', 'Students per tutor at once'],
+      [`/platform/branches/${E2E_BRANCH}`]: ['Business rules', 'Teaching + Admin', 'from the start', 'Students per tutor at once', 'New owners get an email'],
       [`${b}/admin/settings`]: ['Business rules', 'Chosen by HyberTec', 'Every 25 tutoring hours'],
       [`${b}/admin/home`]: ['Super Admin', 'Upcoming Schedule & Events', 'Live Clock In / Out', 'Missing & Needs Attention', 'Conference Needed', 'New Students to Follow Up'],
       [`${b}/admin/announcements`]: ['Welcome to the new Demo Academy portal', 'Read: '],
       [`${b}/admin/announcements/demo-a-welcome`]: ['Looks great', 'Comments'],
       [`${b}/admin/announcements/new`]: ['Step 1 of 2'],
-      [`${b}/admin/account`]: ['owner@e2e.test'],
+      [`${b}/admin/account`]: ['owner@e2e.test', 'Sign-up page', 'Status'],
       [`${b}/admin/employees/directory`]: ['Maya Thompson'],
       [`${b}/admin/employees/directory/demo-maya-thompson`]: ['Teaching rate', 'Internal notes'],
       [`${b}/admin/employees/subjects`]: ['Test Prep'],
@@ -71,7 +76,10 @@ export const SCENARIOS: Scenario[] = [
       [`${b}/admin/schedule/week/${TODAY}`]: ['EVENTS', 'All Teachers'],
       [`${b}/admin/schedule/month/${TODAY}`]: ['Payment Reminder'],
       [`${b}/admin/settings/audit-log`]: ['Audit Log', 'Everything'],
-      [`${b}/admin/employees/payroll`]: ['TOTAL PAY', 'Maya Thompson'],
+      [`${b}/admin/employees/payroll`]: ['Recent Payroll Records', '25 per page', 'Maya Thompson'],
+      [PAYROLL_REPORT]: ['Generated Payroll Records', 'TOTAL PAY', 'Teaching rate'],
+      [`${b}/admin/settings/schedule`]: ['Opening hours by date', 'Apply to a range'],
+      [`${b}/admin/settings/signup`]: ['Your sign-up page', 'Download QR code'],
       [`${b}/kiosk`]: ['Tap anywhere to begin'],
     },
   },
@@ -90,7 +98,7 @@ export const SCENARIOS: Scenario[] = [
       [`${b}/tutor/announcements/demo-a-welcome`]: ['Looks great', 'Post comment'],
       [`${b}/tutor/my-info/profile`]: ['Maya Thompson', 'Teaching rate'],
       [`${b}/tutor/my-info/subjects`]: ['Test Prep'],
-      [`${b}/tutor/availability`]: ['THIS MONTH'],
+      [`${b}/tutor/availability`]: ['Copy last week', 'closed days take no availability'],
     },
   },
   {
@@ -120,5 +128,10 @@ export const SCENARIOS: Scenario[] = [
       [`${b}/student/profile`]: ['Noah Nguyen', 'has on file for you'],
     },
   },
-  { name: 'outsider', email: 'outsider@e2e.test', paths: ['/app'], expect: { '/app': ['No access yet'] } },
+  {
+    name: 'outsider',
+    email: 'outsider@e2e.test',
+    paths: ['/app', `${b}/admin/home`],
+    expect: { '/app': ['No access yet', 'Got an invitation email?'], [`${b}/admin/home`]: ['No access to Demo Academy', 'Request access'] },
+  },
 ]

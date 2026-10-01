@@ -109,7 +109,8 @@ const sessionLog: Step = async (page, base) => {
 const homeClockFix: Step = async (page, base) => {
   await page.goto(`${base}/${E2E_BRANCH}/admin/home`, { waitUntil: 'load' })
   const card = page.getByTestId('home-attention')
-  const row = card.getByRole('button').filter({ hasText: 'Daniel Kim' }).first()
+  // Daniel also has sessions today that show as missing logs once they start: pick the clock-out row.
+  const row = card.getByRole('button').filter({ hasText: 'Daniel Kim' }).filter({ hasText: 'Auto clock-out' }).first()
   await row.waitFor({ timeout: 15000 })
   await row.click()
   await expectText(page, 'Correct clock-out time')
@@ -173,6 +174,20 @@ const viewAs: Step = async (page, base) => {
   await expectText(page, 'Super Admin · viewing')
 }
 
+/** The owner adds a tutor: the invite email goes out (emulator outbox) and the status says so. */
+const inviteNewPerson: Step = async (page, base) => {
+  await page.goto(`${base}/${E2E_BRANCH}/admin/account`, { waitUntil: 'load' })
+  await page.getByRole('button', { name: 'Add person' }).click()
+  await page.locator('#m-email').fill('e2e.invitee@hyber-e2e.org')
+  await page.locator('#m-first').fill('Ivy')
+  await page.locator('#m-last').fill('Invitee')
+  await page.getByRole('dialog').getByText('Tutor', { exact: true }).first().click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Add person' }).click()
+  await expectText(page, 'a link to sign in')
+  const row = page.getByRole('row').filter({ hasText: 'e2e.invitee@hyber-e2e.org' })
+  await row.getByText(/Invited/).last().waitFor({ state: 'visible', timeout: 15000 })
+}
+
 export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'schedule create/status/delete', email: 'goochoi913@gmail.com', run: scheduleCrud },
   { name: 'kiosk clock in/out', email: 'goochoi913@gmail.com', run: kiosk },
@@ -182,4 +197,5 @@ export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'tutor reads and comments on it', email: 'tutor@e2e.test', run: announcementTutor },
   { name: 'session changes reach the tutor', email: 'tutor@e2e.test', run: sessionNotifications },
   { name: 'super admin views the app as a tutor', email: 'goochoi913@gmail.com', run: viewAs },
+  { name: 'owner adds a person and the invite goes out', email: 'owner@e2e.test', run: inviteNewPerson },
 ]
