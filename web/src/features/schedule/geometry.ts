@@ -37,3 +37,14 @@ export function rowHeight(laneCount: number, hasCanceled: boolean): number {
 export function eventsRowHeight(lanes: number): number {
   return 10 + EVENT_H * lanes + EVENT_GAP * Math.max(0, lanes - 1)
 }
+
+/**
+ * Where a dragged card would start: the pointer minus where the card was grabbed,
+ * snapped to the time snap and kept on the timeline (one rounding, so the guide
+ * and the drop always agree).
+ */
+export function dragStartMinute(clientX: number, rect: DOMRect, openMin: number, closeMin: number, snap: number, grabOffsetMin: number): number {
+  const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+  const raw = openMin + ratio * (closeMin - openMin) - grabOffsetMin
+  return Math.min(closeMin - snap, Math.max(openMin, Math.round(raw / snap) * snap))
+}

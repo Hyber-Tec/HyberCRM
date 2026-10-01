@@ -10,24 +10,31 @@ import { branchCol, useQuery } from '@/lib/firestore'
 
 export type EventDoc = ScheduleEvent & { isRecurring: boolean; createdBy?: string; updatedAt?: unknown }
 
-/** Live schedule data for a date range (sessions, availability, day configs, events). */
-export function useScheduleData(from: DateKey, to: DateKey, tutorFilter: string | null) {
+/**
+ * Live schedule data for a date range (sessions, availability, day configs, events).
+ * `eventsOnly` (Month view) skips sessions and availability; `keepPrevious` keeps
+ * the last results on screen while a moved range loads.
+ */
+export function useScheduleData(from: DateKey, to: DateKey, tutorFilter: string | null, opts?: { eventsOnly?: boolean; keepPrevious?: boolean }) {
   const { branchId } = useBranch()
+  const eventsOnly = !!opts?.eventsOnly
+  const keep = { keepPrevious: !!opts?.keepPrevious }
 
   const sessionsQ = useMemo(() => {
+    if (eventsOnly) return null
     const base = branchCol(branchId, COL.sessions)
     return tutorFilter
       ? query(base, where('tutorId', '==', tutorFilter), where('dateKey', '>=', from), where('dateKey', '<=', to))
       : query(base, where('dateKey', '>=', from), where('dateKey', '<=', to))
-  }, [branchId, from, to, tutorFilter])
+  }, [branchId, from, to, tutorFilter, eventsOnly])
   const sessions = useQuery<Session>(sessionsQ, `sched-sessions-${branchId}-${from}-${to}-${tutorFilter}`)
 
   const availQ = useMemo(
-    () => query(branchCol(branchId, COL.availability), where('dateKey', '>=', from), where('dateKey', '<=', to)),
-    [branchId, from, to],
+    () => (eventsOnly ? null : query(branchCol(branchId, COL.availability), where('dateKey', '>=', from), where('dateKey', '<=', to))),
+    [branchId, from, to, eventsOnly],
   )
   const availability = useQuery<Availability>(availQ, `sched-avail-${branchId}-${from}-${to}`)
-  const dayConfigs = useDayConfigs(from, to)
+  const dayConfigs = useDayConfigs(from, to, keep)
 
   const oneOffQ = useMemo(
     () =>
@@ -35,7 +42,7 @@ export function useScheduleData(from: DateKey, to: DateKey, tutorFilter: string 
     [branchId, from, to],
   )
   const recurringQ = useMemo(() => query(branchCol(branchId, COL.events), where('isRecurring', '==', true)), [branchId])
-  const oneOff = useQuery<EventDoc>(oneOffQ, `sched-events-${branchId}-${from}-${to}`)
+  const oneOff = useQuery<EventDoc>(oneOffQ, `sched-events-${branchId}-${from}-${to}`, keep)
   const recurring = useQuery<EventDoc>(recurringQ, `sched-revents-${branchId}`)
 
   const live = useMemo(() => sessions.data.filter((s) => !s.isDeleted), [sessions.data])

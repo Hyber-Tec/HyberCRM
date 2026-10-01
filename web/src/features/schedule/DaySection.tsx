@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BiSolidEdit } from 'react-icons/bi'
 import type { TutorRow } from '@shared/schedule/dayModel'
 import { layoutEventLanes } from '@shared/schedule/events'
@@ -21,10 +21,12 @@ import {
   NAME_COL,
   ROW_PAD_TOP,
   eventsRowHeight,
+  dragStartMinute,
   minuteAt,
   rowHeight,
   timelineWidth,
 } from './geometry'
+import { sessionDrag } from './dragState'
 import { SESSION_DRAG_TYPE, SessionCard } from './SessionCard'
 import type { EventDoc } from './useScheduleData'
 
@@ -49,6 +51,8 @@ export function DaySection({ dateKey, hours, rows, events, headerLabel, sectionI
   const x = (m: number) => ((m - openMin) / (closeMin - openMin)) * width
   const hoverRef = useRef<HTMLDivElement>(null)
   const hoverLabelRef = useRef<HTMLDivElement>(null)
+  const startRef = useRef<HTMLDivElement>(null)
+  const startLabelRef = useRef<HTMLDivElement>(null)
 
   const hourMarks: number[] = []
   for (let m = Math.ceil(openMin / 60) * 60; m <= closeMin; m += 60) hourMarks.push(m)
@@ -58,23 +62,48 @@ export function DaySection({ dateKey, hours, rows, events, headerLabel, sectionI
   const usedEventLanes = events.length ? Math.max(...eventLanes.values()) + 1 : 0
   const eventLaneCount = showEvents ? (locked ? usedEventLanes : usedEventLanes + 1) : 0
 
-  function onHover(e: React.PointerEvent<HTMLDivElement>) {
+  const place = (line: HTMLDivElement | null, label: HTMLDivElement | null, m: number | null, text?: string) => {
+    for (const el of [line, label]) {
+      if (!el) continue
+      el.style.display = m === null ? 'none' : 'block'
+      if (m !== null) el.style.left = `${NAME_COL + x(m)}px`
+    }
+    if (label && m !== null) label.textContent = text ?? formatMinutes(m)
+  }
+  function onHover(e: { target: EventTarget; clientX: number }) {
     const track = (e.target as HTMLElement).closest('[data-track]') as HTMLElement | null
-    if (!track || !hoverRef.current || !hoverLabelRef.current) return
-    const m = minuteAt(e.clientX, track.getBoundingClientRect(), openMin, closeMin, ui.snap)
-    hoverRef.current.style.display = 'block'
-    hoverRef.current.style.left = `${NAME_COL + x(m)}px`
-    hoverLabelRef.current.style.display = 'block'
-    hoverLabelRef.current.style.left = `${NAME_COL + x(m)}px`
-    hoverLabelRef.current.textContent = formatMinutes(m)
+    if (!track) return
+    place(hoverRef.current, hoverLabelRef.current, minuteAt(e.clientX, track.getBoundingClientRect(), openMin, closeMin, ui.snap))
   }
   function onLeave() {
-    if (hoverRef.current) hoverRef.current.style.display = 'none'
-    if (hoverLabelRef.current) hoverLabelRef.current.style.display = 'none'
+    place(hoverRef.current, hoverLabelRef.current, null)
   }
+  /** While a session card is dragged: the cursor line plus a guide at the card's start, snapped. */
+  function onDragGuide(e: React.DragEvent<HTMLDivElement>) {
+    const drag = sessionDrag.current
+    const track = (e.target as HTMLElement).closest('[data-track]') as HTMLElement | null
+    if (!drag || !track) return place(startRef.current, startLabelRef.current, null)
+    onHover(e)
+    const start = dragStartMinute(e.clientX, track.getBoundingClientRect(), openMin, closeMin, ui.snap, drag.grabOffsetMin)
+    place(startRef.current, startLabelRef.current, start, `Start ${formatMinutes(start)}`)
+  }
+  function hideGuides() {
+    onLeave()
+    place(startRef.current, startLabelRef.current, null)
+  }
+  // A drag that ends anywhere (drop, Escape, outside the page) clears the guides.
+  useEffect(() => {
+    const end = () => hideGuides()
+    document.addEventListener('dragend', end)
+    document.addEventListener('drop', end)
+    return () => {
+      document.removeEventListener('dragend', end)
+      document.removeEventListener('drop', end)
+    }
+  })
 
   return (
-    <section id={sectionId} className="w-max min-w-full overflow-hidden rounded-xl border bg-card shadow-xs" data-date={dateKey}>
+    <section id={sectionId} className="w-max overflow-hidden rounded-xl border bg-card shadow-xs" data-date={dateKey}>
       <header className="flex items-center justify-between border-b bg-muted px-3 py-2">
         <h2 className="text-base font-bold tracking-tight">
           {headerLabel ?? `${formatDateKey(dateKey, 'weekdayLong').split(',')[0]}, ${formatDateKey(dateKey, 'short')}`}
@@ -92,7 +121,16 @@ export function DaySection({ dateKey, hours, rows, events, headerLabel, sectionI
         ) : null}
       </header>
 
-      <div className="relative" onPointerMove={onHover} onPointerLeave={onLeave} style={{ width: NAME_COL + width }}>
+      <div
+        className="relative"
+        onPointerMove={onHover}
+        onPointerLeave={onLeave}
+        onDragOver={onDragGuide}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) hideGuides()
+        }}
+        style={{ width: NAME_COL + width }}
+      >
         {/* Time axis */}
         <div className="relative flex border-b" style={{ height: AXIS_H }}>
           <div className="shrink-0 border-r bg-card" style={{ width: NAME_COL }} />
@@ -106,6 +144,11 @@ export function DaySection({ dateKey, hours, rows, events, headerLabel, sectionI
           <div
             ref={hoverLabelRef}
             className="pointer-events-none absolute top-1.5 z-20 hidden -translate-x-1/2 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950"
+          />
+          <div
+            ref={startLabelRef}
+            data-testid="drag-start-label"
+            className="pointer-events-none absolute top-1.5 z-30 hidden -translate-x-1/2 rounded-full bg-foreground px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-background shadow-sm tabular-nums"
           />
         </div>
 
@@ -124,6 +167,8 @@ export function DaySection({ dateKey, hours, rows, events, headerLabel, sectionI
 
         {/* Global hover line */}
         <div ref={hoverRef} className="pointer-events-none absolute top-0 bottom-0 z-10 hidden border-l-2 border-dashed border-blue-600/70" />
+        {/* Dragged card's start edge */}
+        <div ref={startRef} data-testid="drag-start-line" className="pointer-events-none absolute top-0 bottom-0 z-20 hidden border-l-2 border-dotted border-foreground/80" />
       </div>
     </section>
   )
@@ -308,8 +353,7 @@ function TutorRowView({
           if (!raw || locked || row.isGhost) return
           e.preventDefault()
           const data = JSON.parse(raw) as { id: string; grabOffsetMin: number }
-          const m = minuteAt(e.clientX, e.currentTarget.getBoundingClientRect(), openMin, closeMin, ui.snap) - data.grabOffsetMin
-          ui.moveSession(data.id, row.tutor.id, dateKey, Math.max(openMin, m))
+          ui.moveSession(data.id, row.tutor.id, dateKey, dragStartMinute(e.clientX, e.currentTarget.getBoundingClientRect(), openMin, closeMin, ui.snap, data.grabOffsetMin))
         }}
       >
         {/* Availability bands */}

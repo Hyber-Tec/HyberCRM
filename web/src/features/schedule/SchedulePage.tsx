@@ -13,7 +13,6 @@ import {
   addMonths,
   diffDays,
   formatDateKey,
-  monthGrid,
   nowMinutes,
   startOfMonth,
   todayKey,
@@ -23,8 +22,11 @@ import type { Session, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useStaffList, useStudentList, useSubjects } from '@/features/data/hooks'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useLoadWindow } from '@/lib/useLoadWindow'
+import { cn } from '@/lib/utils'
 import { type ScheduleCtx, createSession, deleteSession, reorderSessions, updateSession } from './api'
 import { type BellItem, type ScheduleUi, ScheduleUiContext, type Selection } from './context'
 import { DaySection } from './DaySection'
@@ -65,6 +67,16 @@ function readClip(): Clip | null {
   }
 }
 
+const PANEL_KEY = 'hyber:schedule-panel'
+
+function readPanelOpen(): boolean {
+  try {
+    return localStorage.getItem(PANEL_KEY) !== 'closed'
+  } catch {
+    return true
+  }
+}
+
 export function SchedulePage() {
   const branch = useBranch()
   const { branchId, settings, timezone, actor } = branch
@@ -84,7 +96,20 @@ export function SchedulePage() {
 
   const [tutorFilter, setTutorFilter] = useState<string | null>(null)
   const [selection, setSelection] = useState<Selection>(null)
-  const [panelOpen, setPanelOpen] = useState(true)
+  // The floating panel (TE's week bar): opened and closed by hand or with Escape; remembered in this browser.
+  const [panelOpen, setPanelOpenState] = useState(() => readPanelOpen())
+  const setPanelOpen = useCallback((open: boolean | ((o: boolean) => boolean)) => {
+    setPanelOpenState((prev) => {
+      const next = typeof open === 'function' ? open(prev) : open
+      try {
+        localStorage.setItem(PANEL_KEY, next ? 'open' : 'closed')
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  }, [])
+  const [topMonth, setTopMonth] = useState<DateKey | null>(null)
   const [zoom, setZoomState] = useState(() => Number(localStorage.getItem(ZOOM_KEY) ?? '0.8') || 0.8)
   const setZoom = (z: number) => {
     setZoomState(z)
@@ -109,18 +134,18 @@ export function SchedulePage() {
   const studentMap = useMemo(() => new Map(students.map((s) => [s.id, s])), [students])
   const staffMap = useMemo(() => new Map(staff.map((s) => [s.id, s])), [staff])
 
-  // Visible range
+  // Visible range (Month view scrolls: it loads the months around what's on screen)
+  const monthWindow = useLoadWindow(date)
   const range = useMemo(() => {
     if (view === 'day') return { from: date, to: date }
     if (view === 'week') {
       const days = weekDays(date, weekStartsOn)
       return { from: days[0], to: days[6] }
     }
-    const grid = monthGrid(date, weekStartsOn)
-    return { from: grid[0], to: grid[grid.length - 1] }
-  }, [view, date, weekStartsOn])
+    return { from: monthWindow.from, to: monthWindow.to }
+  }, [view, date, weekStartsOn, monthWindow.from, monthWindow.to])
 
-  const data = useScheduleData(range.from, range.to, view === 'month' ? null : tutorFilter)
+  const data = useScheduleData(range.from, range.to, view === 'month' ? null : tutorFilter, { eventsOnly: view === 'month', keepPrevious: view === 'month' })
   const { data: shifts } = useShifts(range.from, range.to, null, view !== 'month')
   const clocksByKey = useMemo(() => {
     const m = new Map<string, ClockInterval[]>()
@@ -218,7 +243,7 @@ export function SchedulePage() {
       }
       return items
     },
-    [studentMap, settings.schedule.alerts, today, firstSessionIds],
+    [studentMap, settings.schedule.alerts, today, firstSessionIds, branch.rules.conferences.enabled],
   )
 
   // ------------------------------------------------------------- actions
@@ -380,7 +405,9 @@ export function SchedulePage() {
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         k.removeSelected()
       } else if (e.key === 'Escape') {
+        // True Education: Escape shows or hides the panel (and clears the selection).
         setSelection(null)
+        setPanelOpen((o) => !o)
       } else if (e.key === 'ArrowLeft' && !mod) {
         k.nav.prev()
       } else if (e.key === 'ArrowRight' && !mod) {
@@ -389,7 +416,7 @@ export function SchedulePage() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [setPanelOpen])
 
   // Make the URL explicit on first load.
   useEffect(() => {
@@ -459,30 +486,36 @@ export function SchedulePage() {
       onDuplicate={() => setDupOpen(true)}
       onTrash={() => setTrashOpen(true)}
       onTutorOrder={() => setOrderOpen(true)}
+      topMonth={view === 'month' ? topMonth : null}
+      onClose={isMobile ? undefined : () => setPanelOpen(false)}
     />
   )
 
   return (
     <ScheduleUiContext value={ui}>
-      <div className="-m-4 flex h-[calc(100svh-var(--chrome-h)-3rem)] min-h-0 sm:-m-6 md:h-[calc(100svh-var(--chrome-h))]">
-        <div className="relative min-w-0 flex-1 overflow-auto bg-muted/40" onMouseDown={(e) => e.target === e.currentTarget && setSelection(null)}>
-          {(!panelOpen || isMobile) ? (
-            <Button variant="outline" size="icon" className="fixed right-4 bottom-20 z-30 rounded-full shadow-md md:right-6 md:bottom-6" aria-label="Open schedule panel" onClick={() => setPanelOpen(true)}>
-              <LuPanelRight />
-            </Button>
-          ) : null}
+      <div className="relative -m-4 h-[calc(100svh-var(--chrome-h)-3rem)] min-h-0 sm:-m-6 md:h-[calc(100svh-var(--chrome-h))]">
+        <div
+          className={cn('h-full min-w-0 bg-muted/40', view === 'month' ? 'flex flex-col overflow-hidden' : 'overflow-auto')}
+          onMouseDown={(e) => e.target === e.currentTarget && setSelection(null)}
+          data-testid="schedule-area"
+        >
           {view === 'month' ? (
             <MonthView
-              month={startOfMonth(date)}
+              anchor={date}
+              focusDate={date}
               eventsByDate={data.eventsByDate}
               isClosed={isClosed}
               today={today}
               onDay={(d) => route.go({ view: 'day', date: d })}
               onCreateEvent={(d) => setEventDialog({ mode: 'create', dateKey: d, startMin: settings.schedule.events.monthDefaultStartMin, endMin: settings.schedule.events.monthDefaultStartMin + 60 })}
               onEditEvent={(e) => setEventDialog({ mode: 'edit', event: e })}
+              onVisibleRangeChange={monthWindow.onVisibleRangeChange}
+              onTopMonthChange={setTopMonth}
+              className={cn('h-full', panelOpen && !isMobile && 'md:pr-[19.5rem]')}
             />
           ) : (
-            <div className="p-3 sm:p-4" style={{ zoom }}>
+            // Room on the right so the floating panel never hides the end of a day.
+            <div className={cn('w-max min-w-full p-3 sm:p-4', panelOpen && !isMobile && 'md:pr-[19.5rem]')} style={{ zoom }}>
               {view === 'week' ? (
                 <WeekEventHeader
                   days={weekDays(date, weekStartsOn)}
@@ -506,24 +539,46 @@ export function SchedulePage() {
             </div>
           )}
         </div>
-        {!isMobile && panelOpen ? (
-          <div className="relative hidden w-72 shrink-0 overflow-y-auto border-l bg-background md:block">
-            <button type="button" className="absolute top-3 right-3 text-xs text-muted-foreground hover:text-foreground" onClick={() => setPanelOpen(false)}>
-              Hide
-            </button>
-            {panel}
-          </div>
-        ) : null}
         {isMobile ? (
-          <Sheet open={panelOpen && isMobile} onOpenChange={setPanelOpen}>
-            <SheetContent side="right" className="w-80 overflow-y-auto p-0">
-              <SheetHeader className="sr-only">
-                <SheetTitle>Schedule</SheetTitle>
-              </SheetHeader>
+          <>
+            <Button variant="outline" size="icon" className="fixed right-4 bottom-20 z-30 rounded-full shadow-md" aria-label="Open schedule panel" onClick={() => setPanelOpen(true)}>
+              <LuPanelRight />
+            </Button>
+            <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
+              <SheetContent side="right" className="w-80 overflow-y-auto p-0">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Schedule</SheetTitle>
+                </SheetHeader>
+                {panel}
+              </SheetContent>
+            </Sheet>
+          </>
+        ) : (
+          <>
+            {/* True Education's floating panel: over the schedule, opened and closed with the button or Escape. */}
+            <div
+              className={cn(
+                'absolute top-3 right-3 z-30 flex max-h-[calc(100%-1.5rem)] w-72 flex-col overflow-y-auto rounded-2xl border bg-background/95 shadow-xl backdrop-blur transition-[translate,opacity] duration-200 ease-out supports-[backdrop-filter]:bg-background/85',
+                panelOpen ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-[calc(100%+1.5rem)] opacity-0',
+              )}
+              aria-hidden={!panelOpen}
+              inert={!panelOpen}
+              data-testid="schedule-panel"
+            >
               {panel}
-            </SheetContent>
-          </Sheet>
-        ) : null}
+            </div>
+            {!panelOpen ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" className="absolute top-3 right-3 z-20 rounded-xl bg-background shadow-md" aria-label="Show panel (Esc)" onClick={() => setPanelOpen(true)}>
+                    <LuPanelRight />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">Show panel (Esc)</TooltipContent>
+              </Tooltip>
+            ) : null}
+          </>
+        )}
       </div>
 
       <SessionDialog

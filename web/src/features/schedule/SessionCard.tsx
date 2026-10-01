@@ -20,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import { useScheduleUi } from './context'
 import { CARD_H } from './geometry'
+import { sessionDrag } from './dragState'
 
 export const SESSION_DRAG_TYPE = 'application/x-hyber-session'
 
@@ -102,14 +103,20 @@ export function SessionCard({ session, left, width, top, readOnly, bounds, segme
       ref={cardRef}
       role="button"
       tabIndex={-1}
+      data-testid="session-card"
       draggable={canEdit && !inPopover}
       onDragStart={(e) => {
         const rect = e.currentTarget.getBoundingClientRect()
-        const ratio = (e.clientX - rect.left) / rect.width
-        const grabOffsetMin = Math.round((ratio * (session.endMin - session.startMin)) / ui.snap) * ui.snap
+        const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width))
+        // Minutes from the card's start to where it was grabbed (unrounded; the drop snaps once).
+        const grabOffsetMin = ratio * (session.endMin - session.startMin)
         e.dataTransfer.setData(SESSION_DRAG_TYPE, JSON.stringify({ id: session.id, grabOffsetMin, tutorId: session.tutorId, dateKey: session.dateKey }))
         e.dataTransfer.effectAllowed = 'move'
+        sessionDrag.current = { id: session.id, grabOffsetMin, durationMin: session.endMin - session.startMin }
         ui.select({ kind: 'session', id: session.id })
+      }}
+      onDragEnd={() => {
+        sessionDrag.current = null
       }}
       onDragOver={(e) => {
         if (canEdit && e.dataTransfer.types.includes(SESSION_DRAG_TYPE)) e.preventDefault()
