@@ -11,6 +11,7 @@
 import { type ChildProcess, spawn } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright-core'
+import { ACTIONS } from '../tests/e2e/actions'
 import { E2E_BRANCH, E2E_MEMBERS, SCENARIOS } from '../tests/e2e/scenarios'
 import { seedBranch } from './lib/seedBranch'
 
@@ -80,6 +81,26 @@ async function main() {
         for (const e of errors) console.log(`     console: ${e.slice(0, 300)}`)
         if (shots) await page.screenshot({ path: `${shots}/${s.name.replace(/\W+/g, '-')}${p.replace(/\W+/g, '_')}.png`, fullPage: true })
       }
+      await context.close()
+    }
+    for (const a of ACTIONS.filter((x) => !only || x.name.includes(only))) {
+      const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+      const page = await context.newPage()
+      const errors: string[] = []
+      page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`))
+      await page.goto(BASE + '/login', { waitUntil: 'load' })
+      await page.waitForFunction(() => '__hyberSignIn' in window)
+      await page.evaluate((email) => (window as unknown as { __hyberSignIn: (e: string) => Promise<unknown> }).__hyberSignIn(email), a.email)
+      await page.waitForTimeout(1500)
+      try {
+        await a.run(page, BASE)
+        console.log(`ok   action: ${a.name}`)
+      } catch (e) {
+        failures++
+        console.log(`FAIL action: ${a.name}\n     ${(e as Error).message.split("\n").slice(0, 14).join("\n     ")}`)
+        if (shots) await page.screenshot({ path: `${shots}/action-${a.name.replace(/\W+/g, '-')}.png`, fullPage: true })
+      }
+      for (const e of errors) console.log(`     console: ${e.slice(0, 300)}`)
       await context.close()
     }
     await browser.close()

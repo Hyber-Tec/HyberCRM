@@ -9,6 +9,9 @@ export interface Scenario {
 
 export const E2E_BRANCH = 'demo-academy'
 
+/** Today in the branch zone (the seed is relative to it). */
+export const TODAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
+
 export const E2E_MEMBERS = [
   { email: 'owner@e2e.test', roles: ['admin'] as const, isOwner: true },
   { email: 'tutor@e2e.test', roles: ['tutor'] as const, staffId: 'demo-maya-thompson' },
@@ -31,6 +34,10 @@ export const SCENARIOS: Scenario[] = [
       `${b}/admin/students/directory/demo-student-ava-patel/school`, `${b}/admin/students/directory/demo-student-ava-patel/conference`,
       `${b}/admin/students/directory/demo-student-ava-patel/sessions`,
       `${b}/admin/employees/calendar?staff=demo-maya-thompson`,
+      `${b}/admin/scheduling/schedule`,
+      `${b}/admin/scheduling/schedule/week/${TODAY}`,
+      `${b}/admin/scheduling/schedule/month/${TODAY}`,
+      `${b}/admin/scheduling/schedule/week/${TODAY}?mode=master`,
     ],
     expect: {
       '/platform': ['Demo Academy'],
@@ -42,6 +49,8 @@ export const SCENARIOS: Scenario[] = [
       [`${b}/admin/employees/pay-rates`]: ['Daniel Kim'],
       [`${b}/admin/students/directory`]: ['Ava Patel'],
       [`${b}/admin/students/directory/demo-student-ava-patel/info`]: ['Parents / guardians'],
+      [`${b}/admin/scheduling/schedule/week/${TODAY}`]: ['EVENTS', 'All Teachers'],
+      [`${b}/admin/scheduling/schedule/month/${TODAY}`]: ['Payment Reminder'],
     },
   },
   {

@@ -2,7 +2,8 @@ import { dayStartInstant } from '../availability'
 import { STAFF_COLORS } from '../colors'
 import { COL, DOC, availabilityDocId } from '../paths'
 import { DEFAULT_SETTINGS } from '../settings/defaults'
-import { addDays, weekdayOf } from '../time'
+import { businessRoundedHours } from '../schedule/hours'
+import { addDays, dayEndInstant, toInstant, weekdayOf } from '../time'
 import type { StaffRole, StudentStatus } from '../types'
 
 /**
@@ -252,6 +253,132 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
         },
       })
     }
+  })
+
+  // Sessions: 2 weeks back to 3 weeks ahead, inside each tutor's availability --
+  const studentList = STUDENT_FIRST.map((first, i) => {
+    const last = STUDENT_LAST[i % STUDENT_LAST.length]
+    const doc = docs.find((d) => d.path === `${base}/${COL.students}/demo-student-${slug(`${first} ${last}`)}`)!
+    return { id: doc.path.split('/').pop()!, name: `${first} ${last}`, grade: String(doc.data.grade), status: String(doc.data.status) }
+  }).filter((st) => st.status === 'enrolled')
+  const subjectByIdName = new Map([...subjectIdByName.entries()].map(([n, id]) => [id, n]))
+  const stats = new Map<string, { hours: number; first: string | null; last: string | null; next: string | null }>()
+  const sessRand = rng(4242)
+  const availDocs = docs.filter((d) => d.path.includes(`/${COL.availability}/`))
+  const lengths = [110, 110, 110, 80, 50]
+  for (const a of availDocs) {
+    const staffId = a.data.staffId as string
+    const dateKey = a.data.dateKey as string
+    const offset = Math.round((Date.parse(dateKey) - Date.parse(opts.today)) / 86_400_000)
+    if (offset > 21) continue
+    const st = DEMO_STAFF.find((x) => demoStaffId(x.first, x.last) === staffId)!
+    const ranges = a.data.ranges as { startMin: number; endMin: number }[]
+    const count = Math.floor(sessRand() * 4)
+    const laneEnds = [0, 0, 0]
+    for (let n = 0; n < count; n++) {
+      const r = ranges[Math.floor(sessRand() * ranges.length)]
+      const len = lengths[Math.floor(sessRand() * lengths.length)]
+      const latest = r.endMin - len
+      if (latest < r.startMin) continue
+      const startMin = r.startMin + Math.floor((sessRand() * (latest - r.startMin)) / 30) * 30
+      const endMin = startMin + len
+      const lane = laneEnds.findIndex((e) => e <= startMin)
+      if (lane === -1) continue
+      laneEnds[lane] = endMin
+      const student = studentList[Math.floor(sessRand() * studentList.length)]
+      const subjectName = st.subjects[Math.floor(sessRand() * st.subjects.length)] ?? 'Homework Help'
+      const roll = sessRand()
+      let status: string
+      let logStatus = 'none'
+      if (offset < 0) {
+        status = roll < 0.08 ? 'no_show' : roll < 0.12 ? 'canceled' : 'present'
+        if (status === 'present') logStatus = roll < 0.85 ? 'submitted' : 'none'
+        if (status === 'present' && logStatus === 'none') status = 'confirmed'
+      } else if (offset <= 1) status = roll < 0.06 ? 'canceled' : 'confirmed'
+      else status = roll < 0.05 ? 'canceled' : 'pending'
+      const id = `demo-s-${dateKey}-${staffId.replace('demo-', '')}-${n}`
+      docs.push({
+        path: `${base}/${COL.sessions}/${id}`,
+        data: {
+          tutorId: staffId,
+          tutorName: `${st.first} ${st.last}`,
+          studentId: student.id,
+          studentName: student.name,
+          studentGrade: student.grade,
+          subjectId: subjectIdByName.get(subjectName) ?? null,
+          subject: subjectName,
+          note: sessRand() < 0.12 ? 'Bring last week’s practice test' : '',
+          status,
+          dateKey,
+          weekday: weekdayOf(dateKey),
+          startMin,
+          endMin,
+          startAt: toInstant(dateKey, startMin, opts.timezone),
+          endAt: toInstant(dateKey, endMin, opts.timezone),
+          dayEndAt: dayEndInstant(dateKey, opts.timezone),
+          visualOrder: 0,
+          logStatus,
+          logSubmittedAt: logStatus === 'submitted' ? toInstant(dateKey, endMin + 15, opts.timezone) : null,
+          noShowAppliedHours: status === 'no_show' ? businessRoundedHours(len) : null,
+          confirmedAt: null,
+          confirmedBy: null,
+          source: 'seed',
+          isDeleted: false,
+          deletedAt: null,
+          deletedBy: null,
+          createdAt: now,
+          createdBy,
+          updatedAt: now,
+          updatedBy: createdBy,
+        },
+      })
+      const stat = stats.get(student.id) ?? { hours: 0, first: null, last: null, next: null }
+      if (offset < 0 && (status === 'present' || status === 'no_show' || logStatus === 'submitted')) {
+        stat.hours += businessRoundedHours(len)
+        stat.first = !stat.first || dateKey < stat.first ? dateKey : stat.first
+        stat.last = !stat.last || dateKey > stat.last ? dateKey : stat.last
+      }
+      if (offset >= 0 && status !== 'canceled') stat.next = !stat.next || dateKey < stat.next ? dateKey : stat.next
+      stats.set(student.id, stat)
+      void subjectByIdName
+    }
+  }
+  for (const d of docs) {
+    if (!d.path.includes(`/${COL.students}/`) || d.path.includes('/private/')) continue
+    const stat = stats.get(d.path.split('/').pop()!)
+    if (!stat) continue
+    d.data.totalSessionHours = Math.round(stat.hours * 100) / 100
+    d.data.firstSessionDate = stat.first
+    d.data.lastSessionDate = stat.last
+    d.data.nextSessionDate = stat.next
+  }
+
+  // Events ---------------------------------------------------------------
+  const evt = (id: string, data: Record<string, unknown>) =>
+    docs.push({ path: `${base}/${COL.events}/${id}`, data: { notes: '', googleSync: null, createdAt: now, createdBy, updatedAt: now, updatedBy: createdBy, ...data } })
+  const nextWeekday = (w: string, from: number) => {
+    for (let o = from; o < from + 7; o++) if (weekdayOf(addDays(opts.today, o)) === w) return addDays(opts.today, o)
+    return opts.today
+  }
+  evt('demo-e-staff-meeting', {
+    title: 'Staff Meeting',
+    dateKey: nextWeekday('monday', -14),
+    startMin: 840,
+    endMin: 870,
+    notes: 'Weekly check-in for all tutors.',
+    isRecurring: true,
+    recurrence: { frequency: 'weekly', interval: 1, weekdays: ['monday'], monthDay: null, ends: { type: 'never', endDate: null, occurrences: null } },
+  })
+  evt('demo-e-consult-1', { title: 'Consultation - Mia (12)', dateKey: nextWeekday('wednesday', 0), startMin: 900, endMin: 960, isRecurring: false, recurrence: null })
+  evt('demo-e-consult-2', { title: 'Parent Meeting - Leo (9)', dateKey: nextWeekday('thursday', 0), startMin: 1080, endMin: 1110, isRecurring: false, recurrence: null })
+  evt('demo-e-followup', { title: 'Follow-up - Isaac (10)', dateKey: nextWeekday('tuesday', 0), startMin: 960, endMin: 990, isRecurring: false, recurrence: null })
+  evt('demo-e-payments', {
+    title: 'Payment Reminder',
+    dateKey: addDays(opts.today, -Number(opts.today.slice(8)) + 1),
+    startMin: 840,
+    endMin: 900,
+    isRecurring: true,
+    recurrence: { frequency: 'monthly', interval: 1, weekdays: [], monthDay: 1, ends: { type: 'never', endDate: null, occurrences: null } },
   })
 
   return docs

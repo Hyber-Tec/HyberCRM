@@ -302,7 +302,26 @@ service cloud.firestore {
           || (hasRole(b, 'parent') && resource.data.studentId in myStudentIds(b));
         allow create: if isAdmin(b) && dayOpen(request.resource.data);
         allow update: if isAdmin(b) && dayOpen(resource.data) && dayOpen(request.resource.data);
-        allow delete: if isAdmin(b) && dayOpen(resource.data);
+        // Trashed sessions can be purged even after their day.
+        allow delete: if isAdmin(b) && (dayOpen(resource.data) || resource.data.isDeleted == true);
+      }
+
+      match /events/{eventId} {
+        allow read: if isStaff(b);
+        allow write: if isAdmin(b);
+      }
+
+      // Master Schedule (weekly template)
+      match /masterSessions/{id} {
+        allow read, write: if isAdmin(b);
+      }
+
+      match /masterAvailability/{id} {
+        allow read, write: if isAdmin(b);
+      }
+
+      match /masterDayConfigs/{id} {
+        allow read, write: if isAdmin(b);
       }
 
       // ------------------------------------------------------ audit log

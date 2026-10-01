@@ -25,7 +25,7 @@ const adminRoutes: RouteObject[] = [
   { path: 'home', element: soon('Home') },
   { path: 'announcements', element: soon('Announcements') },
   { path: 'scheduling', element: <Navigate to="schedule" replace /> },
-  { path: 'scheduling/schedule/*', element: soon('Schedule') },
+  { path: 'scheduling/schedule/*', lazy: page(() => import('@/features/schedule/SchedulePage'), 'SchedulePage') },
   { path: 'scheduling/audit-log', lazy: page(() => import('@/features/audit/AuditLogPage'), 'AuditLogPage') },
   { path: 'students', element: <Navigate to="directory" replace /> },
   { path: 'students/directory', lazy: page(() => import('@/features/students/StudentDirectoryPage'), 'StudentDirectoryPage') },
