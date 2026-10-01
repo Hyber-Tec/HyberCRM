@@ -104,6 +104,22 @@ export interface Member extends AuditStamp {
   photoURL: string | null
   firstLoginAt: TimestampLike | null
   lastLoginAt: TimestampLike | null
+  /** The last sign-in email, written by Cloud Functions. */
+  invite?: MemberInvite | null
+}
+
+/**
+ * Sign-in email status: `sent`; `failed` (with the error); `not_configured`
+ * (the sending password isn't set yet); `skipped` (paused access, or a
+ * suspended branch).
+ */
+export interface MemberInvite {
+  status: 'sent' | 'failed' | 'not_configured' | 'skipped'
+  kind: 'owner' | 'promoted_owner' | 'added' | 'approved'
+  at: TimestampLike
+  by: string | null
+  error: string | null
+  count: number
 }
 
 export type SignupRequestStatus = 'pending' | 'approved' | 'rejected'

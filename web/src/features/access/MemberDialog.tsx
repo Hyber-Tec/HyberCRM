@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { isReservedEmail } from '@shared/brand'
 import { emailKey } from '@shared/paths'
 import { ROLES, ROLE_LABELS, type Role, isAdminRole, isStaffRole } from '@shared/roles'
 import type { Member, SignupRequest, Staff, Student, WithId } from '@shared/types'
@@ -138,7 +139,15 @@ export function MemberDialog({ open, onOpenChange, member, request, members, sta
           },
         },
       })
-      toast.success(member ? 'Access updated' : request ? 'Request approved' : 'Access added')
+      const emailed = active && !isReservedEmail(key)
+      if (member) {
+        toast.success('Access updated', member.role !== 'owner' && role === 'owner' && emailed ? { description: `We’re emailing ${key} that they’re now an owner.` } : undefined)
+      } else {
+        const who = `${firstName} ${lastName}`.trim() || key
+        toast.success(request ? `Approved ${who}` : `Added ${who}`, {
+          description: emailed ? `We’re emailing ${key} a link to sign in. Their status shows on the People list.` : 'No email goes to paused access or test addresses.',
+        })
+      }
       onOpenChange(false)
     } catch (err) {
       setError((err as Error).message)
@@ -159,7 +168,7 @@ export function MemberDialog({ open, onOpenChange, member, request, members, sta
             <DialogDescription>
               {member
                 ? member.email
-                : 'They’ll sign in with this Google account. The first sign-in links them automatically.'}
+                : 'We’ll email them a link to sign in with Google using this address.'}
             </DialogDescription>
           </DialogHeader>
           <FieldGroup className="py-4">

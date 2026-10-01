@@ -311,3 +311,4 @@ export { onAnnouncementComment, onAnnouncementRead, onAnnouncementWritten } from
 export { seedDemoData } from './platform'
 export { onSessionUpdated } from './sessionNotify'
 export { purgeExpired, studentLifecycleDaily } from './jobs'
+export { onMemberWritten, resendInvite } from './invites'

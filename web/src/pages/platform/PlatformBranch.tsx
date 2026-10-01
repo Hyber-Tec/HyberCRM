@@ -1,6 +1,6 @@
 import { collection, deleteField, doc, getDoc, getDocs, limit, query, serverTimestamp, where, writeBatch } from 'firebase/firestore'
 import { useMemo, useState } from 'react'
-import { LuArrowLeft, LuArrowRight, LuCopy, LuDatabase, LuTrash2, LuUserPlus } from 'react-icons/lu'
+import { LuArrowLeft, LuArrowRight, LuCopy, LuDatabase, LuMailPlus, LuTrash2, LuUserPlus } from 'react-icons/lu'
 import { Link, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { newMemberData, publicProfileFor } from '@shared/branchFactory'
@@ -16,6 +16,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { InviteStatus, copySignInLink, resendInvite } from '@/features/access/invites'
 import { auditData } from '@/lib/audit'
 import { db } from '@/lib/firebase'
 import { useDoc, useQuery } from '@/lib/firestore'
@@ -34,6 +36,7 @@ export function PlatformBranch() {
   )
   const { data: owners } = useQuery<Member>(ownersQ, `owners-${branchId}`)
   const [newOwner, setNewOwner] = useState('')
+  const [newOwnerName, setNewOwnerName] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
 
   if (loading) return <FullPageSpinner />
@@ -75,7 +78,11 @@ export function PlatformBranch() {
     if ((await getDoc(ref)).exists()) {
       batch.update(ref, { role: 'owner', restrictions: [], roles: deleteField(), isOwner: deleteField(), updatedAt: serverTimestamp(), updatedBy: email })
     } else {
-      batch.set(ref, { ...newMemberData({ email: key, role: 'owner', createdBy: email! }), createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
+      batch.set(ref, {
+        ...newMemberData({ email: key, displayName: newOwnerName, role: 'owner', createdBy: email! }),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
     }
     batch.set(
       doc(collection(db, ROOT.branches, branchId, COL.auditLog)),
@@ -89,7 +96,8 @@ export function PlatformBranch() {
     )
     await batch.commit()
     setNewOwner('')
-    toast.success(`${key} is now an owner`)
+    setNewOwnerName('')
+    toast.success(`${key} is now an owner`, { description: 'We’re emailing them a link to sign in. Their status shows below.' })
   }
 
   async function removeOwner(member: Member & { id: string }) {
@@ -188,30 +196,55 @@ export function PlatformBranch() {
           <CardContent className="space-y-3">
             {owners.length === 0 ? <p className="text-sm text-muted-foreground">No owners yet.</p> : null}
             {owners.map((o) => (
-              <div key={o.id} className="flex items-center gap-3 rounded-lg border px-3 py-2 text-sm">
+              <div key={o.id} className="flex items-center gap-3 rounded-lg border px-3 py-2 text-sm" data-testid="owner-row">
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium">{o.displayName || o.email}</div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {o.email} · {o.uid ? 'signed in' : 'not signed in yet'}
+                  <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                    <span className="truncate">{o.email}</span>
+                    <span aria-hidden>·</span>
+                    <InviteStatus member={o} timezone={branch.timezone} className="text-xs" />
                   </div>
                 </div>
-                <Button variant="ghost" size="icon-sm" aria-label="Remove owner rights" onClick={() => void removeOwner(o)}>
-                  <LuTrash2 />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon-sm" aria-label="Email sign-in link" onClick={() => void resendInvite(branchId, o.email)}>
+                      <LuMailPlus />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Email sign-in link</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon-sm" aria-label="Copy sign-in link" onClick={() => void copySignInLink(branchId, o.email)}>
+                      <LuCopy />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy sign-in link</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon-sm" aria-label="Remove owner rights" onClick={() => void removeOwner(o)}>
+                      <LuTrash2 />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Remove owner rights</TooltipContent>
+                </Tooltip>
               </div>
             ))}
             <form
-              className="flex gap-2"
+              className="grid gap-2 sm:grid-cols-[1fr_1.4fr_auto]"
               onSubmit={(e) => {
                 e.preventDefault()
                 void addOwner()
               }}
             >
-              <Input value={newOwner} onChange={(e) => setNewOwner(e.target.value)} placeholder="owner@center.com" />
+              <Input value={newOwnerName} onChange={(e) => setNewOwnerName(e.target.value)} placeholder="Name (optional)" aria-label="Owner name" />
+              <Input value={newOwner} onChange={(e) => setNewOwner(e.target.value)} placeholder="owner@center.com" aria-label="Owner email" type="email" />
               <Button type="submit" variant="outline">
                 <LuUserPlus /> Add owner
               </Button>
             </form>
+            <p className="text-xs text-muted-foreground">New owners get an email from HyberTec with a link to sign in with Google.</p>
           </CardContent>
         </Card>
 

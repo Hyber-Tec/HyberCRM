@@ -9,10 +9,13 @@ export function GoogleSignInButton({
   label = 'Sign in with Google',
   size = 'lg',
   className,
+  hint,
 }: {
   label?: string
   size?: 'default' | 'lg'
   className?: string
+  /** Email to pre-select in Google's account chooser. */
+  hint?: string | null
 }) {
   const { signIn } = useAuth()
   const [busy, setBusy] = useState(false)
@@ -25,7 +28,7 @@ export function GoogleSignInButton({
       onClick={async () => {
         setBusy(true)
         try {
-          await signIn()
+          await signIn(hint)
         } catch (e) {
           toast.error('Sign-in failed', { description: (e as Error).message })
         } finally {

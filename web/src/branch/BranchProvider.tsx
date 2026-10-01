@@ -9,6 +9,7 @@ import { resolveSettings } from '@shared/settings/resolve'
 import type { Branch, Member, WithId } from '@shared/types'
 import { useAuth } from '@/auth/AuthProvider'
 import { FullPageMessage, FullPageSpinner } from '@/components/app/FullPage'
+import { NoBranchAccess } from './NoBranchAccess'
 import type { Actor } from '@/lib/audit'
 import { db } from '@/lib/firebase'
 import { useDoc } from '@/lib/firestore'
@@ -141,24 +142,15 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
   if (branchState.loading || memberState.loading) return <FullPageSpinner />
   if (!value) {
-    return (
-      <FullPageMessage
-        title="No access to this branch"
-        description={
-          branchState.error?.code === 'permission-denied' || !branchState.data
-            ? `The account ${email ?? ''} is not a member of “${branchId}”, or the branch doesn’t exist.`
-            : 'This branch could not be loaded.'
-        }
-        actions={[{ label: 'Go to my branches', to: '/app' }]}
-      />
-    )
+    if (branchState.error?.code === 'permission-denied' || !branchState.data) return <NoBranchAccess branchId={branchId} />
+    return <FullPageMessage title="This center couldn’t be loaded" description="Check your connection and try again." actions={[{ label: 'Go to my centers', to: '/app' }]} />
   }
   if (paused) {
     return (
       <FullPageMessage
         title="Your access is paused"
-        description={`The account ${email ?? ''} is not active in ${value.branch.name}. Ask an admin to restore your access.`}
-        actions={[{ label: 'Go to my branches', to: '/app' }]}
+        description={`The account ${email ?? ''} is paused in ${value.branch.name}. Ask an admin of the center to restore your access.`}
+        actions={[{ label: 'Go to my centers', to: '/app' }]}
       />
     )
   }

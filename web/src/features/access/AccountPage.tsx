@@ -1,6 +1,6 @@
 import { orderBy, query } from 'firebase/firestore'
 import { useMemo, useState } from 'react'
-import { LuCheck, LuCopy, LuEllipsis, LuPencil, LuSearch, LuTrash2, LuUserPlus, LuX } from 'react-icons/lu'
+import { LuCheck, LuCopy, LuEllipsis, LuMailPlus, LuPencil, LuQrCode, LuSearch, LuTrash2, LuUserPlus, LuX } from 'react-icons/lu'
 import { useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { COL } from '@shared/paths'
@@ -39,7 +39,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { branchCol, useQuery } from '@/lib/firestore'
 import { MemberDialog } from './MemberDialog'
+import { SignupShareCard, SignupShareDialog } from './SignupShare'
 import { rejectRequest, removeMember } from './api'
+import { InviteStatus, copySignInLink, resendInvite } from './invites'
 
 type RoleFilter = 'all' | Role
 
@@ -61,6 +63,7 @@ export function AccountPage() {
   const [removing, setRemoving] = useState<WithId<Member> | null>(null)
   const [rejecting, setRejecting] = useState<WithId<SignupRequest> | null>(null)
   const [rejectNote, setRejectNote] = useState('')
+  const [shareOpen, setShareOpen] = useState(false)
 
   const staffById = useMemo(() => new Map(staff.data.map((s) => [s.id, s])), [staff.data])
   const studentById = useMemo(() => new Map(students.data.map((s) => [s.id, s])), [students.data])
@@ -80,7 +83,6 @@ export function AccountPage() {
   }, [members.data, filter, search])
 
   const pending = requests.data.filter((r) => r.status === 'pending')
-  const signupUrl = `${window.location.origin}/${branchId}/signup`
 
   function linkedLabel(m: WithId<Member>): string {
     const parts: string[] = []
@@ -96,11 +98,16 @@ export function AccountPage() {
     <div>
       <PageHeader
         title="Account"
-        description={`Who can sign in to ${branch.name}, and as what. People sign in with Google; access is matched by email.`}
+        description={`Who can sign in to ${branch.name}, and as what. People sign in with Google; access is matched by email, and new people get an email with a link to sign in.`}
         actions={
-          <Button onClick={() => setDialog({ member: null, request: null })}>
-            <LuUserPlus /> Add person
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => setShareOpen(true)}>
+              <LuQrCode /> Sign-up page
+            </Button>
+            <Button onClick={() => setDialog({ member: null, request: null })}>
+              <LuUserPlus /> Add person
+            </Button>
+          </>
         }
       />
       <Tabs defaultValue={tabParam === 'requests' ? 'requests' : 'people'}>
@@ -147,7 +154,7 @@ export function AccountPage() {
                   <TableHead>Person</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead className="hidden lg:table-cell">Linked to</TableHead>
-                  <TableHead className="hidden md:table-cell">Last sign-in</TableHead>
+                  <TableHead className="hidden md:table-cell">Status</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -165,6 +172,7 @@ export function AccountPage() {
                             {m.displayName || '—'}
                           </div>
                           <div className="truncate text-xs text-muted-foreground">{m.email}</div>
+                          <InviteStatus member={m} timezone={timezone} className="text-xs md:hidden" />
                         </div>
                       </div>
                     </TableCell>
@@ -177,8 +185,8 @@ export function AccountPage() {
                     <TableCell className="hidden max-w-64 truncate text-sm text-muted-foreground lg:table-cell">
                       {linkedLabel(m) || '—'}
                     </TableCell>
-                    <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
-                      {m.lastLoginAt ? formatInstant(m.lastLoginAt.toDate(), timezone) : 'Not signed in yet'}
+                    <TableCell className="hidden md:table-cell">
+                      <InviteStatus member={m} timezone={timezone} />
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -187,9 +195,15 @@ export function AccountPage() {
                             <LuEllipsis />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" className="w-56">
                           <DropdownMenuItem onSelect={() => setDialog({ member: m, request: null })}>
                             <LuPencil /> Edit access
+                          </DropdownMenuItem>
+                          <DropdownMenuItem disabled={m.status !== 'active'} onSelect={() => void resendInvite(branchId, m.email)}>
+                            <LuMailPlus /> {m.invite?.status === 'sent' ? 'Resend sign-in email' : 'Email sign-in link'}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => void copySignInLink(branchId, m.email)}>
+                            <LuCopy /> Copy sign-in link
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -217,22 +231,7 @@ export function AccountPage() {
         </TabsContent>
 
         <TabsContent value="requests" className="mt-4 space-y-4">
-          <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium">Sign-up page</div>
-              <div className="truncate font-mono text-xs text-muted-foreground">{signupUrl}</div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                void navigator.clipboard.writeText(signupUrl)
-                toast.success('Link copied')
-              }}
-            >
-              <LuCopy /> Copy link
-            </Button>
-          </Card>
+          <SignupShareCard />
           {requests.data.length === 0 ? (
             <Empty className="border border-dashed">
               <EmptyHeader>
@@ -284,6 +283,8 @@ export function AccountPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <SignupShareDialog open={shareOpen} onOpenChange={setShareOpen} />
 
       <MemberDialog
         open={dialog !== null}

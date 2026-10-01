@@ -21,6 +21,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
+import { SignupShareCard } from '@/features/access/SignupShare'
 import { AuditLogSection } from '@/features/audit/AuditLogSection'
 import { type AuditInput, addAudit } from '@/lib/audit'
 import { db, storage } from '@/lib/firebase'
@@ -92,6 +93,11 @@ export function SettingsPage() {
             <div className="space-y-4">
               <BusinessSection sectionKey={active} />
               <DateHoursCard />
+            </div>
+          ) : active === 'signup' ? (
+            <div className="space-y-4">
+              <BusinessSection sectionKey={active} />
+              <SignupShareCard />
             </div>
           ) : (
             <BusinessSection sectionKey={active} />

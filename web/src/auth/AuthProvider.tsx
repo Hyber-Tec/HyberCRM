@@ -1,4 +1,5 @@
 import {
+  GoogleAuthProvider,
   type User,
   onAuthStateChanged,
   signInWithPopup,
@@ -36,7 +37,8 @@ interface AuthContextValue {
   memberships: Membership[]
   /** True once the super-admin check and membership lookup finished. */
   ready: boolean
-  signIn: () => Promise<void>
+  /** `hint`: the email to pre-select in Google's account chooser (from an invite link). */
+  signIn: (hint?: string | null) => Promise<void>
   signOut: () => Promise<void>
   refresh: () => Promise<void>
 }
@@ -123,13 +125,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refreshFor],
   )
 
-  const signIn = useCallback(async () => {
+  const signIn = useCallback(async (hint?: string | null) => {
+    let provider = googleProvider
+    if (hint) {
+      provider = new GoogleAuthProvider()
+      provider.setCustomParameters({ prompt: 'select_account', login_hint: hint })
+    }
     try {
-      await signInWithPopup(auth, googleProvider)
+      await signInWithPopup(auth, provider)
     } catch (e) {
       const code = (e as { code?: string }).code
       if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
-        await signInWithRedirect(auth, googleProvider)
+        await signInWithRedirect(auth, provider)
         return
       }
       if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return

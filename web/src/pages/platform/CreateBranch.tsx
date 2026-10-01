@@ -182,7 +182,7 @@ export function CreateBranch() {
                   rows={2}
                 />
                 <FieldDescription>
-                  Each becomes an owner of the branch and is linked on their first Google sign-in.
+                  Each becomes an owner of the branch and gets an email with a link to sign in with Google.
                 </FieldDescription>
                 {errors.owners ? <FieldError>{errors.owners}</FieldError> : null}
               </Field>

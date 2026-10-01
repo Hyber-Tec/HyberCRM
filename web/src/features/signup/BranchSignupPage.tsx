@@ -8,6 +8,7 @@ import { ROLE_LABELS, type Role } from '@shared/roles'
 import type { BranchPublicProfile, SignupRequest } from '@shared/types'
 import { useAuth } from '@/auth/AuthProvider'
 import { BrandMark } from '@/components/app/BrandMark'
+import { CompanyFooter } from '@/components/app/CompanyFooter'
 import { FullPageMessage, FullPageSpinner } from '@/components/app/FullPage'
 import { UserMenu } from '@/components/app/UserMenu'
 import { Button } from '@/components/ui/button'
@@ -105,6 +106,7 @@ export function BranchSignupPage() {
             <SignupForm branchId={branchId} profile={profile} />
           )}
         </div>
+        <CompanyFooter className="mt-6 text-center" />
       </main>
     </div>
   )
@@ -125,8 +127,8 @@ function Pending({ request, profile }: { request: SignupRequest; profile: Branch
       <LuClock className="mx-auto mb-3 size-8 text-amber-500" />
       <h1 className="text-xl font-semibold tracking-tight">Request sent</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        {profile.name} will review your request to join as a {ROLE_LABELS[request.requestedRole].toLowerCase()}. Once it’s
-        approved, sign in again with {request.email} and you’ll go straight to your portal.
+        {profile.name} will review your request to join as a {ROLE_LABELS[request.requestedRole].toLowerCase()}. We’ll email {request.email} when it’s
+        approved; then sign in with Google and you’ll go straight to your portal.
       </p>
     </div>
   )
