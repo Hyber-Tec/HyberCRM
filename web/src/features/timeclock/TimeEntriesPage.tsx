@@ -8,13 +8,13 @@ import { useBranch } from '@/branch/BranchProvider'
 import { OptionPicker } from '@/components/app/OptionPicker'
 import { PageHeader } from '@/components/app/PageHeader'
 import { TimeSelect } from '@/components/app/TimeSelect'
+import { DatePicker } from '@/components/app/DatePicker'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -221,7 +221,7 @@ function ShiftDialog({
           </Field>
           <Field>
             <FieldLabel htmlFor="te-date">Date</FieldLabel>
-            <Input id="te-date" type="date" value={dateKey} onChange={(e) => setDateKey(e.target.value)} disabled={!!existing} />
+            <DatePicker id="te-date" value={dateKey || null} onChange={setDateKey} disabled={!!existing} />
           </Field>
           <Field>
             <FieldLabel>Time</FieldLabel>

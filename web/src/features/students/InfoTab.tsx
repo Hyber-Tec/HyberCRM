@@ -5,6 +5,7 @@ import { STUDENT_STATUSES, STUDENT_STATUS_LABELS } from '@shared/people'
 import { formatDateKey } from '@shared/time'
 import type { ParentContact, Student, StudentPrivateProfile, StudentStatus, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
+import { DatePicker } from '@/components/app/DatePicker'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -132,7 +133,7 @@ export function InfoTab({ student, readOnly }: { student: WithId<Student>; readO
               </Field>
               <Field>
                 <FieldLabel htmlFor="si-signup">Sign-up date</FieldLabel>
-                <Input id="si-signup" type="date" value={form.signUpDate ?? ''} disabled={readOnly} onChange={(e) => set('signUpDate', e.target.value || null)} />
+                <DatePicker id="si-signup" value={form.signUpDate ?? null} disabled={readOnly} onChange={(d) => set('signUpDate', d)} onClear={() => set('signUpDate', null)} />
               </Field>
             </div>
             <div className="grid gap-4 text-sm sm:grid-cols-2">
@@ -182,7 +183,7 @@ export function InfoTab({ student, readOnly }: { student: WithId<Student>; readO
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="sp-dob">Date of birth</FieldLabel>
-                    <Input id="sp-dob" type="date" value={pform.dob ?? ''} onChange={(e) => setP('dob', e.target.value || null)} />
+                    <DatePicker id="sp-dob" value={pform.dob ?? null} onChange={(d) => setP('dob', d)} onClear={() => setP('dob', null)} placeholder="Birth date" />
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="sp-address">Home address</FieldLabel>

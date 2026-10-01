@@ -2,6 +2,7 @@ import { LuRotateCcw } from 'react-icons/lu'
 import type { WeekHours } from '@shared/settings/defaults'
 import { formatMinutes, orderedWeekdays, type Weekday, WEEKDAY_LABELS } from '@shared/time'
 import { TimeSelect } from '@/components/app/TimeSelect'
+import { DatePicker } from '@/components/app/DatePicker'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldContent, FieldDescription, FieldLabel } from '@/components/ui/field'
@@ -131,7 +132,7 @@ export function SettingField({ def, value, isDefault, onChange, onReset, weekSta
       break
     case 'date':
       control = (
-        <Input id={id} type="date" className="w-44" value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} disabled={disabled} />
+        <DatePicker id={id} className="w-44" value={value ? String(value) : null} onChange={(d) => onChange(d)} disabled={disabled} />
       )
       break
     case 'range': {

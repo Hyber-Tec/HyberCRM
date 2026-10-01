@@ -10,6 +10,7 @@ import type { Session } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { OptionPicker } from '@/components/app/OptionPicker'
 import { PageHeader } from '@/components/app/PageHeader'
+import { DatePicker } from '@/components/app/DatePicker'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -74,9 +75,9 @@ export function SessionLogListPage({ mode = 'admin' }: { mode?: 'admin' | 'tutor
           options={[{ value: 'all', label: 'All students' }, ...students.map((s) => ({ value: s.id, label: studentLabel(s.name, s.grade) }))]}
         />
         <div className="flex items-center gap-2">
-          <Input type="date" className="w-40" value={from} onChange={(e) => (setFrom(e.target.value), setPage(0))} />
+          <DatePicker className="w-40" value={from || null} onChange={(d) => (setFrom(d), setPage(0))} aria-label="From" />
           <span className="text-sm text-muted-foreground">to</span>
-          <Input type="date" className="w-40" value={to} onChange={(e) => (setTo(e.target.value), setPage(0))} />
+          <DatePicker className="w-40" value={to || null} min={from || null} onChange={(d) => (setTo(d), setPage(0))} aria-label="To" />
         </div>
       </div>
       <Card className="py-0">
@@ -175,8 +176,8 @@ function AddLogDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o:
         </DialogHeader>
         <div className="flex flex-col gap-2 sm:flex-row">
           <OptionPicker className="sm:w-56" value={tutorId} onChange={setTutorId} options={tutors.map((t) => ({ value: t.id, label: t.name }))} placeholder="Choose a tutor…" />
-          <Input type="date" className="sm:w-40" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <Input type="date" className="sm:w-40" value={to} onChange={(e) => setTo(e.target.value)} />
+          <DatePicker className="sm:w-40" value={from || null} onChange={setFrom} aria-label="From" />
+          <DatePicker className="sm:w-40" value={to || null} min={from || null} onChange={setTo} aria-label="To" />
           <Input placeholder="Filter by student" value={filter} onChange={(e) => setFilter(e.target.value)} />
         </div>
         <div className="text-xs text-muted-foreground">{tutorId ? (loading ? 'Loading sessions…' : `${rows.length} sessions · ${missing} missing logs`) : 'Select a tutor to see their sessions.'}</div>

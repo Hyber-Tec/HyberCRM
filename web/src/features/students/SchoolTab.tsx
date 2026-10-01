@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { todayKey } from '@shared/time'
 import type { Student, StudentSchool, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
+import { DatePicker } from '@/components/app/DatePicker'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -144,13 +145,12 @@ export function SchoolTab({ student }: { student: WithId<Student> }) {
                   {rec.gradeSnapshots.map((s, i) => (
                     <th key={i} className="px-1">
                       <div className="flex items-center gap-1">
-                        <Input
-                          type="date"
-                          className="h-8 w-40"
-                          value={s.date}
-                          onChange={(e) =>
-                            setRec({ ...rec, gradeSnapshots: rec.gradeSnapshots.map((x, idx) => (idx === i ? { ...x, date: e.target.value } : x)) })
-                          }
+                        <DatePicker
+                          size="sm"
+                          className="w-40"
+                          value={s.date || null}
+                          onChange={(d) => setRec({ ...rec, gradeSnapshots: rec.gradeSnapshots.map((x, idx) => (idx === i ? { ...x, date: d } : x)) })}
+                          aria-label="Grade date"
                         />
                         <Button
                           variant="ghost"

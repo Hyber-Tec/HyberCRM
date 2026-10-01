@@ -6,6 +6,7 @@ import { conferenceState } from '@shared/people'
 import { formatDateKey, todayKey } from '@shared/time'
 import type { ConferenceCategory, ConferenceNote, Student, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
+import { DatePicker } from '@/components/app/DatePicker'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -171,7 +172,7 @@ function NoteDialog({
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="cn-date">Date</FieldLabel>
-            <Input id="cn-date" type="date" className="w-44" value={date} onChange={(e) => setDate(e.target.value)} />
+            <DatePicker id="cn-date" className="w-44" value={date || null} onChange={setDate} />
           </Field>
           <Field>
             <FieldLabel>Category</FieldLabel>

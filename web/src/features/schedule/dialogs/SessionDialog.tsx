@@ -9,16 +9,16 @@ import { orderTutors } from '@shared/schedule/dayModel'
 import { seatsLeft } from '@shared/schedule/lanes'
 import { SESSION_STATUSES, SESSION_STATUS_LABELS } from '@shared/schedule/status'
 import type { SessionStatus } from '@shared/settings/defaults'
-import { type DateKey, formatDateKey, formatTimeRange, startOfMonth } from '@shared/time'
+import { type DateKey, formatDateKey, formatTimeRange } from '@shared/time'
 import type { Availability, Session, Staff, Student, Subject, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { OptionPicker } from '@/components/app/OptionPicker'
 import { TimeSelect } from '@/components/app/TimeSelect'
+import { DatePicker } from '@/components/app/DatePicker'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
@@ -56,7 +56,6 @@ export function SessionDialog({
 }) {
   const { branchId, settings, rules } = useBranch()
   const [form, setForm] = useState<SessionDraft | null>(null)
-  const [month, setMonth] = useState<DateKey>('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const existing = state?.mode === 'edit' ? state.session : null
@@ -81,7 +80,6 @@ export function SessionDialog({
         startMin: s.startMin,
         endMin: s.endMin,
       })
-      setMonth(startOfMonth(s.dateKey))
     } else {
       const d = state.draft
       setForm({
@@ -98,7 +96,6 @@ export function SessionDialog({
         startMin: d.startMin,
         endMin: d.endMin,
       })
-      setMonth(startOfMonth(d.dateKey))
     }
   }, [state])
 
@@ -167,12 +164,11 @@ export function SessionDialog({
             </div>
             <StudentMonthCalendar
               studentId={form.studentId || null}
-              month={month || startOfMonth(form.dateKey)}
-              onMonth={setMonth}
               selectedDate={form.dateKey}
               onPickDay={readOnly ? undefined : (d) => set({ dateKey: d })}
               highlightSessionId={existing?.id}
               compact
+              className="h-[min(56svh,460px)]"
             />
           </div>
           <div className="order-1 lg:order-2">
@@ -224,7 +220,7 @@ export function SessionDialog({
               <div className="grid grid-cols-[1fr_auto] items-end gap-3">
                 <Field>
                   <FieldLabel htmlFor="sd-date">Date</FieldLabel>
-                  <Input id="sd-date" type="date" value={form.dateKey} disabled={readOnly} onChange={(e) => e.target.value && set({ dateKey: e.target.value })} />
+                  <DatePicker id="sd-date" value={form.dateKey} disabled={readOnly} onChange={(d) => set({ dateKey: d })} />
                 </Field>
               </div>
               {closed ? <FieldError>This day is closed — please choose another date.</FieldError> : null}

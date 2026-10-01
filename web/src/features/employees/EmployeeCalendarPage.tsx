@@ -130,7 +130,7 @@ function ScheduledHours({ staffId }: { staffId: string }) {
     () => (range ? query(branchCol(branchId, COL.sessions), where('tutorId', '==', staffId), where('dateKey', '>=', range.from), where('dateKey', '<=', range.to)) : null),
     [branchId, staffId, range],
   )
-  const { data } = useQuery<Session>(q, `emp-sched-${staffId}-${range?.from}`)
+  const { data } = useQuery<Session>(q, `emp-sched-${staffId}-${range?.from}-${range?.to}`, { keepPrevious: true })
   const cells = useMemo(() => {
     const byDay = new Map<string, Session[]>()
     for (const s of data) if (!s.isDeleted && s.status !== 'canceled') byDay.set(s.dateKey, [...(byDay.get(s.dateKey) ?? []), s])
@@ -150,8 +150,8 @@ function WorkedHours({ staffId, mode }: { staffId: string; mode: 'clock' | 'teac
   const onRange = useCallback((from: string, to: string) => setRange({ from, to }), [])
   const from = range?.from ?? '0000-00-00'
   const to = range?.to ?? '0000-00-00'
-  const { data: shifts } = useShifts(from, to, staffId, !!range)
-  const { data: sessions } = useSessionsRange(addDays(from, -1), addDays(to, 1), staffId, !!range && mode !== 'clock')
+  const { data: shifts } = useShifts(from, to, staffId, !!range, { keepPrevious: true })
+  const { data: sessions } = useSessionsRange(addDays(from, -1), addDays(to, 1), staffId, !!range && mode !== 'clock', { keepPrevious: true })
   const { data: staff } = useStaffListForPay()
   const comps = useCompensationMap([staffId])
   const cells = useMemo(() => {

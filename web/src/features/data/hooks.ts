@@ -44,19 +44,19 @@ export function useMembers(enabled = true) {
 }
 
 /** Day configs (opening-hour overrides) between two dates, as a map by dateKey. */
-export function useDayConfigs(from: string, to: string) {
+export function useDayConfigs(from: string, to: string, opts?: { keepPrevious?: boolean }) {
   const { branchId } = useBranch()
   const q = useMemo(
     () => query(branchCol(branchId, COL.dayConfigs), where('dateKey', '>=', from), where('dateKey', '<=', to)),
     [branchId, from, to],
   )
-  const { data, loading } = useQuery<DayConfig>(q, `dayconfigs-${branchId}-${from}-${to}`)
+  const { data, loading } = useQuery<DayConfig>(q, `dayconfigs-${branchId}-${from}-${to}`, opts)
   const map = useMemo(() => new Map(data.map((d) => [d.dateKey, d])), [data])
   return { map, loading }
 }
 
 /** One employee's availability between two dates, as a map by dateKey. */
-export function useAvailability(staffId: string | null, from: string, to: string) {
+export function useAvailability(staffId: string | null, from: string, to: string, opts?: { keepPrevious?: boolean }) {
   const { branchId } = useBranch()
   const q = useMemo(
     () =>
@@ -65,7 +65,7 @@ export function useAvailability(staffId: string | null, from: string, to: string
         : null,
     [branchId, staffId, from, to],
   )
-  const { data, loading, error } = useQuery<Availability>(q, `availability-${staffId}-${from}-${to}`)
+  const { data, loading, error } = useQuery<Availability>(q, `availability-${staffId}-${from}-${to}`, opts)
   const map = useMemo(() => new Map(data.map((d) => [d.dateKey, d])), [data])
   return { map, loading, error }
 }

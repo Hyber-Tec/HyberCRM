@@ -1,6 +1,6 @@
 import { type PayPeriod, periodId } from '@shared/pay/periods'
 import { formatDateKey } from '@shared/time'
-import { Input } from '@/components/ui/input'
+import { DatePicker } from '@/components/app/DatePicker'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { usePayPeriods } from './hooks'
 
@@ -46,9 +46,9 @@ export function PeriodPicker({ value, onChange, lockedThrough }: { value: RangeV
       </Select>
       {!value.period ? (
         <>
-          <Input type="date" className="w-40" value={value.from} onChange={(e) => onChange({ ...value, from: e.target.value })} />
+          <DatePicker className="w-40" value={value.from || null} onChange={(d) => onChange({ ...value, from: d })} aria-label="From" />
           <span className="text-sm text-muted-foreground">to</span>
-          <Input type="date" className="w-40" value={value.to} onChange={(e) => onChange({ ...value, to: e.target.value })} />
+          <DatePicker className="w-40" value={value.to || null} min={value.from || null} onChange={(d) => onChange({ ...value, to: d })} aria-label="To" />
         </>
       ) : null}
     </div>

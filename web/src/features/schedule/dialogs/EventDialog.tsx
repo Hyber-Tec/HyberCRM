@@ -6,6 +6,7 @@ import { type DateKey, type Weekday, WEEKDAYS, parseDateKey, weekdayOf } from '@
 import type { WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { TimeSelect } from '@/components/app/TimeSelect'
+import { DatePicker } from '@/components/app/DatePicker'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -173,7 +174,7 @@ export function EventDialog({ state, onClose, ctx }: { state: EventDialogState; 
           <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
             <Field>
               <FieldLabel htmlFor="ev-date">Date</FieldLabel>
-              <Input id="ev-date" type="date" value={dateKey} onChange={(e) => setDateKey(e.target.value)} />
+              <DatePicker id="ev-date" value={dateKey || null} onChange={setDateKey} />
             </Field>
             <Field>
               <FieldLabel>Start</FieldLabel>
@@ -244,7 +245,7 @@ export function EventDialog({ state, onClose, ctx }: { state: EventDialogState; 
                   </label>
                   <label className="flex items-center gap-2">
                     <RadioGroupItem value="on" /> On
-                    <Input type="date" className="h-8 w-40" value={endDate} disabled={ends !== 'on'} onChange={(e) => setEndDate(e.target.value)} />
+                    <DatePicker size="sm" className="w-40" value={endDate || null} min={dateKey || null} disabled={ends !== 'on'} onChange={setEndDate} aria-label="Ends on" />
                   </label>
                   <label className="flex items-center gap-2">
                     <RadioGroupItem value="after" /> After

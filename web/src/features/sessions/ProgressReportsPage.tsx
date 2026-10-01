@@ -12,6 +12,7 @@ import type { WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { OptionPicker } from '@/components/app/OptionPicker'
 import { PageHeader } from '@/components/app/PageHeader'
+import { DatePicker } from '@/components/app/DatePicker'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,7 +23,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useStudentList } from '@/features/data/hooks'
@@ -164,9 +164,9 @@ export function ProgressReportsPage({ mode = 'admin' }: { mode?: 'admin' | 'tuto
             placeholder="Select student…"
           />
           <div className="flex items-center gap-2">
-            <Input type="date" className="w-40" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <DatePicker className="w-40" value={from || null} onChange={setFrom} aria-label="From" />
             <span className="text-sm text-muted-foreground">to</span>
-            <Input type="date" className="w-40" value={to} onChange={(e) => setTo(e.target.value)} />
+            <DatePicker className="w-40" value={to || null} min={from || null} onChange={setTo} aria-label="To" />
           </div>
           <Button disabled={busy || !studentId} onClick={() => void generate()}>
             {busy ? <Spinner /> : null} {busy ? 'Generating…' : 'Generate'}

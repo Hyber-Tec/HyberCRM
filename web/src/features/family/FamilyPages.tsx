@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { LuCalendarDays, LuChartLine, LuClock, LuList } from 'react-icons/lu'
 import { STUDENT_STATUS_LABELS } from '@shared/people'
-import { type DateKey, addDays, formatDateKey, formatInstant, formatTimeRange, startOfMonth, todayKey } from '@shared/time'
+import { addDays, formatDateKey, formatInstant, formatTimeRange, todayKey } from '@shared/time'
 import type { Session, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { PageHeader } from '@/components/app/PageHeader'
@@ -55,7 +55,6 @@ export function ParentHomePage() {
   const [child, setChild] = useState('all')
   const [view, setView] = useState<'list' | 'month'>('list')
   const [weeks, setWeeks] = useState(4)
-  const [month, setMonth] = useState<DateKey>(() => startOfMonth(todayKey(timezone)))
   const [open, setOpen] = useState<WithId<Session> | null>(null)
   const today = todayKey(timezone)
   const { data, loading } = useFamilySessions(ids, today, addDays(today, weeks * 7))
@@ -112,7 +111,7 @@ export function ParentHomePage() {
         )
       ) : (
         <Card className="p-4">
-          <StudentMonthCalendar studentId={monthChild} month={month} onMonth={setMonth} onPickSession={setOpen} />
+          <StudentMonthCalendar key={monthChild} studentId={monthChild} onPickSession={setOpen} />
           <SessionDetails session={open} onClose={() => setOpen(null)} />
         </Card>
       )}
@@ -225,16 +224,14 @@ export function StudentHomePage() {
 
 /** Student → Calendar: their sessions month by month. */
 export function StudentPortalCalendarPage() {
-  const { timezone } = useBranch()
   const { ids } = useMe()
-  const [month, setMonth] = useState<DateKey>(() => startOfMonth(todayKey(timezone)))
   const [open, setOpen] = useState<WithId<Session> | null>(null)
   if (!ids.length) return <NotLinked who="student" />
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader title="Calendar" description="Your tutoring sessions. Click a session for details." />
       <Card className="p-4">
-        <StudentMonthCalendar studentId={ids[0]} month={month} onMonth={setMonth} onPickSession={setOpen} />
+        <StudentMonthCalendar studentId={ids[0]} onPickSession={setOpen} />
       </Card>
       <SessionDetails session={open} onClose={() => setOpen(null)} />
     </div>

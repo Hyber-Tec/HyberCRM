@@ -14,6 +14,7 @@ import { useBranch } from '@/branch/BranchProvider'
 import { initials } from '@/components/app/BrandMark'
 import { MultiOptionPicker } from '@/components/app/OptionPicker'
 import { StaffStatusBadge } from '@/components/app/StatusBadge'
+import { DatePicker } from '@/components/app/DatePicker'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -132,7 +133,7 @@ function ProfileCard({ staff, member }: { staff: Staff & { id: string }; member:
             </Field>
             <Field>
               <FieldLabel htmlFor="ep-dob">Date of birth</FieldLabel>
-              <Input id="ep-dob" type="date" value={form.dob ?? ''} onChange={(e) => set('dob', e.target.value || null)} />
+              <DatePicker id="ep-dob" value={form.dob ?? null} onChange={(d) => set('dob', d)} onClear={() => set('dob', null)} placeholder="Birth date" />
             </Field>
             <Field>
               <FieldLabel htmlFor="ep-address">Home address</FieldLabel>
@@ -140,11 +141,11 @@ function ProfileCard({ staff, member }: { staff: Staff & { id: string }; member:
             </Field>
             <Field>
               <FieldLabel htmlFor="ep-start">Start date</FieldLabel>
-              <Input id="ep-start" type="date" value={form.startDate ?? ''} onChange={(e) => set('startDate', e.target.value || null)} />
+              <DatePicker id="ep-start" value={form.startDate ?? null} onChange={(d) => set('startDate', d)} onClear={() => set('startDate', null)} />
             </Field>
             <Field>
               <FieldLabel htmlFor="ep-end">End date</FieldLabel>
-              <Input id="ep-end" type="date" value={form.endDate ?? ''} onChange={(e) => set('endDate', e.target.value || null)} />
+              <DatePicker id="ep-end" value={form.endDate ?? null} min={form.startDate ?? null} onChange={(d) => set('endDate', d)} onClear={() => set('endDate', null)} />
             </Field>
             <Field>
               <FieldLabel>Status</FieldLabel>
@@ -407,7 +408,7 @@ function PayCard({ staff }: { staff: Staff & { id: string } }) {
             ))}
             <Field>
               <FieldLabel htmlFor="pay-from">Effective from</FieldLabel>
-              <Input id="pay-from" type="date" value={effective} onChange={(e) => setEffective(e.target.value)} />
+              <DatePicker id="pay-from" value={effective || null} onChange={setEffective} />
             </Field>
           </div>
           {comp?.history?.length ? (

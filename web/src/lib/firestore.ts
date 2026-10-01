@@ -70,9 +70,11 @@ export interface QueryState<T> {
 
 /**
  * Live query. `key` must change whenever the query changes (Firestore queries
- * can't be compared cheaply). Pass a `null` query to wait.
+ * can't be compared cheaply). Pass a `null` query to wait. `keepPrevious`: while
+ * a changed query loads, keep showing the previous results (scrolling calendars
+ * move their window without flashing empty).
  */
-export function useQuery<T>(query: Query<DocumentData> | null, key: string): QueryState<T> {
+export function useQuery<T>(query: Query<DocumentData> | null, key: string, opts?: { keepPrevious?: boolean }): QueryState<T> {
   const effectiveKey = query ? key : null
   const [state, setState] = useState<QueryState<T> & { key: string | null }>({
     data: [],
@@ -101,7 +103,7 @@ export function useQuery<T>(query: Query<DocumentData> | null, key: string): Que
   }, [effectiveKey])
 
   if (!query) return { data: [], loading: false, error: null }
-  if (state.key !== effectiveKey) return { data: [], loading: true, error: null }
+  if (state.key !== effectiveKey) return { data: opts?.keepPrevious ? state.data : [], loading: true, error: null }
   return state
 }
 

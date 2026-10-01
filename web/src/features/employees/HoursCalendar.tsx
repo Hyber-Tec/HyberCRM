@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
-import { LuChevronLeft, LuChevronRight } from 'react-icons/lu'
-import { type DateKey, WEEKDAY_SHORT, addMonths, formatDateKey, isSameMonth, monthGrid, orderedWeekdays, startOfMonth, todayKey } from '@shared/time'
+import { useEffect, useRef, useState } from 'react'
+import { type DateKey, formatDateKey, todayKey } from '@shared/time'
 import { useBranch } from '@/branch/BranchProvider'
+import { MonthScroller, type MonthScrollerHandle } from '@/components/app/MonthScroller'
 import { Button } from '@/components/ui/button'
+import { useLoadWindow } from '@/lib/useLoadWindow'
 import { cn } from '@/lib/utils'
 
 export function fmtHours(minutes: number): string {
@@ -25,8 +26,9 @@ const TONES: Record<NonNullable<DayCell['lines']>[number]['tone'], string> = {
 }
 
 /**
- * Month grid of per-day hour totals with a week TOTAL column (Employee Calendar's
- * hour modes). `cells` is keyed by dateKey; `onRange` reports the visible range.
+ * Per-day hour totals on a vertically scrolling month calendar, with a week
+ * Total column (Employee Calendar's hour modes). `cells` is keyed by dateKey;
+ * `onRange` reports the dates to load (the months around the view).
  */
 export function HoursCalendar({
   cells,
@@ -41,70 +43,57 @@ export function HoursCalendar({
 }) {
   const { settings, timezone } = useBranch()
   const today = todayKey(timezone)
-  const [month, setMonth] = useState(() => startOfMonth(today))
-  const weekStartsOn = settings.general.weekStartsOn
-  const grid = monthGrid(month, weekStartsOn)
-  const weeks = Array.from({ length: 6 }, (_, w) => grid.slice(w * 7, w * 7 + 7)).filter((wk) => wk.some((d) => isSameMonth(d, month)))
-  const first = grid[0]
-  const last = grid[grid.length - 1]
-  useEffect(() => onRange(first, last), [first, last, onRange])
+  const scroller = useRef<MonthScrollerHandle>(null)
+  const [topMonth, setTopMonth] = useState(today)
+  const { from, to, onVisibleRangeChange } = useLoadWindow(today)
+  useEffect(() => onRange(from, to), [from, to, onRange])
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <h2 className="mr-auto text-lg font-semibold">{formatDateKey(month, 'monthYear')}</h2>
-        <Button variant="outline" size="sm" onClick={() => setMonth(startOfMonth(today))}>
-          Today
-        </Button>
-        <Button variant="outline" size="icon-sm" aria-label="Previous month" onClick={() => setMonth(addMonths(month, -1))}>
-          <LuChevronLeft />
-        </Button>
-        <Button variant="outline" size="icon-sm" aria-label="Next month" onClick={() => setMonth(addMonths(month, 1))}>
-          <LuChevronRight />
-        </Button>
-      </div>
-      <div className="overflow-x-auto rounded-xl border">
-        <div className="min-w-[760px]">
-          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_84px] border-b bg-muted/40 text-center text-[11px] font-semibold text-muted-foreground uppercase">
-            {orderedWeekdays(weekStartsOn).map((d) => (
-              <div key={d} className="py-1.5">
-                {WEEKDAY_SHORT[d]}
-              </div>
-            ))}
-            <div className="border-l py-1.5">Total</div>
-          </div>
-          {weeks.map((wk, i) => {
-            const total = wk.filter((d) => isSameMonth(d, month)).reduce((sum, d) => sum + (cells.get(d)?.minutes ?? 0), 0)
-            return (
-              <div key={i} className="grid grid-cols-[repeat(7,minmax(0,1fr))_84px] border-b last:border-b-0">
-                {wk.map((d) => {
-                  if (!isSameMonth(d, month)) return <div key={d} className="border-r" />
-                  const c = cells.get(d)
-                  return (
-                    <div key={d} className="flex min-h-24 flex-col gap-1 border-r p-1.5">
-                      <div className="flex justify-end">
-                        <span className={cn('flex size-6 items-center justify-center rounded-full text-xs', d === today && 'bg-foreground font-semibold text-background')}>
-                          {Number(d.slice(8))}
-                        </span>
-                      </div>
-                      {c && c.minutes > 0 ? (
-                        <span className={cn('mx-auto rounded-md border px-2 py-0.5 text-sm font-bold tabular-nums', TONES[tone])}>{fmtHours(c.minutes)}</span>
-                      ) : null}
-                      {c?.lines?.slice(0, 3).map((l, k) => (
-                        <span key={k} className={cn('truncate rounded border-l-[3px] px-1 text-[10px]', TONES[l.tone])}>
-                          {l.label}
-                        </span>
-                      ))}
-                      {(c?.lines?.length ?? 0) > 3 ? <span className="text-[10px] text-muted-foreground">+{c!.lines!.length - 3} more</span> : null}
-                    </div>
-                  )
-                })}
-                <div className="flex items-center justify-center border-l bg-muted/30 text-sm font-bold tabular-nums">
-                  {total > 0 ? fmtHours(total) : <span className="text-muted-foreground/50">—</span>}
+      <div className="overflow-hidden rounded-xl border bg-card">
+        <div className="flex items-center gap-2 border-b px-3 py-1.5">
+          <h2 className="mr-auto text-sm font-semibold">{formatDateKey(topMonth, 'monthYear')}</h2>
+          <Button variant="ghost" size="xs" onClick={() => scroller.current?.scrollToDate(today, { block: 'month' })}>
+            Today
+          </Button>
+        </div>
+        <div className="overflow-x-auto">
+          <MonthScroller
+            ref={scroller}
+            anchor={today}
+            weekStartsOn={settings.general.weekStartsOn}
+            onVisibleRangeChange={onVisibleRangeChange}
+            onTopMonthChange={setTopMonth}
+            className="h-[min(72svh,760px)] min-w-[760px] px-2"
+            weekSummary={{
+              label: 'Total',
+              render: (days) => {
+                const total = days.reduce((sum, d) => sum + (cells.get(d)?.minutes ?? 0), 0)
+                return total > 0 ? fmtHours(total) : <span className="text-muted-foreground/50">—</span>
+              },
+            }}
+            renderDay={(d) => {
+              const c = cells.get(d)
+              return (
+                <div className="flex min-h-24 flex-col gap-1 p-1.5">
+                  <div className="flex justify-end">
+                    <span className={cn('flex size-6 items-center justify-center rounded-full text-xs tabular-nums', d === today && 'bg-foreground font-semibold text-background')}>
+                      {Number(d.slice(8))}
+                    </span>
+                  </div>
+                  {c && c.minutes > 0 ? (
+                    <span className={cn('mx-auto rounded-md border px-2 py-0.5 text-sm font-bold tabular-nums', TONES[tone])}>{fmtHours(c.minutes)}</span>
+                  ) : null}
+                  {c?.lines?.slice(0, 3).map((l, k) => (
+                    <span key={k} className={cn('truncate rounded border-l-[3px] px-1 text-[10px]', TONES[l.tone])}>
+                      {l.label}
+                    </span>
+                  ))}
+                  {(c?.lines?.length ?? 0) > 3 ? <span className="text-[10px] text-muted-foreground">+{c!.lines!.length - 3} more</span> : null}
                 </div>
-              </div>
-            )
-          })}
+              )
+            }}
+          />
         </div>
       </div>
       <p className="text-xs text-muted-foreground">{footnote}</p>

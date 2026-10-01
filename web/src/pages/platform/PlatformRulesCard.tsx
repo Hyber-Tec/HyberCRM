@@ -15,13 +15,13 @@ import {
 } from '@shared/settings/businessRules'
 import { type DateKey, formatDateKey, todayKey } from '@shared/time'
 import type { AuditChange, Branch } from '@shared/types'
+import { DatePicker } from '@/components/app/DatePicker'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Spinner } from '@/components/ui/spinner'
 import { type Actor, auditData } from '@/lib/audit'
@@ -192,7 +192,7 @@ function ChangePayModelDialog({
           </Field>
           <Field data-invalid={tooEarly}>
             <FieldLabel htmlFor="cpm-from">Starts on</FieldLabel>
-            <Input id="cpm-from" type="date" value={from} min={earliest ?? undefined} onChange={(e) => e.target.value && setFrom(e.target.value)} className="w-48" />
+            <DatePicker id="cpm-from" value={from} min={earliest} onChange={setFrom} className="w-56" />
             <FieldDescription>
               {earliest ? `Pay is locked through ${formatDateKey(lockedThrough!, 'medium')}, so the earliest start is ${formatDateKey(earliest, 'medium')}.` : 'No pay period is locked yet.'}
             </FieldDescription>

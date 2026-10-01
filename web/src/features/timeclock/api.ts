@@ -29,7 +29,7 @@ export interface ClockShift {
 }
 
 /** Live shifts in a date range (optionally one employee). */
-export function useShifts(from: DateKey, to: DateKey, staffId: string | null, enabled = true) {
+export function useShifts(from: DateKey, to: DateKey, staffId: string | null, enabled = true, opts?: { keepPrevious?: boolean }) {
   const { branchId } = useBranch()
   const q = useMemo((): Query<DocumentData> | null => {
     if (!enabled) return null
@@ -38,11 +38,11 @@ export function useShifts(from: DateKey, to: DateKey, staffId: string | null, en
       ? query(base, where('staffId', '==', staffId), where('dateKey', '>=', from), where('dateKey', '<=', to))
       : query(base, where('dateKey', '>=', from), where('dateKey', '<=', to))
   }, [branchId, from, to, staffId, enabled])
-  return useQuery<ClockShift>(q, `shifts-${branchId}-${from}-${to}-${staffId}-${enabled}`)
+  return useQuery<ClockShift>(q, `shifts-${branchId}-${from}-${to}-${staffId}-${enabled}`, opts)
 }
 
 /** Sessions (teaching windows) in a date range (optionally one tutor). */
-export function useSessionsRange(from: DateKey, to: DateKey, tutorId: string | null, enabled = true) {
+export function useSessionsRange(from: DateKey, to: DateKey, tutorId: string | null, enabled = true, opts?: { keepPrevious?: boolean }) {
   const { branchId } = useBranch()
   const q = useMemo((): Query<DocumentData> | null => {
     if (!enabled) return null
@@ -51,7 +51,7 @@ export function useSessionsRange(from: DateKey, to: DateKey, tutorId: string | n
       ? query(base, where('tutorId', '==', tutorId), where('dateKey', '>=', from), where('dateKey', '<=', to))
       : query(base, where('dateKey', '>=', from), where('dateKey', '<=', to))
   }, [branchId, from, to, tutorId, enabled])
-  return useQuery<Session>(q, `pay-sessions-${branchId}-${from}-${to}-${tutorId}-${enabled}`)
+  return useQuery<Session>(q, `pay-sessions-${branchId}-${from}-${to}-${tutorId}-${enabled}`, opts)
 }
 
 export interface ShiftPay {

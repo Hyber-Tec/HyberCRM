@@ -9,6 +9,7 @@ import { useBranch } from '@/branch/BranchProvider'
 import { PageHeader } from '@/components/app/PageHeader'
 import { StaffStatusBadge } from '@/components/app/StatusBadge'
 import { UserAvatar } from '@/components/app/UserMenu'
+import { DatePicker } from '@/components/app/DatePicker'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -60,7 +61,7 @@ export function MyProfilePage() {
               </Field>
               <Field>
                 <FieldLabel htmlFor="me-dob">Date of birth</FieldLabel>
-                <Input id="me-dob" type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+                <DatePicker id="me-dob" value={dob || null} onChange={setDob} onClear={() => setDob('')} placeholder="Birth date" />
               </Field>
             </div>
             <Field>
