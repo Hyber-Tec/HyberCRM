@@ -159,6 +159,20 @@ const sessionNotifications: Step = async (page, base) => {
   await page.waitForURL(/\/tutor\/schedule\?date=/, { timeout: 8000 })
 }
 
+/** The Super Admin previews the tutor portal as Maya, then stops the preview. */
+const viewAs: Step = async (page, base) => {
+  await page.goto(`${base}/${E2E_BRANCH}/admin/home`, { waitUntil: 'load' })
+  await page.getByRole('button', { name: 'View the app as' }).click()
+  await page.getByRole('menuitem', { name: /A tutor/ }).click()
+  await page.getByRole('option', { name: /Maya Thompson/ }).first().click()
+  await page.waitForURL(/\/tutor\//, { timeout: 8000 })
+  await expectText(page, 'Previewing as')
+  await expectText(page, 'Tutor Portal')
+  await page.getByRole('button', { name: 'Stop preview' }).click()
+  await page.waitForURL(/\/admin\//, { timeout: 8000 })
+  await expectText(page, 'Super Admin · viewing')
+}
+
 export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'schedule create/status/delete', email: 'goochoi913@gmail.com', run: scheduleCrud },
   { name: 'kiosk clock in/out', email: 'goochoi913@gmail.com', run: kiosk },
@@ -167,4 +181,5 @@ export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'admin publishes an announcement', email: 'goochoi913@gmail.com', run: announcementPublish },
   { name: 'tutor reads and comments on it', email: 'tutor@e2e.test', run: announcementTutor },
   { name: 'session changes reach the tutor', email: 'tutor@e2e.test', run: sessionNotifications },
+  { name: 'super admin views the app as a tutor', email: 'goochoi913@gmail.com', run: viewAs },
 ]

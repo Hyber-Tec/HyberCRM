@@ -372,7 +372,7 @@ export function TutorAnnouncementPostPage() {
 
 function PostView({ mode }: { mode: Mode }) {
   const { announcementId = '' } = useParams()
-  const { branchId, actor, timezone } = useBranch()
+  const { branchId, actor, timezone, viewAs } = useBranch()
   const navigate = useNavigate()
   const list = useListPath(mode)
   const admin = mode === 'admin'
@@ -381,18 +381,18 @@ function PostView({ mode }: { mode: Mode }) {
   const [receipts, setReceipts] = useState(false)
   const actions = useAdminActions(() => navigate(list))
 
-  // Tutors leave a read receipt the first time they open a post.
+  // Tutors leave a read receipt the first time they open a post (not a Super Admin previewing a tutor).
   const readRef = useMemo(
-    () => (admin ? null : doc(db, branchColPath(branchId, COL.announcements), announcementId, 'reads', actor.email)),
-    [admin, branchId, announcementId, actor.email],
+    () => (admin || viewAs ? null : doc(db, branchColPath(branchId, COL.announcements), announcementId, 'reads', actor.email)),
+    [admin, viewAs, branchId, announcementId, actor.email],
   )
   const myRead = useDoc<AnnouncementRead>(readRef)
   const marked = useRef(false)
   useEffect(() => {
-    if (admin || !a || myRead.loading || myRead.data || marked.current) return
+    if (admin || viewAs || !a || myRead.loading || myRead.data || marked.current) return
     marked.current = true
     void markRead(branchId, actor, announcementId).catch(() => undefined)
-  }, [admin, a, myRead.loading, myRead.data, branchId, actor, announcementId])
+  }, [admin, viewAs, a, myRead.loading, myRead.data, branchId, actor, announcementId])
 
   useEffect(() => {
     if (a?.title) document.title = `${a.title} | Announcements`

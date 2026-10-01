@@ -38,9 +38,9 @@ beforeEach(async () => {
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore()
     await setDoc(doc(db, `branches/${B}`), { name: B, status: 'active', timezone: TZ, settings: {} })
-    const m = (email: string, roles: string[], staffId: string | null) => ({ email, roles, status: 'active', staffId, restrictions: [] })
-    await setDoc(doc(db, `branches/${B}/members/tutor@a.test`), m('tutor@a.test', ['tutor'], 's-tutor'))
-    await setDoc(doc(db, `branches/${B}/members/admin@a.test`), m('admin@a.test', ['admin'], null))
+    const m = (email: string, role: string, staffId: string | null) => ({ email, role, status: 'active', staffId, restrictions: [] })
+    await setDoc(doc(db, `branches/${B}/members/tutor@a.test`), m('tutor@a.test', 'tutor', 's-tutor'))
+    await setDoc(doc(db, `branches/${B}/members/admin@a.test`), m('admin@a.test', 'admin', null))
     const near = addDays(todayKey(TZ), 2)
     await setDoc(doc(db, `branches/${B}/availability/s-tutor_${near}`), block('s-tutor', near))
   })

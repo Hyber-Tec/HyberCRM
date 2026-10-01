@@ -35,7 +35,7 @@ export function SubjectsPage() {
   const [dialog, setDialog] = useState<{ kind: 'category' } | { kind: 'subject'; categoryId: string } | null>(null)
   const [name, setName] = useState('')
 
-  const staff = useMemo(() => staffAll.filter((s) => s.status !== 'finished' && s.roles.includes('tutor')), [staffAll])
+  const staff = useMemo(() => staffAll.filter((s) => s.status !== 'finished' && s.role === 'tutor'), [staffAll])
   const tutorsBySubject = useMemo(() => {
     const m = new Map<string, WithId<Staff>[]>()
     for (const s of staff) for (const id of s.subjectIds ?? []) m.set(id, [...(m.get(id) ?? []), s])

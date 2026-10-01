@@ -1,4 +1,4 @@
-import { Navigate, Outlet, type RouteObject, createBrowserRouter, useLocation, useParams, useSearchParams } from 'react-router'
+import { Navigate, Outlet, type RouteObject, createBrowserRouter } from 'react-router'
 import { BranchProvider } from '@/branch/BranchProvider'
 import { FullPageMessage } from '@/components/app/FullPage'
 import { AppResolver } from '@/pages/public/AppResolver'
@@ -10,22 +10,7 @@ import { PlatformBranch } from '@/pages/platform/PlatformBranch'
 import { PlatformHome } from '@/pages/platform/PlatformHome'
 import { PlatformLayout } from '@/pages/platform/PlatformLayout'
 import { PortalLayout } from '@/portals/PortalLayout'
-import { BranchHomeRedirect, RequireAuth, RequirePage, RequirePortal, RequireSuperAdmin } from './guards'
-
-/** An old admin address → its new place, keeping the rest of the path and the query. */
-function Moved({ to }: { to: string }) {
-  const { branchId, '*': rest } = useParams()
-  const { search, hash } = useLocation()
-  return <Navigate to={`/${branchId}/admin/${to}${rest ? `/${rest}` : ''}${search}${hash}`} replace />
-}
-
-/** Students → Calendar is gone: each student's calendar is a tab of their profile. */
-function MovedStudentCalendar() {
-  const { branchId } = useParams()
-  const [params] = useSearchParams()
-  const id = params.get('student')
-  return <Navigate to={`/${branchId}/admin/students${id ? `/${encodeURIComponent(id)}/calendar` : ''}`} replace />
-}
+import { BranchHomeRedirect, Moved, MovedStudentCalendar, RequireAuth, RequirePage, RequirePortal, RequireSuperAdmin } from './guards'
 
 /** Lazy route helper: `page(() => import('./x'), 'X')`. */
 function page<M extends Record<string, unknown>>(load: () => Promise<M>, name: keyof M): RouteObject['lazy'] {

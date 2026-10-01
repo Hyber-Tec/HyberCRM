@@ -27,7 +27,7 @@ export function ReadReceiptsDialog({ a, open, onOpenChange }: { a: WithId<Announ
     const readers = new Set(reads.map((r) => r.email))
     const audience =
       a.audienceType === 'all'
-        ? members.filter((m) => m.status === 'active' && m.roles?.includes('tutor'))
+        ? members.filter((m) => m.status === 'active' && m.role === 'tutor')
         : members.filter((m) => a.audienceKeys.includes(m.email))
     return audience
       .filter((m) => !readers.has(m.email))

@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { emailKey } from '@shared/paths'
-import { ROLES, ROLE_LABELS, type Role } from '@shared/roles'
+import { ROLES, ROLE_LABELS, type Role, isAdminRole, isStaffRole } from '@shared/roles'
 import type { Member, SignupRequest, Staff, Student, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { MultiOptionPicker, OptionPicker } from '@/components/app/OptionPicker'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -17,13 +16,15 @@ import {
 } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { saveMember } from './api'
 
 const ROLE_HELP: Record<Role, string> = {
+  owner: 'Runs the branch: everything an admin can, plus admins and Access Control',
   admin: 'Full access to the admin portal',
-  tutor: 'Appears on the schedule; tutor portal',
+  tutor: 'Teaches: appears on the schedule; tutor portal',
   parent: 'Sees their children’s sessions and shared reports',
   student: 'Sees their own schedule and info',
 }
@@ -43,7 +44,7 @@ export function MemberDialog({ open, onOpenChange, member, request, members, sta
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [roles, setRoles] = useState<Role[]>([])
+  const [role, setRole] = useState<Role | null>(null)
   const [active, setActive] = useState(true)
   const [staffId, setStaffId] = useState<string>('new')
   const [studentId, setStudentId] = useState<string>('new')
@@ -62,7 +63,7 @@ export function MemberDialog({ open, onOpenChange, member, request, members, sta
       setEmail(member.email)
       setFirstName(linkedStaff?.firstName ?? f)
       setLastName(linkedStaff?.lastName ?? rest.join(' '))
-      setRoles(member.roles ?? [])
+      setRole(member.role ?? null)
       setActive(member.status === 'active')
       setStaffId(member.staffId ?? 'new')
       setStudentId(member.studentId ?? 'new')
@@ -71,7 +72,7 @@ export function MemberDialog({ open, onOpenChange, member, request, members, sta
       setEmail(request?.email ?? '')
       setFirstName(request?.firstName ?? '')
       setLastName(request?.lastName ?? '')
-      setRoles(request ? [request.requestedRole] : [])
+      setRole(request ? request.requestedRole : null)
       setActive(true)
       // Suggest an existing record with the same email or name.
       const match = request
@@ -100,16 +101,12 @@ export function MemberDialog({ open, onOpenChange, member, request, members, sta
     ...staff.map((s) => ({
       value: s.id,
       label: s.name,
-      hint: linkedStaffIds.has(s.id) ? 'has a login' : s.roles.map((r) => ROLE_LABELS[r]).join(', '),
+      hint: linkedStaffIds.has(s.id) ? 'has a login' : ROLE_LABELS[s.role],
       disabled: linkedStaffIds.has(s.id),
     })),
   ]
   const studentOptions = students.map((s) => ({ value: s.id, label: s.name, hint: s.grade ? `Grade ${s.grade}` : undefined }))
-  const isStaffRole = roles.includes('admin') || roles.includes('tutor')
-
-  function toggleRole(role: Role, on: boolean) {
-    setRoles((prev) => (on ? [...new Set([...prev, role])] : prev.filter((r) => r !== role)))
-  }
+  const staffRole = isStaffRole(role)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -117,8 +114,8 @@ export function MemberDialog({ open, onOpenChange, member, request, members, sta
     if (!member && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(key)) return setError('Enter a valid email address.')
     if (!member && members.some((m) => m.id === key)) return setError('This email already has access. Edit it instead.')
     if (!firstName.trim()) return setError('Enter a first name.')
-    if (roles.length === 0) return setError('Choose at least one role.')
-    if (roles.includes('parent') && studentIds.length === 0) return setError('Choose the parent’s child or children.')
+    if (!role) return setError('Choose a role.')
+    if (role === 'parent' && studentIds.length === 0) return setError('Choose the parent’s child or children.')
     setError(null)
     setBusy(true)
     try {
@@ -132,11 +129,11 @@ export function MemberDialog({ open, onOpenChange, member, request, members, sta
           email: key,
           firstName,
           lastName,
-          roles,
+          role,
           status: active ? 'active' : 'disabled',
           links: {
-            staffId: isStaffRole ? staffId : null,
-            studentId: roles.includes('student') ? studentId : null,
+            staffId: staffRole ? staffId : null,
+            studentId: role === 'student' ? studentId : null,
             studentIds,
           },
         },
@@ -150,7 +147,7 @@ export function MemberDialog({ open, onOpenChange, member, request, members, sta
     }
   }
 
-  const editingAdmin = member?.roles.includes('admin') ?? false
+  const editingAdmin = isAdminRole(member?.role)
   const lockedForNonOwner = !isOwner && editingAdmin
 
   return (
@@ -191,40 +188,37 @@ export function MemberDialog({ open, onOpenChange, member, request, members, sta
               </Field>
             </div>
             <FieldSet>
-              <FieldLegend variant="label">Roles</FieldLegend>
-              <FieldDescription>A person can hold several roles and switch between portals.</FieldDescription>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <FieldLegend variant="label">Role</FieldLegend>
+              <FieldDescription>Each person has one role. Someone with two jobs signs in with a separate Google account for each.</FieldDescription>
+              <RadioGroup value={role ?? ''} onValueChange={(v) => setRole(v as Role)} className="grid gap-2 sm:grid-cols-2">
                 {ROLES.map((r) => {
-                  const disabled = (r === 'admin' && !isOwner) || lockedForNonOwner
+                  const disabled = (isAdminRole(r) && !isOwner) || lockedForNonOwner
                   return (
-                    <Field key={r} orientation="horizontal" data-disabled={disabled} className="rounded-lg border p-3">
-                      <Checkbox
-                        id={`role-${r}`}
-                        checked={roles.includes(r)}
-                        disabled={disabled}
-                        onCheckedChange={(v) => toggleRole(r, v === true)}
-                      />
+                    <Field key={r} orientation="horizontal" data-disabled={disabled} className="rounded-lg border p-3 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/40">
+                      <RadioGroupItem id={`role-${r}`} value={r} disabled={disabled} />
                       <div className="grid gap-0.5">
                         <FieldLabel htmlFor={`role-${r}`} className="font-medium">
                           {ROLE_LABELS[r]}
                         </FieldLabel>
                         <span className="text-xs text-muted-foreground">
-                          {r === 'admin' && !isOwner ? 'Only owners can grant admin' : ROLE_HELP[r]}
+                          {isAdminRole(r) && !isOwner ? `Only owners can make someone ${r === 'owner' ? 'an owner' : 'an admin'}` : ROLE_HELP[r]}
                         </span>
                       </div>
                     </Field>
                   )
                 })}
-              </div>
+              </RadioGroup>
             </FieldSet>
-            {isStaffRole ? (
+            {staffRole ? (
               <Field>
                 <FieldLabel>Employee record</FieldLabel>
                 <OptionPicker value={staffId} onChange={setStaffId} options={staffOptions} searchPlaceholder="Search employees…" />
-                <FieldDescription>Schedule, availability, clock and pay belong to the employee record.</FieldDescription>
+                <FieldDescription>
+                  {role === 'tutor' ? 'Schedule, availability, clock and pay belong to the employee record.' : 'Clock-ins and pay belong to the employee record.'}
+                </FieldDescription>
               </Field>
             ) : null}
-            {roles.includes('student') ? (
+            {role === 'student' ? (
               <Field>
                 <FieldLabel>Student record</FieldLabel>
                 <OptionPicker
@@ -238,7 +232,7 @@ export function MemberDialog({ open, onOpenChange, member, request, members, sta
                 />
               </Field>
             ) : null}
-            {roles.includes('parent') ? (
+            {role === 'parent' ? (
               <Field>
                 <FieldLabel>Children</FieldLabel>
                 <MultiOptionPicker

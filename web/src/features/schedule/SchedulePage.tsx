@@ -138,7 +138,7 @@ export function SchedulePage() {
   const tutors = useMemo(
     () =>
       orderTutors(
-        staff.filter((s) => s.roles.includes('tutor') && s.status !== 'finished'),
+        staff.filter((s) => s.role === 'tutor' && s.status !== 'finished'),
         settings.schedule.tutorOrder,
       ).map((s) => ({ id: s.id, name: s.name })),
     [staff, settings.schedule.tutorOrder],

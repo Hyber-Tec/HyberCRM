@@ -66,7 +66,7 @@ export function CreateBranch() {
       batch.set(doc(db, ROOT.branches, effectiveId, COL.public, DOC.publicProfile), publicProfileFor(data))
       for (const owner of new Set(ownerEmails.map(emailKey))) {
         batch.set(doc(db, ROOT.branches, effectiveId, COL.members, owner), {
-          ...newMemberData({ email: owner, roles: ['admin'], isOwner: true, createdBy: email }),
+          ...newMemberData({ email: owner, role: 'owner', createdBy: email }),
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         })

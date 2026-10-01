@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, limit, query, serverTimestamp, where, writeBatch } from 'firebase/firestore'
+import { collection, deleteField, doc, getDoc, getDocs, limit, query, serverTimestamp, where, writeBatch } from 'firebase/firestore'
 import { useMemo, useState } from 'react'
 import { LuArrowLeft, LuArrowRight, LuCopy, LuDatabase, LuTrash2, LuUserPlus } from 'react-icons/lu'
 import { Link, useParams } from 'react-router'
@@ -28,7 +28,7 @@ export function PlatformBranch() {
   const branchRef = useMemo(() => doc(db, ROOT.branches, branchId), [branchId])
   const { data: branch, loading } = useDoc<Branch>(branchRef)
   const ownersQ = useMemo(
-    () => query(collection(db, ROOT.branches, branchId, COL.members), where('isOwner', '==', true)),
+    () => query(collection(db, ROOT.branches, branchId, COL.members), where('role', '==', 'owner')),
     [branchId],
   )
   const { data: owners } = useQuery<Member>(ownersQ, `owners-${branchId}`)
@@ -69,17 +69,13 @@ export function PlatformBranch() {
     }
     const batch = writeBatch(db)
     const ref = doc(db, ROOT.branches, branchId, COL.members, key)
-    const existing = owners.find((o) => o.id === key)
-    if (existing) return
-    batch.set(
-      ref,
-      {
-        ...newMemberData({ email: key, roles: ['admin'], isOwner: true, createdBy: email! }),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    )
+    if (owners.some((o) => o.id === key)) return
+    // Someone already in the branch keeps their links; one role per person, so they become the owner.
+    if ((await getDoc(ref)).exists()) {
+      batch.update(ref, { role: 'owner', restrictions: [], roles: deleteField(), isOwner: deleteField(), updatedAt: serverTimestamp(), updatedBy: email })
+    } else {
+      batch.set(ref, { ...newMemberData({ email: key, role: 'owner', createdBy: email! }), createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
+    }
     batch.set(
       doc(collection(db, ROOT.branches, branchId, COL.auditLog)),
       auditData(actor, {
@@ -87,7 +83,7 @@ export function PlatformBranch() {
         category: 'access',
         entityType: 'member',
         entityId: key,
-        summary: `Made ${key} an owner admin`,
+        summary: `Made ${key} an owner`,
       }),
     )
     await batch.commit()
@@ -98,7 +94,9 @@ export function PlatformBranch() {
   async function removeOwner(member: Member & { id: string }) {
     const batch = writeBatch(db)
     batch.update(doc(db, ROOT.branches, branchId, COL.members, member.id), {
-      isOwner: false,
+      role: 'admin',
+      roles: deleteField(),
+      isOwner: deleteField(),
       updatedAt: serverTimestamp(),
       updatedBy: email,
     })

@@ -57,21 +57,21 @@ export const DEMO_SUBJECTS: Record<string, string[]> = {
 interface DemoStaff {
   first: string
   last: string
-  roles: StaffRole[]
+  role: StaffRole
   subjects: string[]
   teaching: number
   admin: number
 }
 
 const DEMO_STAFF: DemoStaff[] = [
-  { first: 'Maya', last: 'Thompson', roles: ['tutor'], subjects: ['SAT Math', 'PSAT', 'Algebra 2', 'Pre-Calculus', 'AP Calculus AB'], teaching: 38, admin: 20 },
-  { first: 'Daniel', last: 'Kim', roles: ['tutor'], subjects: ['SAT Reading & Writing', 'ACT English', 'Essay Writing', 'Reading Comprehension'], teaching: 36, admin: 20 },
-  { first: 'Priya', last: 'Raman', roles: ['tutor'], subjects: ['Biology', 'Chemistry', 'ACT Science', 'Homework Help'], teaching: 35, admin: 19 },
-  { first: 'Lucas', last: 'Ortega', roles: ['tutor'], subjects: ['Algebra 1', 'Geometry', 'Pre-Algebra', 'ACT Math', 'Physics'], teaching: 32, admin: 18 },
-  { first: 'Hannah', last: 'Becker', roles: ['tutor'], subjects: ['SAT Math', 'SAT Reading & Writing', 'PSAT', 'Study Skills'], teaching: 34, admin: 19 },
-  { first: 'Ethan', last: 'Brooks', roles: ['tutor'], subjects: ['AP Statistics', 'Algebra 2', 'Geometry', 'Homework Help'], teaching: 30, admin: 18 },
-  { first: 'Sofia', last: 'Alvarez', roles: ['tutor'], subjects: ['Grammar', 'Essay Writing', 'Reading Comprehension', 'Study Skills'], teaching: 31, admin: 18 },
-  { first: 'Grace', last: 'Liu', roles: ['admin'], subjects: [], teaching: 24, admin: 24 },
+  { first: 'Maya', last: 'Thompson', role: 'tutor', subjects: ['SAT Math', 'PSAT', 'Algebra 2', 'Pre-Calculus', 'AP Calculus AB'], teaching: 38, admin: 20 },
+  { first: 'Daniel', last: 'Kim', role: 'tutor', subjects: ['SAT Reading & Writing', 'ACT English', 'Essay Writing', 'Reading Comprehension'], teaching: 36, admin: 20 },
+  { first: 'Priya', last: 'Raman', role: 'tutor', subjects: ['Biology', 'Chemistry', 'ACT Science', 'Homework Help'], teaching: 35, admin: 19 },
+  { first: 'Lucas', last: 'Ortega', role: 'tutor', subjects: ['Algebra 1', 'Geometry', 'Pre-Algebra', 'ACT Math', 'Physics'], teaching: 32, admin: 18 },
+  { first: 'Hannah', last: 'Becker', role: 'tutor', subjects: ['SAT Math', 'SAT Reading & Writing', 'PSAT', 'Study Skills'], teaching: 34, admin: 19 },
+  { first: 'Ethan', last: 'Brooks', role: 'tutor', subjects: ['AP Statistics', 'Algebra 2', 'Geometry', 'Homework Help'], teaching: 30, admin: 18 },
+  { first: 'Sofia', last: 'Alvarez', role: 'tutor', subjects: ['Grammar', 'Essay Writing', 'Reading Comprehension', 'Study Skills'], teaching: 31, admin: 18 },
+  { first: 'Grace', last: 'Liu', role: 'admin', subjects: [], teaching: 24, admin: 24 },
 ]
 
 const STUDENT_FIRST = [
@@ -130,7 +130,7 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
         nameLower: name.toLowerCase(),
         email: `${slug(s.first)}.${slug(s.last)}@example.com`,
         phone: `(555) 01${String(10 + i).padStart(2, '0')}-${String(1000 + i * 37).slice(0, 4)}`,
-        roles: s.roles,
+        role: s.role,
         status: 'active',
         subjectIds: s.subjects.map((n) => subjectIdByName.get(n)).filter(Boolean),
         color: STAFF_COLORS[i % STAFF_COLORS.length],
@@ -230,7 +230,7 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
     ],
   ]
   DEMO_STAFF.forEach((st, i) => {
-    if (!st.roles.includes('tutor')) return
+    if (st.role !== 'tutor') return
     const staffId = demoStaffId(st.first, st.last)
     const dayRand = rng(1000 + i)
     for (let offset = -14; offset <= 42; offset++) {

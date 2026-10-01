@@ -96,7 +96,7 @@ function pickContent(log: Partial<SessionLog> | null): LogContent {
  */
 export function SessionLogPage({ readOnly = false }: { readOnly?: boolean }) {
   const { sessionId = '' } = useParams()
-  const { branchId, branch, settings, staffId, roles, actor } = useBranch()
+  const { branchId, branch, settings, staffId, isAdmin, actor } = useBranch()
   const sessionRef = useMemo(() => branchDocRef(branchId, COL.sessions, sessionId), [branchId, sessionId])
   const logRef = useMemo(() => branchDocRef(branchId, COL.sessionLogs, sessionId), [branchId, sessionId])
   const { data: session, loading: sLoading, error: sError } = useDoc<Session>(sessionRef)
@@ -104,7 +104,6 @@ export function SessionLogPage({ readOnly = false }: { readOnly?: boolean }) {
   const studentRef = useMemo(() => (session ? branchDocRef(branchId, COL.students, session.studentId) : null), [branchId, session])
   const { data: student } = useDoc<Student>(studentRef)
 
-  const isAdmin = roles.includes('admin')
   const isOwnTutor = !!staffId && session?.tutorId === staffId
   const adminEntry = isAdmin && !isOwnTutor
   const submitted = log?.status === 'submitted'
@@ -626,8 +625,8 @@ function ErrorBox({ text }: { text: string }) {
 
 /** Step 1: context from the student's previous logs. */
 function PrepStep({ session, student }: { session: WithId<Session>; student: WithId<Student> | null }) {
-  const { branchId, settings, staffId, roles } = useBranch()
-  const canSeeAll = roles.includes('admin') || settings.sessionLogs.tutorsSeeAllLogs
+  const { branchId, settings, staffId, isAdmin } = useBranch()
+  const canSeeAll = isAdmin || settings.sessionLogs.tutorsSeeAllLogs
   const q = useMemo(
     () =>
       canSeeAll

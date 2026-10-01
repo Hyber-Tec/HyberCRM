@@ -1,8 +1,8 @@
-import { type WriteBatch, doc, serverTimestamp, writeBatch } from 'firebase/firestore'
+import { type WriteBatch, deleteField, doc, serverTimestamp, writeBatch } from 'firebase/firestore'
 import { newMemberData } from '@shared/branchFactory'
 import { pickStaffColor } from '@shared/colors'
 import { COL, emailKey } from '@shared/paths'
-import { ROLE_LABELS, type Role, sortRoles } from '@shared/roles'
+import { ROLE_LABELS, type Role, isStaffRole } from '@shared/roles'
 import type { Member, SignupRequest, Staff, StaffRole, Student, WithId } from '@shared/types'
 import { type Actor, addAudit } from '@/lib/audit'
 import { db } from '@/lib/firebase'
@@ -21,7 +21,7 @@ export interface MemberInput {
   email: string
   firstName: string
   lastName: string
-  roles: Role[]
+  role: Role
   status: Member['status']
   links: PersonLinkInput
 }
@@ -30,7 +30,7 @@ export function newStaffData(input: {
   firstName: string
   lastName: string
   email: string
-  roles: StaffRole[]
+  role: StaffRole
   createdBy: string
 }): Omit<Staff, 'createdAt' | 'updatedAt'> {
   const name = `${input.firstName} ${input.lastName}`.trim()
@@ -41,7 +41,7 @@ export function newStaffData(input: {
     nameLower: name.toLowerCase(),
     email: input.email,
     phone: '',
-    roles: input.roles,
+    role: input.role,
     status: 'active',
     subjectIds: [],
     color: pickStaffColor(Math.floor(Math.random() * 10)),
@@ -85,10 +85,6 @@ export function newStudentData(input: { firstName: string; lastName: string; cre
   }
 }
 
-function staffRoles(roles: Role[]): StaffRole[] {
-  return roles.filter((r): r is StaffRole => r === 'admin' || r === 'tutor')
-}
-
 /**
  * Creates or updates a member (access record) and the person records it links to,
  * in one batch with audit entries. Returns the member ID (lower-cased email).
@@ -103,19 +99,19 @@ export async function saveMember(opts: {
 }): Promise<string> {
   const { branchId, actor, input, existing, staffById } = opts
   const key = existing?.id ?? emailKey(input.email)
-  const roles = sortRoles(input.roles)
+  const role = input.role
   const batch = writeBatch(db)
   const displayName = `${input.firstName} ${input.lastName}`.trim()
 
-  // Staff record for admin/tutor roles.
+  // Staff record for owners, admins and tutors (clock and pay; only tutors teach).
   let staffId: string | null = null
-  const sRoles = staffRoles(roles)
-  if (sRoles.length > 0) {
+  if (isStaffRole(role)) {
+    const staffRole = role as StaffRole
     if (input.links.staffId === 'new' || input.links.staffId === null) {
       const ref = doc(branchCol(branchId, COL.staff))
       staffId = ref.id
       batch.set(ref, {
-        ...newStaffData({ firstName: input.firstName, lastName: input.lastName, email: key, roles: sRoles, createdBy: actor.email }),
+        ...newStaffData({ firstName: input.firstName, lastName: input.lastName, email: key, role: staffRole, createdBy: actor.email }),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
@@ -131,10 +127,10 @@ export async function saveMember(opts: {
     } else {
       staffId = input.links.staffId
       const staff = staffById.get(staffId)
-      const sameRoles = staff && [...staff.roles].sort().join() === [...sRoles].sort().join()
-      if (!sameRoles || (staff && !staff.email)) {
+      if (staff?.role !== staffRole || (staff && !staff.email)) {
         batch.update(branchDocRef(branchId, COL.staff, staffId), {
-          roles: sRoles,
+          role: staffRole,
+          roles: deleteField(),
           ...(staff && !staff.email ? { email: key } : {}),
           updatedAt: serverTimestamp(),
           updatedBy: actor.email,
@@ -145,7 +141,7 @@ export async function saveMember(opts: {
 
   // Student record for the student role.
   let studentId: string | null = null
-  if (roles.includes('student')) {
+  if (role === 'student') {
     if (input.links.studentId === 'new' || input.links.studentId === null) {
       const ref = doc(branchCol(branchId, COL.students))
       studentId = ref.id
@@ -172,20 +168,24 @@ export async function saveMember(opts: {
   const linkFields = {
     staffId,
     studentId,
-    studentIds: roles.includes('parent') ? input.links.studentIds : [],
+    studentIds: role === 'parent' ? input.links.studentIds : [],
   }
   if (existing) {
     batch.update(memberRef, {
       displayName,
-      roles,
+      role,
       status: input.status,
       ...linkFields,
-      ...(roles.includes('admin') ? {} : { isOwner: false, restrictions: [] }),
+      // Restrictions apply to admins only.
+      ...(role === 'admin' ? {} : { restrictions: [] }),
+      // Fields from before one role per person.
+      roles: deleteField(),
+      isOwner: deleteField(),
       updatedAt: serverTimestamp(),
       updatedBy: actor.email,
     })
-    const before = sortRoles(existing.roles).map((r) => ROLE_LABELS[r]).join(', ')
-    const after = roles.map((r) => ROLE_LABELS[r]).join(', ')
+    const before = existing.role ? ROLE_LABELS[existing.role] : '—'
+    const after = ROLE_LABELS[role]
     addAudit(batch, branchId, actor, {
       action: 'member.update',
       category: 'access',
@@ -193,13 +193,13 @@ export async function saveMember(opts: {
       entityId: key,
       summary: `Updated access for ${displayName || key}`,
       changes: [
-        ...(before !== after ? [{ field: 'roles', label: 'Roles', from: before, to: after }] : []),
+        ...(before !== after ? [{ field: 'role', label: 'Role', from: before, to: after }] : []),
         ...(existing.status !== input.status ? [{ field: 'status', label: 'Status', from: existing.status, to: input.status }] : []),
       ],
     })
   } else {
     batch.set(memberRef, {
-      ...newMemberData({ email: key, displayName, roles, createdBy: actor.email, ...linkFields }),
+      ...newMemberData({ email: key, displayName, role, createdBy: actor.email, ...linkFields }),
       status: input.status,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -209,7 +209,7 @@ export async function saveMember(opts: {
       category: 'access',
       entityType: 'member',
       entityId: key,
-      summary: `Gave ${displayName || key} access as ${roles.map((r) => ROLE_LABELS[r]).join(', ')}`,
+      summary: `Gave ${displayName || key} access as ${ROLE_LABELS[role]}`,
     })
   }
 

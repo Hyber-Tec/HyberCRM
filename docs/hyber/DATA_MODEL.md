@@ -55,12 +55,11 @@
 | Field | Type | TE | Notes |
 |---|---|---|---|
 | `email`, `emailLower` | string | `users.email` | Key = lower-cased Google email |
-| `role` | `admin` \| `tutor` \| `parent` \| `student` | `users.role` | Decides the portal |
+| `role` | `owner` \| `admin` \| `tutor` \| `parent` \| `student` | `users.role` | **One role per person** (round 2). Decides the portal; owners use the admin portal and also manage admins and Access Control. |
 | `status` | `active` \| `suspended` | `users.status` (blocking subset) | Access only. HR status lives on `staff.status`. Enforced in the rules (TE enforced it in the UI only). |
 | `staffId` | string? | (was the uid) | Admin/tutor → `staff/{id}` |
 | `studentId` | string? | `users.studentId` | Student → `students/{id}` |
 | `studentIds` | string[]? | — | Parent → their children |
-| `isOwner` | bool | — | Can manage Access Control (replaces TE's master password) |
 | `restrictions` | string[] | `users.blockedPages` | Page keys this admin can't use, e.g. `payRates`, `payroll`, `timeEntries`, `accessControl` (enforced in the rules too) |
 | `grants` | string[] | — | Extra capabilities, e.g. `editPastDays` (replaces Development Mode) |
 | `uid`, `displayName`, `photoURL`, `firstLoginAt`, `lastLoginAt` | | | Written by the person at sign-in (allow-listed fields only) |
@@ -70,8 +69,7 @@
 | Field | Type | TE (`users/{uid}`) | Notes |
 |---|---|---|---|
 | `name`, `nameLower`, `email`, `emailLower`, `phone` | string | same | |
-| `role` | `admin` \| `tutor` | `role` | Mirrors the member role |
-| `teaches` | bool | (role tutor/admin both appeared on the schedule) | On the schedule, has availability, can be assigned sessions, earns teaching pay. Default: tutors true, admins false. |
+| `role` | `owner` \| `admin` \| `tutor` | `role` | Mirrors the member role. **Only tutors teach**: on the schedule, availability, sessions, teaching pay. Owners and admins are paid one rate for all their clocked time. |
 | `status` | `active` \| `on_hold` \| `finished` \| `rejected` | `status` | HR status (TE values and colors) |
 | `subjectIds` | string[] | `subjects.tutorIds` **and** `users.subjects` | **Single source** of qualifications |
 | `startWorkingDate`, `endWorkingDate`, `dob` | dateKey | same | |

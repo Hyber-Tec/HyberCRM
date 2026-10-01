@@ -78,13 +78,13 @@ async function callerFor(branchId: string, auth: { uid: string; token: Record<st
     db.doc(`${ROOT.branches}/${branchId}/${COL.members}/${email}`).get(),
   ])
   const m = member.exists && member.data()!.status === 'active' ? member.data()! : null
-  const roles: string[] = m?.roles ?? []
+  const role = (m?.role as string | undefined) ?? null
   return {
     uid: auth.uid,
     email,
     name: (m?.displayName as string) || (auth.token.name as string) || email,
-    isAdmin: platform.exists || roles.includes('admin'),
-    isTutor: roles.includes('tutor'),
+    isAdmin: platform.exists || role === 'owner' || role === 'admin',
+    isTutor: role === 'tutor',
     staffId: (m?.staffId as string | null) ?? null,
     superAdmin: platform.exists,
   }

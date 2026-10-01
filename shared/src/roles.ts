@@ -1,18 +1,26 @@
-export type Role = 'admin' | 'tutor' | 'parent' | 'student'
+/**
+ * A member's role in a branch. Owner decision (round 2): **one role per person**.
+ * Owners are admins who also manage other admins and Access Control.
+ */
+export type Role = 'owner' | 'admin' | 'tutor' | 'parent' | 'student'
 
-/** Display and priority order. The first role a member holds is their default portal. */
-export const ROLES: readonly Role[] = ['admin', 'tutor', 'parent', 'student']
+/** The portal a role opens. Owners use the admin portal. */
+export type Portal = 'admin' | 'tutor' | 'parent' | 'student'
 
-export const STAFF_ROLES: readonly Role[] = ['admin', 'tutor']
+/** Display and priority order. */
+export const ROLES: readonly Role[] = ['owner', 'admin', 'tutor', 'parent', 'student']
+
+export const PORTALS: readonly Portal[] = ['admin', 'tutor', 'parent', 'student']
 
 export const ROLE_LABELS: Record<Role, string> = {
+  owner: 'Owner',
   admin: 'Admin',
   tutor: 'Tutor',
   parent: 'Parent',
   student: 'Student',
 }
 
-export const PORTAL_LABELS: Record<Role, string> = {
+export const PORTAL_LABELS: Record<Portal, string> = {
   admin: 'Admin Portal',
   tutor: 'Tutor Portal',
   parent: 'Parent Portal',
@@ -23,16 +31,28 @@ export function isRole(value: unknown): value is Role {
   return typeof value === 'string' && (ROLES as readonly string[]).includes(value)
 }
 
-export function sortRoles(roles: readonly Role[]): Role[] {
-  return ROLES.filter((r) => roles.includes(r))
+export function portalOf(role: Role): Portal {
+  return role === 'owner' ? 'admin' : role
 }
 
-export function primaryPortal(roles: readonly Role[]): Role | null {
-  return sortRoles(roles)[0] ?? null
+/** Owners and admins run the branch. */
+export function isAdminRole(role: Role | null | undefined): boolean {
+  return role === 'owner' || role === 'admin'
 }
 
-export function isStaffRole(role: Role): boolean {
-  return role === 'admin' || role === 'tutor'
+/** Employees: they have a staff record (clock, pay). Only tutors teach. */
+export function isStaffRole(role: Role | null | undefined): boolean {
+  return role === 'owner' || role === 'admin' || role === 'tutor'
+}
+
+/**
+ * The single role for a member saved before one-role-per-person (`roles[]` plus
+ * `isOwner`): the strongest one they held.
+ */
+export function roleFromLegacy(roles: readonly string[] | undefined, isOwner?: boolean): Role | null {
+  if (isOwner) return 'owner'
+  for (const r of ['admin', 'tutor', 'parent', 'student'] as const) if (roles?.includes(r)) return r
+  return null
 }
 
 export type MemberStatus = 'active' | 'disabled'

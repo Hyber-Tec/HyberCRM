@@ -18,7 +18,7 @@ export function staffNotesRef(branchId: string, staffId: string) {
 export async function createEmployee(
   branchId: string,
   actor: Actor,
-  input: { firstName: string; lastName: string; email: string; roles: Staff['roles'] },
+  input: { firstName: string; lastName: string; email: string; role: Staff['role'] },
 ): Promise<string> {
   const ref = doc(branchCol(branchId, COL.staff))
   const name = `${input.firstName} ${input.lastName}`.trim()
@@ -67,6 +67,7 @@ const PROFILE_LABELS: Record<string, string> = {
   startDate: 'Start date',
   endDate: 'End date',
   status: 'Status',
+  role: 'Role',
   color: 'Color',
 }
 

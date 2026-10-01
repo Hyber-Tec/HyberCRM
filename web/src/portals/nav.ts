@@ -14,7 +14,7 @@ import {
   LuUsers,
   LuWallet,
 } from 'react-icons/lu'
-import type { RestrictablePage, Role } from '@shared/roles'
+import type { Portal, RestrictablePage } from '@shared/roles'
 
 export interface NavLeaf {
   key: string
@@ -142,7 +142,7 @@ export const STUDENT_NAV: PortalNav = {
   ],
 }
 
-export const PORTAL_NAV: Record<Role, PortalNav> = {
+export const PORTAL_NAV: Record<Portal, PortalNav> = {
   admin: ADMIN_NAV,
   tutor: TUTOR_NAV,
   parent: PARENT_NAV,

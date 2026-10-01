@@ -45,12 +45,13 @@ service cloud.firestore {
         && branchDoc(b).data.status == 'active';
     }
 
+    // One role per person: owner, admin, tutor, parent or student.
     function hasRole(b, role) {
-      return isMember(b) && role in member(b).roles;
+      return isMember(b) && member(b).get('role', '') == role;
     }
 
     function isAdmin(b) {
-      return isSuperAdmin() || hasRole(b, 'admin');
+      return isSuperAdmin() || (isMember(b) && member(b).get('role', '') in ['owner', 'admin']);
     }
 
     function isTutor(b) {
@@ -62,7 +63,7 @@ service cloud.firestore {
     }
 
     function isOwner(b) {
-      return isSuperAdmin() || (hasRole(b, 'admin') && member(b).get('isOwner', false) == true);
+      return isSuperAdmin() || hasRole(b, 'owner');
     }
 
     function notRestricted(b, page) {
@@ -141,15 +142,12 @@ service cloud.firestore {
 
       match /members/{memberId} {
         function grantsAdmin(data) {
-          return 'admin' in data.roles || data.get('isOwner', false) == true
-            || data.get('restrictions', []).size() > 0;
+          return data.role in ['owner', 'admin'] || data.get('restrictions', []).size() > 0;
         }
 
         function validMember(data) {
           return data.email == memberId
-            && data.roles is list
-            && data.roles.size() > 0
-            && data.roles.hasOnly(['admin', 'tutor', 'parent', 'student'])
+            && data.role in ['owner', 'admin', 'tutor', 'parent', 'student']
             && data.status in ['active', 'disabled'];
         }
 
@@ -168,7 +166,7 @@ service cloud.firestore {
 
         allow delete: if isAdmin(b)
           && (isOwner(b) || !grantsAdmin(resource.data))
-          && (isSuperAdmin() || resource.data.get('isOwner', false) != true);
+          && (isSuperAdmin() || resource.data.role != 'owner');
       }
 
       match /signupRequests/{email} {

@@ -1,14 +1,15 @@
 import { createContext, useContext, useEffect, useMemo } from 'react'
-import { LuArrowLeftRight, LuChevronRight, LuMenu, LuPanelLeftClose, LuPanelLeftOpen, LuShieldCheck } from 'react-icons/lu'
-import { Link, NavLink, Outlet, useLocation } from 'react-router'
-import { PORTAL_LABELS, type Role } from '@shared/roles'
+import { LuArrowLeftRight, LuChevronRight, LuEye, LuMenu, LuPanelLeftClose, LuPanelLeftOpen, LuShieldCheck, LuX } from 'react-icons/lu'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
+import { PORTAL_LABELS, type Portal } from '@shared/roles'
 import { useUnreadAnnouncementCount } from '@/features/announcements/api'
 import { ActivityToasts } from '@/features/audit/ActivityToasts'
 import { useAttention } from '@/features/home/attention'
 import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { useBranch } from '@/branch/BranchProvider'
 import { BrandMark } from '@/components/app/BrandMark'
-import { UserMenu, rememberPortal } from '@/components/app/UserMenu'
+import { UserMenu } from '@/components/app/UserMenu'
+import { ViewAsControl } from '@/components/app/ViewAs'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
@@ -45,7 +46,7 @@ import { type NavGroup, type NavItem, type NavLeaf, PORTAL_NAV, isGroup, navLeav
 /** Live counts shown next to nav entries, by nav key (Home: needs attention; tutor Announcements: unread). */
 const NavBadges = createContext<Record<string, number>>({})
 
-function NavBadgesProvider({ portal, children }: { portal: Role; children: React.ReactNode }) {
+function NavBadgesProvider({ portal, children }: { portal: Portal; children: React.ReactNode }) {
   const attention = useAttention(portal === 'admin')
   const unread = useUnreadAnnouncementCount(portal === 'tutor')
   const total = portal === 'admin' ? attention.total : 0
@@ -64,7 +65,7 @@ function badgeText(n: number) {
   return n > 99 ? '99+' : String(n)
 }
 
-function usePortalBase(portal: Role) {
+function usePortalBase(portal: Portal) {
   const { branchId } = useBranch()
   return `/${branchId}/${portal}`
 }
@@ -78,13 +79,11 @@ function visible(leaf: NavLeaf, can: (p: NonNullable<NavLeaf['restrict']>) => bo
   return !leaf.restrict || can(leaf.restrict)
 }
 
-export function PortalLayout({ portal }: { portal: Role }) {
+export function PortalLayout({ portal }: { portal: Portal }) {
   const branch = useBranch()
   const nav = PORTAL_NAV[portal]
   const base = usePortalBase(portal)
   const { pathname } = useLocation()
-
-  useEffect(() => rememberPortal(branch.branchId, portal), [branch.branchId, portal])
 
   const current = navLeaves(nav).find((l) => isActivePath(pathname, base, l))
   useEffect(() => {
@@ -96,8 +95,8 @@ export function PortalLayout({ portal }: { portal: Role }) {
     <SidebarProvider>
       <PortalSidebar portal={portal} />
       {/* --chrome-h: height of the bars above the page, for full-height pages like the Schedule. */}
-      <SidebarInset className="min-w-0" style={{ '--chrome-h': branch.asSuperAdmin ? '2rem' : '0rem' } as React.CSSProperties}>
-        {branch.asSuperAdmin ? <SuperAdminBar /> : null}
+      <SidebarInset className="min-w-0" style={{ '--chrome-h': branch.asSuperAdmin || branch.viewAs ? '2rem' : '0rem' } as React.CSSProperties}>
+        {branch.asSuperAdmin || branch.viewAs ? <SuperAdminBar /> : null}
         <MobileTopBar portal={portal} />
         <div className={cn('min-w-0 flex-1 p-4 sm:p-6', nav.mobileTabs && 'pb-24 md:pb-6')}>
           <Outlet />
@@ -110,7 +109,7 @@ export function PortalLayout({ portal }: { portal: Role }) {
   )
 }
 
-function PortalSidebar({ portal }: { portal: Role }) {
+function PortalSidebar({ portal }: { portal: Portal }) {
   const nav = PORTAL_NAV[portal]
   const base = usePortalBase(portal)
   const { isMobile } = useSidebar()
@@ -146,9 +145,10 @@ function PortalSidebar({ portal }: { portal: Role }) {
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col-reverse">
             <div className="min-w-0 flex-1">
-              <UserMenu variant="sidebar" portal={portal} />
+              <UserMenu variant="sidebar" />
             </div>
             {portal === 'tutor' && !isMobile ? <NotificationBell /> : null}
+            <ViewAsControl />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
@@ -160,7 +160,7 @@ function PortalSidebar({ portal }: { portal: Role }) {
 const TOGGLE_KEYS = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘B' : 'Ctrl+B'
 
 /** Branch logo and name, with the sidebar's own open/close button (True Education's collapse arrow). */
-function SidebarBrand({ portal, homeTo }: { portal: Role; homeTo: string }) {
+function SidebarBrand({ portal, homeTo }: { portal: Portal; homeTo: string }) {
   const { branch } = useBranch()
   const { state, isMobile, toggleSidebar } = useSidebar()
   const mark = <BrandMark name={branch.name} logoUrl={branch.branding?.logoUrl} accentColor={branch.branding?.accentColor} />
@@ -214,7 +214,7 @@ function SidebarBrand({ portal, homeTo }: { portal: Role; homeTo: string }) {
 }
 
 /** Phones only: the sidebar is off-screen, so a slim bar opens it. */
-function MobileTopBar({ portal }: { portal: Role }) {
+function MobileTopBar({ portal }: { portal: Portal }) {
   const { branch } = useBranch()
   const { toggleSidebar } = useSidebar()
   return (
@@ -225,7 +225,7 @@ function MobileTopBar({ portal }: { portal: Role }) {
       <BrandMark name={branch.name} logoUrl={branch.branding?.logoUrl} accentColor={branch.branding?.accentColor} className="size-6" />
       <span className="min-w-0 flex-1 truncate text-sm font-semibold">{branch.branding?.sidebarTitle || branch.name}</span>
       {portal === 'tutor' ? <NotificationBell /> : null}
-      <UserMenu portal={portal} />
+      <UserMenu />
     </header>
   )
 }
@@ -360,8 +360,34 @@ function MobileTabs({ tabs, base }: { tabs: NavLeaf[]; base: string }) {
   )
 }
 
+const PREVIEW_LABEL = { admin: 'a regular admin', tutor: 'Tutor', parent: 'Parent', student: 'Student' } as const
+
 function SuperAdminBar() {
-  const { branch } = useBranch()
+  const { branch, branchId, viewAs, setViewAs } = useBranch()
+  const navigate = useNavigate()
+  const barButton = 'h-6 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground'
+  if (viewAs) {
+    return (
+      <div className="flex h-8 shrink-0 items-center gap-2 bg-violet-700 px-3 text-xs text-white sm:px-4">
+        <LuEye className="size-3.5 shrink-0" />
+        <span className="truncate">
+          Previewing as <span className="font-semibold">{viewAs.role === 'admin' ? PREVIEW_LABEL.admin : `${PREVIEW_LABEL[viewAs.role]} · ${viewAs.name}`}</span>
+          <span className="hidden sm:inline"> · only changes what you see</span>
+        </span>
+        <Button
+          size="xs"
+          variant="ghost"
+          className="ml-auto h-6 text-white hover:bg-white/15 hover:text-white"
+          onClick={() => {
+            setViewAs(null)
+            navigate(`/${branchId}/admin`)
+          }}
+        >
+          <LuX /> Stop preview
+        </Button>
+      </div>
+    )
+  }
   return (
     <div className="flex h-8 shrink-0 items-center gap-2 bg-primary px-3 text-xs text-primary-foreground sm:px-4">
       <LuShieldCheck className="size-3.5 shrink-0" />
@@ -369,12 +395,7 @@ function SuperAdminBar() {
         Super Admin · viewing <span className="font-semibold">{branch.name}</span>
       </span>
       <div className="ml-auto flex items-center gap-1">
-        <Button
-          size="xs"
-          variant="ghost"
-          className="h-6 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
-          asChild
-        >
+        <Button size="xs" variant="ghost" className={barButton} asChild>
           <Link to="/platform">
             <LuArrowLeftRight /> Switch branch
           </Link>

@@ -1,3 +1,5 @@
+import type { Role } from '../../shared/src/roles'
+
 /** Who signs in, and which pages to check. Extend per feature. */
 export interface Scenario {
   name: string
@@ -12,12 +14,12 @@ export const E2E_BRANCH = 'demo-academy'
 /** Today in the branch zone (the seed is relative to it). */
 export const TODAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
 
-export const E2E_MEMBERS = [
-  { email: 'owner@e2e.test', roles: ['admin'] as const, isOwner: true },
-  { email: 'tutor@e2e.test', roles: ['tutor'] as const, staffId: 'demo-maya-thompson' },
-  { email: 'multi@e2e.test', roles: ['admin', 'tutor'] as const, staffId: 'demo-daniel-kim' },
-  { email: 'parent@e2e.test', roles: ['parent'] as const, studentIds: ['demo-student-ava-patel'] },
-  { email: 'student@e2e.test', roles: ['student'] as const, studentId: 'demo-student-noah-nguyen' },
+export const E2E_MEMBERS: { email: string; role: Role; staffId?: string; studentId?: string; studentIds?: string[] }[] = [
+  { email: 'owner@e2e.test', role: 'owner' },
+  { email: 'admin@e2e.test', role: 'admin', staffId: 'demo-grace-liu' },
+  { email: 'tutor@e2e.test', role: 'tutor', staffId: 'demo-maya-thompson' },
+  { email: 'parent@e2e.test', role: 'parent', studentIds: ['demo-student-ava-patel'] },
+  { email: 'student@e2e.test', role: 'student', studentId: 'demo-student-noah-nguyen' },
 ]
 
 const b = `/${E2E_BRANCH}`
@@ -89,7 +91,13 @@ export const SCENARIOS: Scenario[] = [
       [`${b}/tutor/availability`]: ['THIS MONTH'],
     },
   },
-  { name: 'admin + tutor', email: 'multi@e2e.test', paths: ['/app', `${b}/tutor`] },
+  {
+    name: 'regular admin',
+    email: 'admin@e2e.test',
+    // One role per person: an admin has no tutor portal.
+    paths: ['/app', `${b}/tutor`, `${b}/admin/access-control`],
+    expect: { '/app': ['Upcoming Schedule & Events'], [`${b}/tutor`]: ['Upcoming Schedule & Events'], [`${b}/admin/access-control`]: ['View only'] },
+  },
   {
     name: 'parent',
     email: 'parent@e2e.test',

@@ -1,8 +1,8 @@
 import { doc } from 'firebase/firestore'
-import { createContext, use, useEffect, useMemo, type ReactNode } from 'react'
+import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router'
 import { COL, ROOT } from '@shared/paths'
-import { type RestrictablePage, type Role, sortRoles } from '@shared/roles'
+import { type Portal, type RestrictablePage, type Role, isAdminRole, portalOf } from '@shared/roles'
 import type { BranchSettings } from '@shared/settings/defaults'
 import { resolveSettings } from '@shared/settings/resolve'
 import type { Branch, Member, WithId } from '@shared/types'
@@ -12,6 +12,16 @@ import type { Actor } from '@/lib/audit'
 import { db } from '@/lib/firebase'
 import { useDoc } from '@/lib/firestore'
 
+/**
+ * What a Super Admin is previewing ("View the app as"). It only changes what is
+ * shown: their access, and the actor recorded in the audit log, stay their own.
+ */
+export type ViewAs =
+  | { role: 'admin' }
+  | { role: 'tutor'; staffId: string; name: string }
+  | { role: 'parent'; studentIds: string[]; name: string }
+  | { role: 'student'; studentId: string; name: string }
+
 export interface BranchContextValue {
   branchId: string
   branch: WithId<Branch>
@@ -19,19 +29,37 @@ export interface BranchContextValue {
   timezone: string
   /** The signed-in person's member doc (super admins may have none). */
   member: WithId<Member> | null
-  /** Effective roles. Super admins always hold `admin`. */
-  roles: Role[]
-  /** Super admin visiting a branch they're not an admin member of. */
+  /** The role shown: the member's own, `admin` for a visiting super admin, or the previewed one. */
+  role: Role
+  portal: Portal
+  /** Super admin visiting a branch they're not an owner or admin of. */
   asSuperAdmin: boolean
   isSuperAdmin: boolean
   isAdmin: boolean
   isOwner: boolean
   staffId: string | null
+  /** Student: their own record. */
+  studentId: string | null
+  /** Parent: their children. */
+  studentIds: string[]
   can: (page: RestrictablePage) => boolean
   actor: Actor
+  viewAs: ViewAs | null
+  setViewAs: (next: ViewAs | null) => void
 }
 
 const BranchContext = createContext<BranchContextValue | null>(null)
+
+const viewAsKey = (branchId: string) => `hyber:view-as:${branchId}`
+
+function loadViewAs(branchId: string): ViewAs | null {
+  try {
+    const raw = window.sessionStorage.getItem(viewAsKey(branchId))
+    return raw ? (JSON.parse(raw) as ViewAs) : null
+  } catch {
+    return null
+  }
+}
 
 export function BranchProvider({ children }: { children: ReactNode }) {
   const { branchId = '' } = useParams()
@@ -40,37 +68,61 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   const branchState = useDoc<Branch>(branchId ? doc(db, ROOT.branches, branchId) : null)
   const memberState = useDoc<Member>(branchId && email ? doc(db, ROOT.branches, branchId, COL.members, email) : null)
 
-  const value = useMemo<BranchContextValue | null>(() => {
+  // Preview state lives in this browser tab only.
+  const [preview, setPreview] = useState<{ branchId: string; value: ViewAs | null }>(() => ({ branchId, value: loadViewAs(branchId) }))
+  const viewAs = isSuperAdmin ? (preview.branchId === branchId ? preview.value : loadViewAs(branchId)) : null
+  const setViewAs = useCallback(
+    (next: ViewAs | null) => {
+      setPreview({ branchId, value: next })
+      try {
+        if (next) window.sessionStorage.setItem(viewAsKey(branchId), JSON.stringify(next))
+        else window.sessionStorage.removeItem(viewAsKey(branchId))
+      } catch {
+        // Storage can be unavailable; the preview still applies until the page reloads.
+      }
+    },
+    [branchId],
+  )
+
+  // `paused`: a member whose access was turned off (no role to show).
+  const { value, paused } = useMemo<{ value: BranchContextValue | null; paused: boolean }>(() => {
     const branch = branchState.data
-    if (!branch || !user || !email) return null
+    if (!branch || !user || !email) return { value: null, paused: false }
     const member = memberState.data && memberState.data.status === 'active' ? memberState.data : null
-    const memberRoles = member ? sortRoles(member.roles ?? []) : []
-    const roles = isSuperAdmin && !memberRoles.includes('admin') ? sortRoles(['admin', ...memberRoles]) : memberRoles
-    const asSuperAdmin = isSuperAdmin && !memberRoles.includes('admin')
-    const isAdmin = roles.includes('admin')
+    const ownRole = member?.role ?? null
+    // A super admin always has admin powers; the bar shows when they aren't an owner or admin here.
+    const asSuperAdmin = isSuperAdmin && !isAdminRole(ownRole)
+    const selfRole: Role | null = asSuperAdmin ? 'admin' : ownRole
+    const role: Role | null = viewAs ? viewAs.role : selfRole
     const restrictions = member?.restrictions ?? []
-    const actorRole: Actor['role'] = asSuperAdmin ? 'super_admin' : (roles[0] ?? 'student')
-    return {
+    const actor: Actor = {
+      uid: user.uid,
+      email,
+      name: member?.displayName || user.displayName || email,
+      role: asSuperAdmin ? 'super_admin' : (ownRole ?? 'student'),
+    }
+    const ctx: BranchContextValue = {
       branchId,
       branch,
       settings: resolveSettings(branch.settings),
       timezone: branch.timezone || 'America/New_York',
       member,
-      roles,
+      role: role ?? 'student',
+      portal: role ? portalOf(role) : 'student',
       asSuperAdmin,
       isSuperAdmin,
-      isAdmin,
-      isOwner: isSuperAdmin || (isAdmin && member?.isOwner === true),
-      staffId: member?.staffId ?? null,
-      can: (page) => isSuperAdmin || !restrictions.includes(page),
-      actor: {
-        uid: user.uid,
-        email,
-        name: member?.displayName || user.displayName || email,
-        role: actorRole,
-      },
+      isAdmin: isAdminRole(role),
+      isOwner: viewAs ? false : isSuperAdmin || ownRole === 'owner',
+      staffId: viewAs ? (viewAs.role === 'tutor' ? viewAs.staffId : null) : (member?.staffId ?? null),
+      studentId: viewAs ? (viewAs.role === 'student' ? viewAs.studentId : null) : (member?.studentId ?? null),
+      studentIds: viewAs ? (viewAs.role === 'parent' ? viewAs.studentIds : []) : (member?.studentIds ?? []),
+      can: (page) => (isSuperAdmin && !viewAs) || ownRole === 'owner' || !restrictions.includes(page),
+      actor,
+      viewAs,
+      setViewAs,
     }
-  }, [branchState.data, memberState.data, user, email, isSuperAdmin, branchId])
+    return { value: ctx, paused: role === null }
+  }, [branchState.data, memberState.data, user, email, isSuperAdmin, branchId, viewAs, setViewAs])
 
   // Branch accent color as a CSS variable for brand marks.
   const accent = value?.branch.branding?.accentColor ?? null
@@ -97,7 +149,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       />
     )
   }
-  if (value.roles.length === 0) {
+  if (paused) {
     return (
       <FullPageMessage
         title="Your access is paused"

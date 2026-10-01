@@ -4,7 +4,7 @@ import { LuCheck, LuCopy, LuEllipsis, LuPencil, LuSearch, LuTrash2, LuUserPlus, 
 import { useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { COL } from '@shared/paths'
-import { ROLES, ROLE_LABELS, type Role, sortRoles } from '@shared/roles'
+import { ROLES, ROLE_LABELS, type Role, isAdminRole } from '@shared/roles'
 import { formatInstant } from '@shared/time'
 import type { Member, SignupRequest, Staff, Student, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
@@ -66,15 +66,15 @@ export function AccountPage() {
   const studentById = useMemo(() => new Map(students.data.map((s) => [s.id, s])), [students.data])
 
   const counts = useMemo(() => {
-    const c: Record<RoleFilter, number> = { all: members.data.length, admin: 0, tutor: 0, parent: 0, student: 0 }
-    for (const m of members.data) for (const r of m.roles ?? []) c[r] += 1
+    const c: Record<RoleFilter, number> = { all: members.data.length, owner: 0, admin: 0, tutor: 0, parent: 0, student: 0 }
+    for (const m of members.data) if (m.role in c) c[m.role] += 1
     return c
   }, [members.data])
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
     return members.data
-      .filter((m) => filter === 'all' || m.roles?.includes(filter))
+      .filter((m) => filter === 'all' || m.role === filter)
       .filter((m) => !q || m.email.includes(q) || (m.displayName ?? '').toLowerCase().includes(q))
       .sort((a, b) => (a.displayName || a.email).localeCompare(b.displayName || b.email))
   }, [members.data, filter, search])
@@ -145,7 +145,7 @@ export function AccountPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Person</TableHead>
-                  <TableHead>Roles</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead className="hidden lg:table-cell">Linked to</TableHead>
                   <TableHead className="hidden md:table-cell">Last sign-in</TableHead>
                   <TableHead className="w-10" />
@@ -163,11 +163,6 @@ export function AccountPage() {
                         <div className="min-w-0">
                           <div className="truncate font-medium">
                             {m.displayName || '—'}
-                            {m.isOwner ? (
-                              <Badge variant="outline" className="ml-2 align-middle">
-                                Owner
-                              </Badge>
-                            ) : null}
                           </div>
                           <div className="truncate text-xs text-muted-foreground">{m.email}</div>
                         </div>
@@ -175,11 +170,7 @@ export function AccountPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {sortRoles(m.roles ?? []).map((r) => (
-                          <Badge key={r} variant={r === 'admin' ? 'default' : 'secondary'}>
-                            {ROLE_LABELS[r]}
-                          </Badge>
-                        ))}
+                        {m.role ? <Badge variant={isAdminRole(m.role) ? 'default' : 'secondary'}>{ROLE_LABELS[m.role]}</Badge> : null}
                         {m.status !== 'active' ? <Badge variant="destructive">Paused</Badge> : null}
                       </div>
                     </TableCell>
@@ -203,7 +194,7 @@ export function AccountPage() {
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             variant="destructive"
-                            disabled={(m.isOwner && !isSuperAdmin) || (m.roles.includes('admin') && !isOwner) || m.id === actor.email}
+                            disabled={(m.role === 'owner' && !isSuperAdmin) || (isAdminRole(m.role) && !isOwner) || m.id === actor.email}
                             onSelect={() => setRemoving(m)}
                           >
                             <LuTrash2 /> Remove access

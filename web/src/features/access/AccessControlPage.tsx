@@ -1,4 +1,4 @@
-import { query, serverTimestamp, where, writeBatch } from 'firebase/firestore'
+import { deleteField, query, serverTimestamp, where, writeBatch } from 'firebase/firestore'
 import { useMemo } from 'react'
 import { LuLock } from 'react-icons/lu'
 import { toast } from 'sonner'
@@ -21,15 +21,23 @@ import { cn } from '@/lib/utils'
 export function AccessControlPage() {
   const { branchId, actor, isOwner } = useBranch()
   const admins = useQuery<Member>(
-    useMemo(() => query(branchCol(branchId, COL.members), where('roles', 'array-contains', 'admin')), [branchId]),
+    useMemo(() => query(branchCol(branchId, COL.members), where('role', 'in', ['owner', 'admin'])), [branchId]),
     `admins-${branchId}`,
   )
-  const rows = [...admins.data].sort((a, b) => Number(b.isOwner) - Number(a.isOwner) || a.email.localeCompare(b.email))
-  const ownerCount = rows.filter((r) => r.isOwner).length
+  const isOwnerRow = (m: WithId<Member>) => m.role === 'owner'
+  const rows = [...admins.data].sort((a, b) => Number(isOwnerRow(b)) - Number(isOwnerRow(a)) || a.email.localeCompare(b.email))
+  const ownerCount = rows.filter(isOwnerRow).length
 
   async function update(member: WithId<Member>, patch: Partial<Member>, summary: string) {
     const batch = writeBatch(db)
-    batch.update(branchDocRef(branchId, COL.members, member.id), { ...patch, updatedAt: serverTimestamp(), updatedBy: actor.email })
+    batch.update(branchDocRef(branchId, COL.members, member.id), {
+      ...patch,
+      // Fields from before one role per person.
+      roles: deleteField(),
+      isOwner: deleteField(),
+      updatedAt: serverTimestamp(),
+      updatedBy: actor.email,
+    })
     addAudit(batch, branchId, actor, {
       action: 'member.access',
       category: 'access',
@@ -83,16 +91,20 @@ export function AccessControlPage() {
               </div>
               <label className="flex items-center gap-2 text-sm">
                 <Switch
-                  checked={m.isOwner}
-                  disabled={!isOwner || m.id === actor.email || (m.isOwner && ownerCount <= 1)}
+                  checked={isOwnerRow(m)}
+                  disabled={!isOwner || m.id === actor.email || (isOwnerRow(m) && ownerCount <= 1)}
                   onCheckedChange={(v) =>
-                    void update(m, { isOwner: v, ...(v ? { restrictions: [] } : {}) }, `${v ? 'Made' : 'Removed'} ${m.displayName || m.email} ${v ? 'an owner' : 'as owner'}`)
+                    void update(
+                      m,
+                      { role: v ? 'owner' : 'admin', ...(v ? { restrictions: [] } : {}) },
+                      `${v ? 'Made' : 'Removed'} ${m.displayName || m.email} ${v ? 'an owner' : 'as owner'}`,
+                    )
                   }
                 />
                 Owner
               </label>
             </div>
-            {m.isOwner ? (
+            {isOwnerRow(m) ? (
               <p className="text-sm text-muted-foreground">Owners always have access to every page.</p>
             ) : (
               <div className="flex flex-wrap gap-2">

@@ -116,7 +116,7 @@ function Wizard({ id, editing, initial }: { id: string; editing: boolean; initia
   const tutors = useMemo(() => {
     const names = new Map(staff.map((s) => [s.id, s.name]))
     return members
-      .filter((m) => m.status === 'active' && m.roles?.includes('tutor'))
+      .filter((m) => m.status === 'active' && m.role === 'tutor')
       .map((m) => ({ key: m.email, name: (m.staffId && names.get(m.staffId)) || m.displayName || m.email, email: m.email }))
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [members, staff])

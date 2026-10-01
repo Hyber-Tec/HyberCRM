@@ -3,7 +3,7 @@ import { LuSearch, LuUserPlus } from 'react-icons/lu'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { STAFF_STATUSES, STAFF_STATUS_LABELS, formatPhone } from '@shared/people'
-import { ROLE_LABELS } from '@shared/roles'
+import { ROLE_LABELS, isAdminRole } from '@shared/roles'
 import type { StaffRole, StaffStatus } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { initials } from '@/components/app/BrandMark'
@@ -13,18 +13,18 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useStaffList } from '@/features/data/hooks'
 import { createEmployee, setEmployeeStatus } from './api'
 
-type RoleFilter = 'tutor' | 'admin' | 'all'
+type RoleFilter = StaffRole | 'all'
 type StatusFilter = StaffStatus | 'all'
 
 export function EmployeeDirectoryPage() {
@@ -39,7 +39,7 @@ export function EmployeeDirectoryPage() {
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
     return staff
-      .filter((s) => role === 'all' || s.roles.includes(role))
+      .filter((s) => role === 'all' || s.role === role)
       .filter((s) => status === 'all' || s.status === status)
       .filter((s) => !q || s.nameLower.includes(q) || s.email.toLowerCase().includes(q))
   }, [staff, search, role, status])
@@ -70,6 +70,7 @@ export function EmployeeDirectoryPage() {
             <SelectItem value="all">All roles</SelectItem>
             <SelectItem value="tutor">Tutors</SelectItem>
             <SelectItem value="admin">Admins</SelectItem>
+            <SelectItem value="owner">Owners</SelectItem>
           </SelectContent>
         </Select>
         <Select value={status} onValueChange={(v) => setStatus(v as StatusFilter)}>
@@ -91,7 +92,7 @@ export function EmployeeDirectoryPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Employee</TableHead>
-              <TableHead>Roles</TableHead>
+              <TableHead>Role</TableHead>
               <TableHead className="hidden md:table-cell">Phone</TableHead>
               <TableHead className="w-40">Status</TableHead>
             </TableRow>
@@ -111,13 +112,7 @@ export function EmployeeDirectoryPage() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="flex gap-1">
-                    {s.roles.map((r) => (
-                      <Badge key={r} variant={r === 'admin' ? 'default' : 'secondary'}>
-                        {ROLE_LABELS[r]}
-                      </Badge>
-                    ))}
-                  </div>
+                  {s.role ? <Badge variant={isAdminRole(s.role) ? 'default' : 'secondary'}>{ROLE_LABELS[s.role]}</Badge> : null}
                 </TableCell>
                 <TableCell className="hidden text-sm text-muted-foreground md:table-cell">{formatPhone(s.phone) || '—'}</TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
@@ -175,12 +170,12 @@ function NewEmployeeDialog({
 }: {
   open: boolean
   onOpenChange: (o: boolean) => void
-  onCreate: (input: { firstName: string; lastName: string; email: string; roles: StaffRole[] }) => Promise<void>
+  onCreate: (input: { firstName: string; lastName: string; email: string; role: StaffRole }) => Promise<void>
 }) {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
-  const [roles, setRoles] = useState<StaffRole[]>(['tutor'])
+  const [role, setRole] = useState<StaffRole>('tutor')
   const [busy, setBusy] = useState(false)
 
   return (
@@ -190,15 +185,14 @@ function NewEmployeeDialog({
           onSubmit={async (e) => {
             e.preventDefault()
             if (!firstName.trim()) return toast.error('Enter a first name.')
-            if (roles.length === 0) return toast.error('Choose at least one role.')
             setBusy(true)
             try {
-              await onCreate({ firstName, lastName, email, roles })
+              await onCreate({ firstName, lastName, email, role })
               onOpenChange(false)
               setFirstName('')
               setLastName('')
               setEmail('')
-              setRoles(['tutor'])
+              setRole('tutor')
             } catch (err) {
               toast.error('Could not add the employee', { description: (err as Error).message })
             } finally {
@@ -229,19 +223,16 @@ function NewEmployeeDialog({
               <FieldDescription>Contact email; also used to match their Google sign-in.</FieldDescription>
             </Field>
             <Field>
-              <FieldLabel>Roles</FieldLabel>
-              <div className="flex gap-6">
+              <FieldLabel>Role</FieldLabel>
+              <RadioGroup value={role} onValueChange={(v) => setRole(v as StaffRole)} className="flex gap-6">
                 {(['tutor', 'admin'] as StaffRole[]).map((r) => (
                   <label key={r} className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={roles.includes(r)}
-                      onCheckedChange={(v) => setRoles((prev) => (v === true ? [...new Set([...prev, r])] : prev.filter((x) => x !== r)))}
-                    />
+                    <RadioGroupItem value={r} />
                     {ROLE_LABELS[r]}
                   </label>
                 ))}
-              </div>
-              <FieldDescription>Tutors appear on the schedule.</FieldDescription>
+              </RadioGroup>
+              <FieldDescription>Only tutors teach and appear on the schedule.</FieldDescription>
             </Field>
           </FieldGroup>
           <DialogFooter>

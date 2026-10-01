@@ -41,14 +41,17 @@ export function EmployeeCalendarPage() {
   const options = useMemo(
     () =>
       staff
-        .filter((s) => (role === 'all' || s.roles.includes(role)) && (status === 'all' || s.status === status))
+        .filter((s) => (role === 'all' || s.role === role) && (status === 'all' || s.status === status))
         .map((s) => ({ value: s.id, label: s.name })),
     [staff, role, status],
   )
   const selected = staff.find((s) => s.id === staffId) ?? null
   const set = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params)
-    for (const [k, v] of Object.entries(patch)) v ? next.set(k, v) : next.delete(k)
+    for (const [k, v] of Object.entries(patch)) {
+      if (v) next.set(k, v)
+      else next.delete(k)
+    }
     setParams(next, { replace: true })
   }
 

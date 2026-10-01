@@ -8,6 +8,7 @@ import {
 } from '@firebase/rules-unit-testing'
 import {
   collectionGroup,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -28,15 +29,14 @@ function user(email: string, uid = email.split('@')[0]) {
   return env.authenticatedContext(uid, { email, email_verified: true }).firestore()
 }
 
-const member = (email: string, roles: string[], extra: Record<string, unknown> = {}) => ({
+const member = (email: string, role: string, extra: Record<string, unknown> = {}) => ({
   email,
   displayName: email.split('@')[0],
-  roles,
+  role,
   status: 'active',
   staffId: null,
   studentId: null,
   studentIds: [],
-  isOwner: false,
   restrictions: [],
   uid: null,
   ...extra,
@@ -67,21 +67,21 @@ beforeEach(async () => {
         signupRoles: ['tutor', 'parent', 'student'],
       })
     }
-    await setDoc(doc(db, `branches/${A}/members/owner@a.test`), member('owner@a.test', ['admin'], { isOwner: true }))
-    await setDoc(doc(db, `branches/${A}/members/admin@a.test`), member('admin@a.test', ['admin']))
+    await setDoc(doc(db, `branches/${A}/members/owner@a.test`), member('owner@a.test', 'owner'))
+    await setDoc(doc(db, `branches/${A}/members/admin@a.test`), member('admin@a.test', 'admin'))
     await setDoc(
       doc(db, `branches/${A}/members/limited@a.test`),
-      member('limited@a.test', ['admin'], { restrictions: ['payRates'] }),
+      member('limited@a.test', 'admin', { restrictions: ['payRates'] }),
     )
-    await setDoc(doc(db, `branches/${A}/members/tutor@a.test`), member('tutor@a.test', ['tutor'], { staffId: 'staff-tutor' }))
-    await setDoc(doc(db, `branches/${A}/members/paused@a.test`), member('paused@a.test', ['tutor'], { status: 'disabled' }))
-    await setDoc(doc(db, `branches/${A}/staff/staff-tutor`), { name: 'Tutor', roles: ['tutor'] })
-    await setDoc(doc(db, `branches/${A}/staff/staff-other`), { name: 'Other', roles: ['tutor'] })
+    await setDoc(doc(db, `branches/${A}/members/tutor@a.test`), member('tutor@a.test', 'tutor', { staffId: 'staff-tutor' }))
+    await setDoc(doc(db, `branches/${A}/members/paused@a.test`), member('paused@a.test', 'tutor', { status: 'disabled' }))
+    await setDoc(doc(db, `branches/${A}/staff/staff-tutor`), { name: 'Tutor', role: 'tutor' })
+    await setDoc(doc(db, `branches/${A}/staff/staff-other`), { name: 'Other', role: 'tutor' })
     await setDoc(doc(db, `branches/${A}/staff/staff-tutor/private/compensation`), { rates: { teaching: 30, admin: 20 } })
     await setDoc(doc(db, `branches/${A}/staff/staff-other/private/compensation`), { rates: { teaching: 31, admin: 21 } })
     await setDoc(doc(db, `branches/${A}/students/s1`), { name: 'Student One' })
     await setDoc(doc(db, `branches/${A}/students/s1/private/profile`), { parents: [] })
-    await setDoc(doc(db, `branches/${B}/members/admin@b.test`), member('admin@b.test', ['admin']))
+    await setDoc(doc(db, `branches/${B}/members/admin@b.test`), member('admin@b.test', 'admin'))
   })
 })
 
@@ -127,27 +127,39 @@ describe('membership', () => {
     await assertFails(getDocs(query(collectionGroup(tutor, 'members'), where('email', '==', 'owner@a.test'))))
   })
 
-  it('people link their own account but cannot change their roles', async () => {
+  it('people link their own account but cannot change their role', async () => {
     const tutor = user('tutor@a.test', 'uid-tutor')
     const ref = doc(tutor, `branches/${A}/members/tutor@a.test`)
     await assertSucceeds(updateDoc(ref, { uid: 'uid-tutor', lastLoginAt: serverTimestamp() }))
-    await assertFails(updateDoc(ref, { roles: ['admin'] }))
+    await assertFails(updateDoc(ref, { role: 'admin' }))
     await assertFails(updateDoc(ref, { uid: 'someone-else' }))
   })
 
   it('admins add tutors; only owners add admins', async () => {
     const admin = user('admin@a.test')
-    await assertSucceeds(setDoc(doc(admin, `branches/${A}/members/new@a.test`), member('new@a.test', ['tutor', 'parent'])))
-    await assertFails(setDoc(doc(admin, `branches/${A}/members/boss@a.test`), member('boss@a.test', ['admin'])))
-    await assertSucceeds(setDoc(doc(user('owner@a.test'), `branches/${A}/members/boss@a.test`), member('boss@a.test', ['admin'])))
+    await assertSucceeds(setDoc(doc(admin, `branches/${A}/members/new@a.test`), member('new@a.test', 'tutor')))
+    await assertFails(setDoc(doc(admin, `branches/${A}/members/boss@a.test`), member('boss@a.test', 'admin')))
+    await assertSucceeds(setDoc(doc(user('owner@a.test'), `branches/${A}/members/boss@a.test`), member('boss@a.test', 'admin')))
+  })
+
+  it('only owners make owners, and only the super admin removes one', async () => {
+    await assertFails(setDoc(doc(user('admin@a.test'), `branches/${A}/members/o2@a.test`), member('o2@a.test', 'owner')))
+    await assertSucceeds(setDoc(doc(user('owner@a.test'), `branches/${A}/members/o2@a.test`), member('o2@a.test', 'owner')))
+    await assertFails(deleteDoc(doc(user('owner@a.test'), `branches/${A}/members/o2@a.test`)))
+    await assertSucceeds(deleteDoc(doc(user('super@hyber.test'), `branches/${A}/members/o2@a.test`)))
+  })
+
+  it('a member has exactly one valid role', async () => {
+    await assertFails(setDoc(doc(user('owner@a.test'), `branches/${A}/members/x2@a.test`), member('x2@a.test', 'teacher')))
+    await assertFails(setDoc(doc(user('owner@a.test'), `branches/${A}/members/x3@a.test`), { ...member('x3@a.test', 'tutor'), role: null }))
   })
 
   it('member docs must be keyed by their email', async () => {
-    await assertFails(setDoc(doc(user('owner@a.test'), `branches/${A}/members/x@a.test`), member('y@a.test', ['tutor'])))
+    await assertFails(setDoc(doc(user('owner@a.test'), `branches/${A}/members/x@a.test`), member('y@a.test', 'tutor')))
   })
 
   it('tutors cannot manage members', async () => {
-    await assertFails(setDoc(doc(user('tutor@a.test'), `branches/${A}/members/z@a.test`), member('z@a.test', ['tutor'])))
+    await assertFails(setDoc(doc(user('tutor@a.test'), `branches/${A}/members/z@a.test`), member('z@a.test', 'tutor')))
   })
 })
 
@@ -174,7 +186,7 @@ describe('people and pay', () => {
   it('tutors edit only allowed fields of their own record', async () => {
     const tutor = user('tutor@a.test')
     await assertSucceeds(updateDoc(doc(tutor, `branches/${A}/staff/staff-tutor`), { phone: '555' }))
-    await assertFails(updateDoc(doc(tutor, `branches/${A}/staff/staff-tutor`), { roles: ['admin'] }))
+    await assertFails(updateDoc(doc(tutor, `branches/${A}/staff/staff-tutor`), { role: 'admin' }))
   })
 })
 

@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react'
-import { Navigate, useLocation } from 'react-router'
-import { type Role, primaryPortal } from '@shared/roles'
+import { Navigate, useLocation, useParams, useSearchParams } from 'react-router'
+import type { Portal } from '@shared/roles'
 import { useAuth } from '@/auth/AuthProvider'
 import { useBranch } from '@/branch/BranchProvider'
 import { FullPageMessage, FullPageSpinner } from '@/components/app/FullPage'
-import { rememberedPortal } from '@/components/app/UserMenu'
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useAuth()
@@ -32,18 +31,17 @@ export function RequireSuperAdmin({ children }: { children: ReactNode }) {
   return children
 }
 
-export function RequirePortal({ role, children }: { role: Role; children: ReactNode }) {
-  const { roles, branchId } = useBranch()
-  if (!roles.includes(role)) return <Navigate to={`/${branchId}`} replace />
+/** One role per person, so one portal: anyone else is sent to their own. */
+export function RequirePortal({ role, children }: { role: Portal; children: ReactNode }) {
+  const { portal, branchId } = useBranch()
+  if (portal !== role) return <Navigate to={`/${branchId}`} replace />
   return children
 }
 
-/** `/{branchId}` → the remembered portal if still allowed, else the person's main portal. */
+/** `/{branchId}` → the person's portal (or the one a Super Admin is previewing). */
 export function BranchHomeRedirect() {
-  const { roles, branchId } = useBranch()
-  const remembered = rememberedPortal(branchId)
-  const portal = remembered && roles.includes(remembered) ? remembered : primaryPortal(roles)
-  return <Navigate to={`/${branchId}/${portal ?? 'admin'}`} replace />
+  const { portal, branchId } = useBranch()
+  return <Navigate to={`/${branchId}/${portal}`} replace />
 }
 
 /** Hides a page from admins an owner restricted (Access Control). */
@@ -57,4 +55,19 @@ export function RequirePage({ page, children }: { page: import('@shared/roles').
     )
   }
   return children
+}
+
+/** An old admin address → its new place, keeping the rest of the path and the query. */
+export function Moved({ to }: { to: string }) {
+  const { branchId, '*': rest } = useParams()
+  const { search, hash } = useLocation()
+  return <Navigate to={`/${branchId}/admin/${to}${rest ? `/${rest}` : ''}${search}${hash}`} replace />
+}
+
+/** Students → Calendar is gone: each student's calendar is a tab of their profile. */
+export function MovedStudentCalendar() {
+  const { branchId } = useParams()
+  const [params] = useSearchParams()
+  const id = params.get('student')
+  return <Navigate to={`/${branchId}/admin/students${id ? `/${encodeURIComponent(id)}/calendar` : ''}`} replace />
 }

@@ -150,7 +150,7 @@ export function TutorSessionLogListPage() {
 function AddLogDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { branchId, settings, timezone } = useBranch()
   const { data: staff } = useStaffList()
-  const tutors = staff.filter((s) => s.roles.includes('tutor') && s.status !== 'finished')
+  const tutors = staff.filter((s) => s.role === 'tutor' && s.status !== 'finished')
   const today = todayKey(timezone)
   const [tutorId, setTutorId] = useState<string | null>(null)
   const [from, setFrom] = useState(addDays(today, -30))

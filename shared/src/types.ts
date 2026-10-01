@@ -89,12 +89,13 @@ export interface BranchPublicProfile {
 export interface Member extends AuditStamp {
   email: string
   displayName: string
-  roles: Role[]
+  /** One role per person (owner decision, round 2). */
+  role: Role
   status: MemberStatus
   staffId: string | null
   studentId: string | null
   studentIds: string[]
-  isOwner: boolean
+  /** Admins only: pages an owner blocked for them. */
   restrictions: RestrictablePage[]
   uid: string | null
   photoURL: string | null
@@ -124,7 +125,8 @@ export interface SignupRequest {
   decisionNote?: string | null
 }
 
-export type StaffRole = Extract<Role, 'admin' | 'tutor'>
+/** Employees: owners and admins run the branch, only tutors teach. */
+export type StaffRole = Extract<Role, 'owner' | 'admin' | 'tutor'>
 export type StaffStatus = 'active' | 'on_hold' | 'finished'
 
 export interface NotificationPrefs {
@@ -142,7 +144,7 @@ export interface Staff extends AuditStamp {
   nameLower: string
   email: string
   phone: string
-  roles: StaffRole[]
+  role: StaffRole
   status: StaffStatus
   subjectIds: string[]
   /** Calendar color for the schedule and Employee Calendar. */

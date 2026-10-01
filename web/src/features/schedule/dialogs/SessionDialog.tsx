@@ -110,7 +110,7 @@ export function SessionDialog({
   const { data: avail } = useQuery<Availability>(availQ, `dlg-avail-${date}`)
   const { data: daySessions } = useQuery<Session>(sessQ, `dlg-sess-${date}`)
 
-  const tutors = useMemo(() => orderTutors(staff.filter((s) => s.roles.includes('tutor') && s.status !== 'finished'), settings.schedule.tutorOrder), [staff, settings.schedule.tutorOrder])
+  const tutors = useMemo(() => orderTutors(staff.filter((s) => s.role === 'tutor' && s.status !== 'finished'), settings.schedule.tutorOrder), [staff, settings.schedule.tutorOrder])
   const options = useMemo(() => {
     if (!form || !hours) return []
     return tutors.map((t) => {

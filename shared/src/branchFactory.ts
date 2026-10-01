@@ -42,9 +42,8 @@ export function publicProfileFor(branch: Pick<Branch, 'name' | 'shortName' | 'st
 export function newMemberData(input: {
   email: string
   displayName?: string
-  roles: Member['roles']
+  role: Member['role']
   createdBy: string
-  isOwner?: boolean
   staffId?: string | null
   studentId?: string | null
   studentIds?: string[]
@@ -52,12 +51,11 @@ export function newMemberData(input: {
   return {
     email: input.email.trim().toLowerCase(),
     displayName: input.displayName?.trim() ?? '',
-    roles: input.roles,
+    role: input.role,
     status: 'active',
     staffId: input.staffId ?? null,
     studentId: input.studentId ?? null,
     studentIds: input.studentIds ?? [],
-    isOwner: input.isOwner ?? false,
     restrictions: [],
     uid: null,
     photoURL: null,

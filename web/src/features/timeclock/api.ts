@@ -97,7 +97,7 @@ export function effectiveRates(staff: WithId<Staff> | undefined, comp: Compensat
     model: payModelFor({
       branchModel: settings.payroll.payModel,
       personModel: comp?.payModel,
-      isAdminStaff: !!staff?.roles.includes('admin'),
+      isAdminStaff: staff?.role === 'owner' || staff?.role === 'admin',
       adminStaffSingleRate: settings.payroll.adminStaffSingleRate,
     }),
   }

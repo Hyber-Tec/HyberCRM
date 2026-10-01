@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { LuChevronRight, LuClock, LuShieldCheck } from 'react-icons/lu'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 import { COL } from '@shared/paths'
-import { ROLE_LABELS, sortRoles } from '@shared/roles'
+import { ROLE_LABELS } from '@shared/roles'
 import type { SignupRequest } from '@shared/types'
 import { type Membership, useAuth } from '@/auth/AuthProvider'
 import { BrandMark } from '@/components/app/BrandMark'
@@ -129,7 +129,7 @@ function MembershipRow({ membership }: { membership: Membership }) {
       icon={<BrandMark name={name} logoUrl={profile?.logoUrl} accentColor={profile?.accentColor} className="size-10" />}
       title={name}
       subtitle={
-        disabled ? 'Access paused' : sortRoles(member.roles ?? []).map((r) => ROLE_LABELS[r]).join(' · ')
+        disabled ? 'Access paused' : (ROLE_LABELS[member.role] ?? '')
       }
     />
   )

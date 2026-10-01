@@ -7,13 +7,11 @@ import { useBranch } from '@/branch/BranchProvider'
 import type { ProgressReport } from '@/features/sessions/reportModel'
 import { branchCol, branchDocRef } from '@/lib/firestore'
 
-/** Parents see their linked children; students see themselves. */
+/** Parents see their linked children; students see themselves (also while a Super Admin previews them). */
 export function useLinkedStudentIds(mode: 'parent' | 'student'): string[] {
-  const { member } = useBranch()
-  return useMemo(() => {
-    if (mode === 'student') return member?.studentId ? [member.studentId] : []
-    return [...new Set(member?.studentIds ?? [])]
-  }, [mode, member?.studentId, member?.studentIds])
+  const { studentId, studentIds } = useBranch()
+  const key = mode === 'student' ? (studentId ?? '') : studentIds.join(',')
+  return useMemo(() => (key ? [...new Set(key.split(','))] : []), [key])
 }
 
 /** Live student docs by ID (one listener each; the rules allow only linked records). */

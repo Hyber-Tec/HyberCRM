@@ -75,7 +75,7 @@ async function main() {
     timezone: 'America/New_York',
     superAdmin: 'goochoi913@gmail.com',
     sample: true,
-    members: E2E_MEMBERS.map((m) => ({ ...m, roles: [...m.roles] })),
+    members: E2E_MEMBERS,
     extraDocs: [e2eSession(), e2eAutoShift(), soonSession('confirmed')],
     log: () => undefined,
   })

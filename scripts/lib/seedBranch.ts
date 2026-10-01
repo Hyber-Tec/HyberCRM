@@ -15,7 +15,7 @@ export interface SeedBranchOptions {
   /** Extra documents (tests), with paths relative to the branch. */
   extraDocs?: { path: string; data: Record<string, unknown> }[]
   /** Extra member docs (tests). */
-  members?: { email: string; roles: Role[]; isOwner?: boolean; staffId?: string; studentId?: string; studentIds?: string[] }[]
+  members?: { email: string; role: Role; staffId?: string; studentId?: string; studentIds?: string[] }[]
   log?: (line: string) => void
 }
 
@@ -73,8 +73,7 @@ export async function seedBranch(opts: SeedBranchOptions) {
         ...newMemberData({
           email: m.email,
           displayName: m.email.split('@')[0],
-          roles: m.roles,
-          isOwner: m.isOwner,
+          role: m.role,
           staffId: m.staffId ?? null,
           studentId: m.studentId ?? null,
           studentIds: m.studentIds ?? [],

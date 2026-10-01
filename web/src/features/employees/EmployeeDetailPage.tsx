@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { STAFF_COLORS } from '@shared/colors'
 import { COL } from '@shared/paths'
 import { STAFF_STATUSES, STAFF_STATUS_LABELS } from '@shared/people'
-import { ROLE_LABELS } from '@shared/roles'
+import { ROLE_LABELS, isAdminRole } from '@shared/roles'
 import { formatInstant, todayKey } from '@shared/time'
 import type { Compensation, Member, Staff, StaffNotes, StaffRole, StaffStatus } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
@@ -17,9 +17,9 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '@/components/ui/input-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -68,11 +68,7 @@ export function EmployeeDetailPage() {
           <h1 className="truncate text-2xl font-semibold tracking-tight">{staff.name}</h1>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <StaffStatusBadge status={staff.status} />
-            {staff.roles.map((r) => (
-              <Badge key={r} variant={r === 'admin' ? 'default' : 'secondary'}>
-                {ROLE_LABELS[r]}
-              </Badge>
-            ))}
+            {staff.role ? <Badge variant={isAdminRole(staff.role) ? 'default' : 'secondary'}>{ROLE_LABELS[staff.role]}</Badge> : null}
           </div>
         </div>
       </div>
@@ -98,7 +94,6 @@ function ProfileCard({ staff, member }: { staff: Staff & { id: string }; member:
 
   async function save() {
     if (!form.firstName.trim()) return toast.error('Enter a first name.')
-    if (form.roles.length === 0) return toast.error('Keep at least one role.')
     setBusy(true)
     try {
       await saveEmployeeProfile(branchId, actor, staff, pick(form))
@@ -167,7 +162,7 @@ function ProfileCard({ staff, member }: { staff: Staff & { id: string }; member:
               <FieldDescription>Finished employees leave the schedule and pickers.</FieldDescription>
             </Field>
             <Field>
-              <FieldLabel>Roles</FieldLabel>
+              <FieldLabel>Role</FieldLabel>
               {member ? (
                 <FieldDescription>
                   Managed with their sign-in on the{' '}
@@ -177,19 +172,14 @@ function ProfileCard({ staff, member }: { staff: Staff & { id: string }; member:
                   .
                 </FieldDescription>
               ) : (
-                <div className="flex gap-6 pt-1.5">
+                <RadioGroup value={form.role} onValueChange={(v) => set('role', v as StaffRole)} className="flex gap-6 pt-1.5">
                   {(['tutor', 'admin'] as StaffRole[]).map((r) => (
                     <label key={r} className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={form.roles.includes(r)}
-                        onCheckedChange={(v) =>
-                          set('roles', v === true ? [...new Set([...form.roles, r])] : form.roles.filter((x) => x !== r))
-                        }
-                      />
+                      <RadioGroupItem value={r} />
                       {ROLE_LABELS[r]}
                     </label>
                   ))}
-                </div>
+                </RadioGroup>
               )}
             </Field>
           </div>
@@ -233,7 +223,7 @@ function pick(s: Staff): Partial<Staff> {
     startDate: s.startDate ?? null,
     endDate: s.endDate ?? null,
     status: s.status,
-    roles: s.roles,
+    role: s.role,
     color: s.color,
   }
 }

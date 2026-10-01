@@ -32,7 +32,7 @@ async function requireAdmin(branchId: string, auth: { uid: string; token: Record
     db.doc(`${ROOT.branches}/${branchId}/${COL.members}/${email}`).get(),
   ])
   const m = member.data()
-  const isAdmin = !!m && m.status === 'active' && Array.isArray(m.roles) && m.roles.includes('admin')
+  const isAdmin = !!m && m.status === 'active' && (m.role === 'owner' || m.role === 'admin')
   if (!platform.exists && !isAdmin) throw new HttpsError('permission-denied', 'Only branch admins can do this.')
   return { uid: auth.uid, email, name: (m?.displayName as string) || (auth.token.name as string) || email, superAdmin: platform.exists }
 }
