@@ -167,11 +167,13 @@ const viewAs: Step = async (page, base) => {
   await page.getByRole('menuitem', { name: /A tutor/ }).click()
   await page.getByRole('option', { name: /Maya Thompson/ }).first().click()
   await page.waitForURL(/\/tutor\//, { timeout: 8000 })
-  await expectText(page, 'Previewing as')
   await expectText(page, 'Tutor Portal')
-  await page.getByRole('button', { name: 'Stop preview' }).click()
+  // No bar announces the preview or the Super Admin; the eye menu is the only control.
+  if (await page.getByText(/Previewing as|Super Admin · viewing/).count()) throw new Error('A Super Admin or preview bar is still shown')
+  await page.getByRole('button', { name: 'View the app as' }).click()
+  await page.getByRole('menuitem', { name: /Yourself/ }).click()
   await page.waitForURL(/\/admin\//, { timeout: 8000 })
-  await expectText(page, 'Super Admin · viewing')
+  await expectText(page, 'Admin Portal')
 }
 
 /** The owner adds a tutor: the invite email goes out (emulator outbox) and the status says so. */

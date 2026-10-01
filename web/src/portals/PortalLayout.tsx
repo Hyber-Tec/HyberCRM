@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo } from 'react'
-import { LuArrowLeftRight, LuChevronRight, LuEye, LuMenu, LuPanelLeftClose, LuPanelLeftOpen, LuShieldCheck, LuX } from 'react-icons/lu'
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
+import { LuChevronRight, LuMenu, LuPanelLeftClose, LuPanelLeftOpen } from 'react-icons/lu'
+import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { PORTAL_LABELS, type Portal } from '@shared/roles'
 import { useUnreadAnnouncementCount } from '@/features/announcements/api'
 import { ActivityToasts } from '@/features/audit/ActivityToasts'
@@ -94,9 +94,7 @@ export function PortalLayout({ portal }: { portal: Portal }) {
     <NavBadgesProvider portal={portal}>
     <SidebarProvider>
       <PortalSidebar portal={portal} />
-      {/* --chrome-h: height of the bars above the page, for full-height pages like the Schedule. */}
-      <SidebarInset className="min-w-0" style={{ '--chrome-h': branch.asSuperAdmin || branch.viewAs ? '2rem' : '0rem' } as React.CSSProperties}>
-        {branch.asSuperAdmin || branch.viewAs ? <SuperAdminBar /> : null}
+      <SidebarInset className="min-w-0">
         <MobileTopBar portal={portal} />
         <div className={cn('min-w-0 flex-1 p-4 sm:p-6', nav.mobileTabs && 'pb-24 md:pb-6')}>
           <Outlet />
@@ -357,50 +355,5 @@ function MobileTabs({ tabs, base }: { tabs: NavLeaf[]; base: string }) {
         })}
       </ul>
     </nav>
-  )
-}
-
-const PREVIEW_LABEL = { admin: 'a regular admin', tutor: 'Tutor', parent: 'Parent', student: 'Student' } as const
-
-function SuperAdminBar() {
-  const { branch, branchId, viewAs, setViewAs } = useBranch()
-  const navigate = useNavigate()
-  const barButton = 'h-6 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground'
-  if (viewAs) {
-    return (
-      <div className="flex h-8 shrink-0 items-center gap-2 bg-violet-700 px-3 text-xs text-white sm:px-4">
-        <LuEye className="size-3.5 shrink-0" />
-        <span className="truncate">
-          Previewing as <span className="font-semibold">{viewAs.role === 'admin' ? PREVIEW_LABEL.admin : `${PREVIEW_LABEL[viewAs.role]} · ${viewAs.name}`}</span>
-          <span className="hidden sm:inline"> · only changes what you see</span>
-        </span>
-        <Button
-          size="xs"
-          variant="ghost"
-          className="ml-auto h-6 text-white hover:bg-white/15 hover:text-white"
-          onClick={() => {
-            setViewAs(null)
-            navigate(`/${branchId}/admin`)
-          }}
-        >
-          <LuX /> Stop preview
-        </Button>
-      </div>
-    )
-  }
-  return (
-    <div className="flex h-8 shrink-0 items-center gap-2 bg-primary px-3 text-xs text-primary-foreground sm:px-4">
-      <LuShieldCheck className="size-3.5 shrink-0" />
-      <span className="truncate">
-        Super Admin · viewing <span className="font-semibold">{branch.name}</span>
-      </span>
-      <div className="ml-auto flex items-center gap-1">
-        <Button size="xs" variant="ghost" className={barButton} asChild>
-          <Link to="/platform">
-            <LuArrowLeftRight /> Switch branch
-          </Link>
-        </Button>
-      </div>
-    </div>
   )
 }

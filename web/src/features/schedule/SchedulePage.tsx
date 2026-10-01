@@ -493,7 +493,7 @@ export function SchedulePage() {
 
   return (
     <ScheduleUiContext value={ui}>
-      <div className="relative -m-4 h-[calc(100svh-var(--chrome-h)-3rem)] min-h-0 sm:-m-6 md:h-[calc(100svh-var(--chrome-h))]">
+      <div className="relative -m-4 h-[calc(100svh-3rem)] min-h-0 sm:-m-6 md:h-svh">
         <div
           className={cn('h-full min-w-0 bg-muted/40', view === 'month' ? 'flex flex-col overflow-hidden' : 'overflow-auto')}
           onMouseDown={(e) => e.target === e.currentTarget && setSelection(null)}

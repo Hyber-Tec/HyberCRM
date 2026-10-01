@@ -1,4 +1,4 @@
-import { LuBuilding2, LuChevronsUpDown, LuLayoutGrid, LuLogOut, LuShieldCheck } from 'react-icons/lu'
+import { LuArrowLeftRight, LuChevronsUpDown, LuLayoutGrid, LuLogOut } from 'react-icons/lu'
 import { useNavigate } from 'react-router'
 import { useAuth } from '@/auth/AuthProvider'
 import { useOptionalBranch } from '@/branch/BranchProvider'
@@ -60,16 +60,11 @@ export function UserMenu({ variant = 'header' }: { variant?: 'header' | 'sidebar
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          {memberships.length > 1 || (isSuperAdmin && memberships.length > 0) ? (
-            <DropdownMenuItem onSelect={() => navigate('/app?choose=1')}>
-              <LuBuilding2 />
-              My branches
-            </DropdownMenuItem>
-          ) : null}
-          {isSuperAdmin ? (
-            <DropdownMenuItem onSelect={() => navigate('/platform')}>
-              <LuShieldCheck />
-              Platform
+          {isSuperAdmin || memberships.length > 1 ? (
+            // Super Admin: the Platform dashboard lists every branch; others pick among theirs.
+            <DropdownMenuItem onSelect={() => navigate(isSuperAdmin ? '/platform' : '/app?choose=1')}>
+              <LuArrowLeftRight />
+              Switch branch
             </DropdownMenuItem>
           ) : null}
           {branch && branch.isAdmin ? (

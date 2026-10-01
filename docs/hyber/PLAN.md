@@ -186,8 +186,8 @@ Firestore caches `get()` within one request, so each request pays at most one ex
 
 1. **Sign in** → `platformAdmins/{email}` exists → **Platform home** (`/platform`): a grid of branch cards (logo, name, status, time zone, counts) and **New branch**.
 2. **New branch:** name, slug ID (immutable), time zone, locale, logo upload, primary color, first admin's email. Creates the branch doc and the first admin's member doc (with `isOwner: true`).
-3. **Open a branch** → `/b/{branchId}/home` renders that branch's **admin portal**. A thin platform bar on top says "Super Admin · Viewing **Demo Academy** · Switch branch ▾ · Platform".
-4. **Switch branch** from the bar, or go back to the platform home.
+3. **Open a branch** → `/{branchId}/admin/home` renders that branch's **admin portal**, with no extra bar (round 2: DECISIONS.md §4).
+4. **Switch branch** from the account menu, which opens the platform home.
 5. **Platform branch settings** (super admin only): status (active/suspended/archived), enabled extensions, and any setting locked at platform level.
 
 The first branch is **Demo Academy**: generic name, placeholder logo (an SVG monogram), seeded with realistic fake tutors, students, subjects, availability and sessions, so the product looks professional immediately. Seeding is a script (`scripts/seed-demo.mjs`) that writes **only under `branches/demo-academy/`** **(Q2)**.
