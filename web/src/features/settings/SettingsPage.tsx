@@ -2,6 +2,7 @@ import { deleteObject, getDownloadURL, ref as storageRef, uploadBytes } from 'fi
 import { doc, serverTimestamp, writeBatch } from 'firebase/firestore'
 import { useEffect, useMemo, useState } from 'react'
 import { LuImageUp, LuTrash2 } from 'react-icons/lu'
+import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { publicProfileFor } from '@shared/branchFactory'
 import { COL, DOC, ROOT } from '@shared/paths'
@@ -18,6 +19,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
+import { AuditLogSection } from '@/features/audit/AuditLogSection'
 import { type AuditInput, addAudit } from '@/lib/audit'
 import { db, storage } from '@/lib/firebase'
 import { cn } from '@/lib/utils'
@@ -28,10 +30,15 @@ const SECTIONS = [
   { key: 'branch', title: 'Branch' },
   { key: 'branding', title: 'Branding' },
   ...SETTINGS_SECTIONS.map((s) => ({ key: s.key, title: s.title })),
+  { key: 'audit-log', title: 'Audit Log' },
 ]
 
 export function SettingsPage() {
-  const [active, setActive] = useState('branch')
+  const { branchId } = useBranch()
+  const { section } = useParams()
+  const navigate = useNavigate()
+  const active = SECTIONS.some((s) => s.key === section) ? section! : 'branch'
+  const setActive = (key: string) => navigate(`/${branchId}/admin/settings/${key}`)
   return (
     <div>
       <PageHeader title="Settings" description="Your branch profile, branding and business rules. Defaults follow the standard Hyber setup." />
@@ -68,8 +75,16 @@ export function SettingsPage() {
             ))}
           </ul>
         </nav>
-        <div className="min-w-0 flex-1 lg:max-w-3xl">
-          {active === 'branch' ? <BranchProfileCard /> : active === 'branding' ? <BrandingCard /> : <BusinessSection sectionKey={active} />}
+        <div className={cn('min-w-0 flex-1', active === 'audit-log' ? 'lg:max-w-5xl' : 'lg:max-w-3xl')}>
+          {active === 'branch' ? (
+            <BranchProfileCard />
+          ) : active === 'branding' ? (
+            <BrandingCard />
+          ) : active === 'audit-log' ? (
+            <AuditLogSection />
+          ) : (
+            <BusinessSection sectionKey={active} />
+          )}
         </div>
       </div>
     </div>

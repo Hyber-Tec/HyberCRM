@@ -54,8 +54,8 @@ function usePaths() {
   const admin = `/${branchId}/admin`
   return {
     admin,
-    day: (d: DateKey) => `${admin}/scheduling/schedule/day/${d}`,
-    student: (id: string, tab?: string) => `${admin}/students/directory/${id}${tab ? `/${tab}` : ''}`,
+    day: (d: DateKey) => `${admin}/schedule/day/${d}`,
+    student: (id: string, tab?: string) => `${admin}/students/${id}${tab ? `/${tab}` : ''}`,
     employee: (id: string) => `${admin}/employees/directory/${id}`,
     log: (sessionId: string) => `/${branchId}/session-log/${sessionId}`,
   }
@@ -200,7 +200,7 @@ function UpcomingCard({ today, now }: { today: DateKey; now: number }) {
       icon={LuCalendarDays}
       title="Upcoming Schedule & Events"
       count={groups.count}
-      link={{ label: 'Open Schedule', to: `${paths.admin}/scheduling/schedule` }}
+      link={{ label: 'Open Schedule', to: `${paths.admin}/schedule` }}
       testId="home-upcoming"
     >
       {groups.days.map(([d, items]) => (
@@ -425,7 +425,7 @@ function ConferenceCard() {
       title="Conference Needed"
       count={due.length}
       tone={due.length ? 'warn' : 'default'}
-      link={{ label: 'Directory', to: `${paths.admin}/students/directory` }}
+      link={{ label: 'Directory', to: `${paths.admin}/students` }}
       testId="home-conference"
     >
       {due.map(({ s, c }) => (
@@ -485,7 +485,7 @@ function NewStudentsCard({ list, today }: { list: NewStudent[]; today: DateKey }
     )
 
   return (
-    <HomeCard icon={LuUserPlus} title="New Students to Follow Up" count={list.length} link={{ label: 'Directory', to: `${paths.admin}/students/directory` }} testId="home-new-students">
+    <HomeCard icon={LuUserPlus} title="New Students to Follow Up" count={list.length} link={{ label: 'Directory', to: `${paths.admin}/students` }} testId="home-new-students">
       {list.map(({ student: s, since }) => (
         <HomeRow
           key={s.id}

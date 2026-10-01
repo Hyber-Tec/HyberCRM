@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo } from 'react'
-import { LuArrowLeftRight, LuChevronRight, LuShieldCheck } from 'react-icons/lu'
+import { LuArrowLeftRight, LuChevronRight, LuMenu, LuPanelLeftClose, LuPanelLeftOpen, LuShieldCheck } from 'react-icons/lu'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { PORTAL_LABELS, type Role } from '@shared/roles'
 import { useUnreadAnnouncementCount } from '@/features/announcements/api'
@@ -19,7 +19,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Separator } from '@/components/ui/separator'
 import {
   Sidebar,
   SidebarContent,
@@ -37,9 +36,9 @@ import {
   SidebarMenuSubItem,
   SidebarProvider,
   SidebarRail,
-  SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { type NavGroup, type NavItem, type NavLeaf, PORTAL_NAV, isGroup, navLeaves } from './nav'
 
@@ -88,7 +87,6 @@ export function PortalLayout({ portal }: { portal: Role }) {
   useEffect(() => rememberPortal(branch.branchId, portal), [branch.branchId, portal])
 
   const current = navLeaves(nav).find((l) => isActivePath(pathname, base, l))
-  const currentGroup = nav.main.find((i) => isGroup(i) && i.children.some((c) => c.key === current?.key))
   useEffect(() => {
     document.title = `${current?.label ?? PORTAL_LABELS[portal]} | ${branch.branch.name}`
   }, [current?.label, portal, branch.branch.name])
@@ -97,20 +95,10 @@ export function PortalLayout({ portal }: { portal: Role }) {
     <NavBadgesProvider portal={portal}>
     <SidebarProvider>
       <PortalSidebar portal={portal} />
-      <SidebarInset className="min-w-0">
+      {/* --chrome-h: height of the bars above the page, for full-height pages like the Schedule. */}
+      <SidebarInset className="min-w-0" style={{ '--chrome-h': branch.asSuperAdmin ? '2rem' : '0rem' } as React.CSSProperties}>
         {branch.asSuperAdmin ? <SuperAdminBar /> : null}
-        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-1 data-[orientation=vertical]:h-4" />
-          <div className="min-w-0 flex-1 truncate text-sm font-medium">
-            {currentGroup ? <span className="text-muted-foreground">{currentGroup.label} / </span> : null}
-            {current?.label ?? PORTAL_LABELS[portal]}
-          </div>
-          {portal === 'tutor' ? <NotificationBell /> : null}
-          <div className="md:hidden">
-            <UserMenu portal={portal} />
-          </div>
-        </header>
+        <MobileTopBar portal={portal} />
         <div className={cn('min-w-0 flex-1 p-4 sm:p-6', nav.mobileTabs && 'pb-24 md:pb-6')}>
           <Outlet />
         </div>
@@ -123,27 +111,14 @@ export function PortalLayout({ portal }: { portal: Role }) {
 }
 
 function PortalSidebar({ portal }: { portal: Role }) {
-  const branch = useBranch()
   const nav = PORTAL_NAV[portal]
   const base = usePortalBase(portal)
-  const { branding, name } = branch.branch
+  const { isMobile } = useSidebar()
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <Link to={`${base}/${nav.main[0] && !isGroup(nav.main[0]) ? nav.main[0].to : ''}`}>
-                <BrandMark name={name} logoUrl={branding?.logoUrl} accentColor={branding?.accentColor} />
-                <div className="grid flex-1 text-left leading-tight">
-                  <span className="truncate text-sm font-semibold">{branding?.sidebarTitle || name}</span>
-                  <span className="truncate text-xs text-muted-foreground">{PORTAL_LABELS[portal]}</span>
-                </div>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <SidebarBrand portal={portal} homeTo={`${base}/${nav.main[0] && !isGroup(nav.main[0]) ? nav.main[0].to : ''}`} />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -169,13 +144,89 @@ function PortalSidebar({ portal }: { portal: Role }) {
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <UserMenu variant="sidebar" portal={portal} />
+          <SidebarMenuItem className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col-reverse">
+            <div className="min-w-0 flex-1">
+              <UserMenu variant="sidebar" portal={portal} />
+            </div>
+            {portal === 'tutor' && !isMobile ? <NotificationBell /> : null}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
+  )
+}
+
+const TOGGLE_KEYS = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘B' : 'Ctrl+B'
+
+/** Branch logo and name, with the sidebar's own open/close button (True Education's collapse arrow). */
+function SidebarBrand({ portal, homeTo }: { portal: Role; homeTo: string }) {
+  const { branch } = useBranch()
+  const { state, isMobile, toggleSidebar } = useSidebar()
+  const mark = <BrandMark name={branch.name} logoUrl={branch.branding?.logoUrl} accentColor={branch.branding?.accentColor} />
+
+  // Collapsed to icons: the logo opens the sidebar and shows the open icon on hover.
+  if (state === 'collapsed' && !isMobile) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton size="lg" tooltip={`Open sidebar (${TOGGLE_KEYS})`} onClick={toggleSidebar} aria-label="Open sidebar" className="group/brand">
+            <span className="relative flex size-8 shrink-0 items-center justify-center">
+              <span className="transition-opacity group-hover/brand:opacity-0">{mark}</span>
+              <LuPanelLeftOpen className="absolute size-4! opacity-0 transition-opacity group-hover/brand:opacity-100" />
+            </span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    )
+  }
+  return (
+    <div className="flex items-center gap-1">
+      <SidebarMenu className="min-w-0 flex-1">
+        <SidebarMenuItem>
+          <SidebarMenuButton size="lg" asChild>
+            <Link to={homeTo}>
+              {mark}
+              <div className="grid flex-1 text-left leading-tight">
+                <span className="truncate text-sm font-semibold">{branch.branding?.sidebarTitle || branch.name}</span>
+                <span className="truncate text-xs text-muted-foreground">{PORTAL_LABELS[portal]}</span>
+              </div>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+      {isMobile ? (
+        <Button variant="ghost" size="icon-sm" className="shrink-0 text-muted-foreground" onClick={toggleSidebar} aria-label="Close menu">
+          <LuPanelLeftClose />
+        </Button>
+      ) : (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon-sm" className="shrink-0 text-muted-foreground" onClick={toggleSidebar} aria-label="Close sidebar">
+              <LuPanelLeftClose />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Close sidebar ({TOGGLE_KEYS})</TooltipContent>
+        </Tooltip>
+      )}
+    </div>
+  )
+}
+
+/** Phones only: the sidebar is off-screen, so a slim bar opens it. */
+function MobileTopBar({ portal }: { portal: Role }) {
+  const { branch } = useBranch()
+  const { toggleSidebar } = useSidebar()
+  return (
+    <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 border-b bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
+      <Button variant="ghost" size="icon" onClick={toggleSidebar} aria-label="Open menu">
+        <LuMenu />
+      </Button>
+      <BrandMark name={branch.name} logoUrl={branch.branding?.logoUrl} accentColor={branch.branding?.accentColor} className="size-6" />
+      <span className="min-w-0 flex-1 truncate text-sm font-semibold">{branch.branding?.sidebarTitle || branch.name}</span>
+      {portal === 'tutor' ? <NotificationBell /> : null}
+      <UserMenu portal={portal} />
+    </header>
   )
 }
 
@@ -312,7 +363,7 @@ function MobileTabs({ tabs, base }: { tabs: NavLeaf[]; base: string }) {
 function SuperAdminBar() {
   const { branch } = useBranch()
   return (
-    <div className="flex items-center gap-2 bg-primary px-3 py-1.5 text-xs text-primary-foreground sm:px-4">
+    <div className="flex h-8 shrink-0 items-center gap-2 bg-primary px-3 text-xs text-primary-foreground sm:px-4">
       <LuShieldCheck className="size-3.5 shrink-0" />
       <span className="truncate">
         Super Admin · viewing <span className="font-semibold">{branch.name}</span>

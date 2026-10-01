@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react'
 import type { IconType } from 'react-icons'
 import {
-  LuCalendarClock,
   LuCalendarDays,
   LuChartLine,
   LuClipboardList,
@@ -32,9 +31,8 @@ export interface Shortcut {
 
 /** Home shortcuts (True Education's registry, minus Diagnostics and Curriculum). */
 export const SHORTCUTS: Shortcut[] = [
-  { id: 'schedule', label: 'Schedule', to: 'scheduling/schedule', icon: LuCalendarDays },
-  { id: 'students', label: 'Student Directory', to: 'students/directory', icon: LuGraduationCap },
-  { id: 'studentCalendar', label: 'Student Calendar', to: 'students/calendar', icon: LuCalendarClock },
+  { id: 'schedule', label: 'Schedule', to: 'schedule', icon: LuCalendarDays },
+  { id: 'students', label: 'Student Directory', to: 'students', icon: LuGraduationCap },
   { id: 'employees', label: 'Employee Directory', to: 'employees/directory', icon: LuUsers },
   { id: 'employeeCalendar', label: 'Employee Calendar', to: 'employees/calendar', icon: LuClock },
   { id: 'subjects', label: 'Subjects', to: 'employees/subjects', icon: LuLayoutGrid },
@@ -43,7 +41,7 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'sessionLog', label: 'Session Log', to: 'sessions/log', icon: LuNotebookPen },
   { id: 'progressReports', label: 'Progress Reports', to: 'sessions/progress-reports', icon: LuChartLine },
   { id: 'announcements', label: 'Announcements', to: 'announcements', icon: LuMegaphone },
-  { id: 'auditLog', label: 'Audit Log', to: 'scheduling/audit-log', icon: LuHistory },
+  { id: 'auditLog', label: 'Audit Log', to: 'settings/audit-log', icon: LuHistory },
   { id: 'account', label: 'Account', to: 'account', icon: LuUserCog },
   { id: 'accessControl', label: 'Access Control', to: 'access-control', icon: LuShieldCheck, restrict: 'accessControl' },
   { id: 'settings', label: 'Settings', to: 'settings', icon: LuSettings },

@@ -76,7 +76,7 @@ export function StudentDirectoryPage({ mode = 'admin' }: { mode?: 'admin' | 'tut
   const taught = useTaughtStudentIds(mode === 'tutor')
   const today = todayKey(timezone)
   const isAdmin = mode === 'admin'
-  const base = `/${branchId}/${mode}/students${isAdmin ? '/directory' : ''}`
+  const base = `/${branchId}/${mode}/students`
 
   const [search, setSearch] = useState('')
   const [statuses, setStatuses] = useState<StudentStatus[]>([])

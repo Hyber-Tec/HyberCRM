@@ -5,7 +5,6 @@ import { COL } from '@shared/paths'
 import { formatInstant } from '@shared/time'
 import type { AuditCategory, AuditEntry } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
-import { PageHeader } from '@/components/app/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -35,7 +34,8 @@ const ROLE_LABEL: Record<string, string> = {
   system: 'System',
 }
 
-export function AuditLogPage() {
+/** The branch's append-only audit log (Settings → Audit Log). */
+export function AuditLogSection() {
   const { branchId, timezone } = useBranch()
   const [category, setCategory] = useState<AuditCategory | 'all'>('all')
   const [pageSize, setPageSize] = useState(100)
@@ -58,7 +58,10 @@ export function AuditLogPage() {
 
   return (
     <div>
-      <PageHeader title="Audit Log" description="Every change made in this branch, newest first. Entries can’t be edited or deleted." />
+      <div className="mb-4">
+        <h2 className="font-semibold">Audit Log</h2>
+        <p className="text-sm text-muted-foreground">Every change made in this branch, newest first. Entries can’t be edited or deleted.</p>
+      </div>
       <div className="mb-4 flex flex-col gap-3 sm:flex-row">
         <Select value={category} onValueChange={(v) => setCategory(v as AuditCategory | 'all')}>
           <SelectTrigger className="sm:w-48">

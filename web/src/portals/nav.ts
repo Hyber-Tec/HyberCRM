@@ -19,7 +19,7 @@ import type { RestrictablePage, Role } from '@shared/roles'
 export interface NavLeaf {
   key: string
   label: string
-  /** Relative to the portal root, e.g. "scheduling/schedule". */
+  /** Relative to the portal root, e.g. "employees/payroll". */
   to: string
   icon?: IconType
   restrict?: RestrictablePage
@@ -49,24 +49,8 @@ export const ADMIN_NAV: PortalNav = {
   main: [
     { key: 'home', label: 'Home', to: 'home', icon: LuHouse },
     { key: 'announcements', label: 'Announcements', to: 'announcements', icon: LuMegaphone },
-    {
-      key: 'scheduling',
-      label: 'Scheduling',
-      icon: LuCalendarDays,
-      children: [
-        { key: 'schedule', label: 'Schedule', to: 'scheduling/schedule' },
-        { key: 'auditLog', label: 'Audit Log', to: 'scheduling/audit-log' },
-      ],
-    },
-    {
-      key: 'students',
-      label: 'Students',
-      icon: LuGraduationCap,
-      children: [
-        { key: 'studentDirectory', label: 'Directory', to: 'students/directory' },
-        { key: 'studentCalendar', label: 'Calendar', to: 'students/calendar' },
-      ],
-    },
+    { key: 'schedule', label: 'Schedule', to: 'schedule', icon: LuCalendarDays },
+    { key: 'students', label: 'Students', to: 'students', icon: LuGraduationCap },
     {
       key: 'employees',
       label: 'Employees',

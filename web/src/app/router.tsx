@@ -1,4 +1,4 @@
-import { Navigate, Outlet, type RouteObject, createBrowserRouter } from 'react-router'
+import { Navigate, Outlet, type RouteObject, createBrowserRouter, useLocation, useParams, useSearchParams } from 'react-router'
 import { BranchProvider } from '@/branch/BranchProvider'
 import { FullPageMessage } from '@/components/app/FullPage'
 import { AppResolver } from '@/pages/public/AppResolver'
@@ -11,6 +11,21 @@ import { PlatformHome } from '@/pages/platform/PlatformHome'
 import { PlatformLayout } from '@/pages/platform/PlatformLayout'
 import { PortalLayout } from '@/portals/PortalLayout'
 import { BranchHomeRedirect, RequireAuth, RequirePage, RequirePortal, RequireSuperAdmin } from './guards'
+
+/** An old admin address → its new place, keeping the rest of the path and the query. */
+function Moved({ to }: { to: string }) {
+  const { branchId, '*': rest } = useParams()
+  const { search, hash } = useLocation()
+  return <Navigate to={`/${branchId}/admin/${to}${rest ? `/${rest}` : ''}${search}${hash}`} replace />
+}
+
+/** Students → Calendar is gone: each student's calendar is a tab of their profile. */
+function MovedStudentCalendar() {
+  const { branchId } = useParams()
+  const [params] = useSearchParams()
+  const id = params.get('student')
+  return <Navigate to={`/${branchId}/admin/students${id ? `/${encodeURIComponent(id)}/calendar` : ''}`} replace />
+}
 
 /** Lazy route helper: `page(() => import('./x'), 'X')`. */
 function page<M extends Record<string, unknown>>(load: () => Promise<M>, name: keyof M): RouteObject['lazy'] {
@@ -27,13 +42,15 @@ const adminRoutes: RouteObject[] = [
     path: 'announcements/:announcementId/edit',
     lazy: page(() => import('@/features/announcements/AnnouncementEditorPage'), 'AnnouncementEditorPage'),
   },
-  { path: 'scheduling', element: <Navigate to="schedule" replace /> },
-  { path: 'scheduling/schedule/*', lazy: page(() => import('@/features/schedule/SchedulePage'), 'SchedulePage') },
-  { path: 'scheduling/audit-log', lazy: page(() => import('@/features/audit/AuditLogPage'), 'AuditLogPage') },
-  { path: 'students', element: <Navigate to="directory" replace /> },
-  { path: 'students/directory', lazy: page(() => import('@/features/students/StudentDirectoryPage'), 'StudentDirectoryPage') },
-  { path: 'students/directory/:studentId/:tab?', lazy: page(() => import('@/features/students/StudentProfilePage'), 'StudentProfilePage') },
-  { path: 'students/calendar', lazy: page(() => import('@/features/students/StudentCalendarPage'), 'StudentCalendarPage') },
+  { path: 'schedule/*', lazy: page(() => import('@/features/schedule/SchedulePage'), 'SchedulePage') },
+  { path: 'students', lazy: page(() => import('@/features/students/StudentDirectoryPage'), 'StudentDirectoryPage') },
+  { path: 'students/:studentId/:tab?', lazy: page(() => import('@/features/students/StudentProfilePage'), 'StudentProfilePage') },
+  // Earlier addresses (bookmarks, links in notifications) keep working.
+  { path: 'scheduling', element: <Moved to="schedule" /> },
+  { path: 'scheduling/schedule/*', element: <Moved to="schedule" /> },
+  { path: 'scheduling/audit-log', element: <Moved to="settings/audit-log" /> },
+  { path: 'students/directory/*', element: <Moved to="students" /> },
+  { path: 'students/calendar', element: <MovedStudentCalendar /> },
   { path: 'employees', element: <Navigate to="directory" replace /> },
   { path: 'employees/directory', lazy: page(() => import('@/features/employees/EmployeeDirectoryPage'), 'EmployeeDirectoryPage') },
   { path: 'employees/directory/:staffId', lazy: page(() => import('@/features/employees/EmployeeDetailPage'), 'EmployeeDetailPage') },
@@ -63,7 +80,7 @@ const adminRoutes: RouteObject[] = [
     element: <RequirePage page="accessControl"><Outlet /></RequirePage>,
     children: [{ index: true, lazy: page(() => import('@/features/access/AccessControlPage'), 'AccessControlPage') }],
   },
-  { path: 'settings', lazy: page(() => import('@/features/settings/SettingsPage'), 'SettingsPage') },
+  { path: 'settings/:section?', lazy: page(() => import('@/features/settings/SettingsPage'), 'SettingsPage') },
   { path: '*', element: <Navigate to="home" replace /> },
 ]
 

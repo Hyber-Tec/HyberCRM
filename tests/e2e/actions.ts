@@ -17,7 +17,7 @@ const scheduleCrud: Step = async (page, base) => {
   const d = new Date(Date.now() + 10 * 86_400_000)
   while ([0, 6].includes(d.getDay())) d.setDate(d.getDate() + 1)
   const dateKey = d.toISOString().slice(0, 10)
-  await page.goto(`${base}/${E2E_BRANCH}/admin/scheduling/schedule/day/${dateKey}`, { waitUntil: 'load' })
+  await page.goto(`${base}/${E2E_BRANCH}/admin/schedule/day/${dateKey}`, { waitUntil: 'load' })
   const band = page.locator('[data-avail]').first()
   await band.waitFor({ timeout: 10000 })
   const box = (await band.boundingBox())!

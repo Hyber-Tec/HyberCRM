@@ -14,7 +14,7 @@ import { ConferenceTab } from './ConferenceTab'
 import { InfoTab } from './InfoTab'
 import { SchoolTab } from './SchoolTab'
 import { SessionsTab } from './SessionsTab'
-import { StudentCalendarView } from './StudentCalendarPage'
+import { StudentCalendarView } from './StudentCalendarView'
 
 const TABS = [
   { key: 'sessions', label: 'Sessions', adminOnly: false },
@@ -31,7 +31,7 @@ export function StudentProfilePage({ mode = 'admin' }: { mode?: 'admin' | 'tutor
   const ref = useMemo(() => branchDocRef(branchId, COL.students, studentId), [branchId, studentId])
   const { data: student, loading } = useDoc<Student>(ref)
   const isAdmin = mode === 'admin'
-  const base = `/${branchId}/${mode}/students${isAdmin ? '/directory' : ''}`
+  const base = `/${branchId}/${mode}/students`
   const tabs = TABS.filter((t) => isAdmin || !t.adminOnly)
   const active = tabs.some((t) => t.key === tab) ? tab : 'sessions'
 

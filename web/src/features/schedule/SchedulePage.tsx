@@ -70,7 +70,7 @@ export function SchedulePage() {
   const branch = useBranch()
   const { branchId, settings, timezone, actor } = branch
   const isMobile = useIsMobile()
-  const route = useScheduleRoute(`/${branchId}/admin/scheduling/schedule`)
+  const route = useScheduleRoute(`/${branchId}/admin/schedule`)
   const { view, date, master } = route
   const weekStartsOn = settings.general.weekStartsOn
   const [today, setToday] = useState(() => todayKey(timezone))
@@ -468,7 +468,7 @@ export function SchedulePage() {
 
   return (
     <ScheduleUiContext value={ui}>
-      <div className="-m-4 flex h-[calc(100svh-3.5rem)] min-h-0 sm:-m-6">
+      <div className="-m-4 flex h-[calc(100svh-var(--chrome-h)-3rem)] min-h-0 sm:-m-6 md:h-[calc(100svh-var(--chrome-h))]">
         <div className="relative min-w-0 flex-1 overflow-auto bg-muted/40" onMouseDown={(e) => e.target === e.currentTarget && setSelection(null)}>
           {(!panelOpen || isMobile) ? (
             <Button variant="outline" size="icon" className="fixed right-4 bottom-20 z-30 rounded-full shadow-md md:right-6 md:bottom-6" aria-label="Open schedule panel" onClick={() => setPanelOpen(true)}>
