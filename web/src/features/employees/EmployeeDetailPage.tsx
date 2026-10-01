@@ -30,6 +30,7 @@ import { addAudit } from '@/lib/audit'
 import { db } from '@/lib/firebase'
 import { branchCol, branchDocRef, useDoc, useQuery } from '@/lib/firestore'
 import { cn } from '@/lib/utils'
+import { KioskPinCard } from '@/features/timeclock/KioskPinCard'
 import { compensationRef, saveCompensation, saveEmployeeProfile, saveStaffNotes, staffNotesRef } from './api'
 
 export function EmployeeDetailPage() {
@@ -81,6 +82,7 @@ export function EmployeeDetailPage() {
         <AccessCard member={member} />
       </div>
       {can('payRates') ? <PayCard staff={staff} /> : null}
+      <KioskPinCard staff={staff} />
       <NotesCard staffId={staff.id} />
     </div>
   )

@@ -41,8 +41,16 @@ const adminRoutes: RouteObject[] = [
     element: <RequirePage page="payRates"><Outlet /></RequirePage>,
     children: [{ index: true, lazy: page(() => import('@/features/employees/PayRatesPage'), 'PayRatesPage') }],
   },
-  { path: 'employees/payroll', element: <RequirePage page="payroll">{soon('Payroll')}</RequirePage> },
-  { path: 'employees/time-entries', element: <RequirePage page="timeEntries">{soon('Time Entries')}</RequirePage> },
+  {
+    path: 'employees/payroll',
+    element: <RequirePage page="payroll"><Outlet /></RequirePage>,
+    children: [{ index: true, lazy: page(() => import('@/features/timeclock/PayrollPage'), 'PayrollPage') }],
+  },
+  {
+    path: 'employees/time-entries',
+    element: <RequirePage page="timeEntries"><Outlet /></RequirePage>,
+    children: [{ index: true, lazy: page(() => import('@/features/timeclock/TimeEntriesPage'), 'TimeEntriesPage') }],
+  },
   { path: 'sessions', element: <Navigate to="log" replace /> },
   { path: 'sessions/log/*', element: soon('Session Log') },
   { path: 'sessions/progress-reports/*', element: soon('Progress Reports') },
@@ -66,7 +74,7 @@ const tutorRoutes: RouteObject[] = [
   { path: 'sessions/progress-reports/*', element: soon('Progress Reports') },
   { path: 'students', lazy: page(() => import('@/features/students/StudentDirectoryPage'), 'TutorStudentDirectoryPage') },
   { path: 'students/:studentId/:tab?', lazy: page(() => import('@/features/students/StudentProfilePage'), 'TutorStudentProfilePage') },
-  { path: 'payroll', element: soon('Payroll') },
+  { path: 'payroll', lazy: page(() => import('@/features/timeclock/TutorPayrollPage'), 'TutorPayrollPage') },
   { path: 'my-info', element: <Navigate to="profile" replace /> },
   { path: 'my-info/profile', lazy: page(() => import('@/features/tutor/MyProfilePage'), 'MyProfilePage') },
   { path: 'my-info/subjects', lazy: page(() => import('@/features/tutor/MySubjectsPage'), 'MySubjectsPage') },
@@ -165,9 +173,10 @@ export const router = createBrowserRouter([
       },
       {
         path: 'kiosk',
+        children: [{ index: true, lazy: page(() => import('@/features/timeclock/KioskPage'), 'KioskPage') }],
         element: (
           <RequirePortal role="admin">
-            {soon('Kiosk', 'The demo kiosk (PIN clock in/out) arrives with the time-clock step.')}
+            <Outlet />
           </RequirePortal>
         ),
       },

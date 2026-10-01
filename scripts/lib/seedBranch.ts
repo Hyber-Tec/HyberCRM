@@ -1,5 +1,6 @@
 import { newBranchData, newMemberData, publicProfileFor } from '../../shared/src/branchFactory'
-import { buildDemoData } from '../../shared/src/demo/seed'
+import { createHash } from 'node:crypto'
+import { DEMO_KIOSK_PINS, buildDemoData } from '../../shared/src/demo/seed'
 import { COL, DOC, ROOT } from '../../shared/src/paths'
 import type { Role } from '../../shared/src/roles'
 import { todayKey } from '../../shared/src/time'
@@ -51,6 +52,14 @@ export async function seedBranch(opts: SeedBranchOptions) {
   if (opts.sample) {
     const docs = buildDemoData({ branchId: opts.branchId, timezone, today: todayKey(timezone), createdBy: superAdmin, now })
     writes.push(...docs)
+    // Demo kiosk PINs (hashed exactly like the setKioskPin function).
+    for (const [staffId, pin] of Object.entries(DEMO_KIOSK_PINS)) {
+      const hash = createHash('sha256').update(`hyber-kiosk:${opts.branchId}:${pin}`).digest('hex')
+      writes.push({ path: `${branchPath}/kioskPins/${hash}`, data: { staffId, updatedAt: now } })
+      writes.push({ path: `${branchPath}/kioskPinOwners/${staffId}`, data: { pinHash: hash, updatedAt: now, updatedBy: 'seed' } })
+      const staffDoc = writes.find((w) => w.path === `${branchPath}/${COL.staff}/${staffId}`)
+      if (staffDoc) staffDoc.data.hasKioskPin = true
+    }
     log(`+ ${docs.length} sample documents`)
   }
 

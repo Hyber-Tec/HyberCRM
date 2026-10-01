@@ -45,6 +45,29 @@ const scheduleCrud: Step = async (page, base) => {
   await expectText(page, 'Session moved to Trash')
 }
 
+/** Clocks Maya in and out at the demo kiosk with her demo PIN (1111). */
+const kiosk: Step = async (page, base) => {
+  const step = (n: string) => process.env.E2E_VERBOSE && console.log(`     · ${n}`)
+  await page.goto(`${base}/${E2E_BRANCH}/kiosk`, { waitUntil: 'load' })
+  const enterPin = async () => {
+    await page.getByText('Tap anywhere to begin').click()
+    for (const d of '1111') await page.getByRole('button', { name: d, exact: true }).click()
+  }
+  await enterPin()
+  await expectText(page, 'Welcome, Maya', 15000)
+  step('identified')
+  await page.getByRole('button', { name: 'CLOCK IN' }).click()
+  await expectText(page, 'clocked in at', 15000)
+  step('clocked in')
+  await page.getByText('Tap anywhere to begin').waitFor({ timeout: 10000 })
+  await enterPin()
+  await expectText(page, 'Clocked in at', 15000)
+  await page.getByRole('button', { name: 'CLOCK OUT' }).click()
+  await expectText(page, 'clocked out at', 15000)
+  step('clocked out')
+}
+
 export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'schedule create/status/delete', email: 'goochoi913@gmail.com', run: scheduleCrud },
+  { name: 'kiosk clock in/out', email: 'goochoi913@gmail.com', run: kiosk },
 ]

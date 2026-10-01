@@ -15,6 +15,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useDayConfigs, useStudentList } from '@/features/data/hooks'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { branchCol, branchDocRef, useDoc, useQuery } from '@/lib/firestore'
+import { useShifts } from '@/features/timeclock/api'
 import { type ScheduleUi, ScheduleUiContext } from './context'
 import { DaySection } from './DaySection'
 
@@ -53,6 +54,7 @@ export function TutorSchedulePage() {
   const { data: avail } = useQuery<Availability>(availQ, `tutor-avail-${staffId}-${from}-${to}`)
   const { map: dayConfigs } = useDayConfigs(from, to)
   const { data: students } = useStudentList()
+  const { data: shifts } = useShifts(from, to, staffId, !!staffId)
   const studentMap = useMemo(() => new Map(students.map((s) => [s.id, s])), [students])
   const sessions = sessionsRaw.filter((s) => !s.isDeleted)
   const openLog = (s: WithId<Session>) => window.open(`/${branchId}/tutor/sessions/log/${s.id}/edit`, '_blank', 'noopener')
@@ -145,6 +147,10 @@ export function TutorSchedulePage() {
         tutors: [{ id: staffId, name: me?.name ?? 'Me' }],
         availability: () => (a ? { ranges: a.ranges, unavailable: a.unavailable, hidden: false } : null),
         sessions: sessions.filter((s) => s.dateKey === d),
+        clocks: () =>
+          shifts
+            .filter((sh) => sh.dateKey === d)
+            .map((sh) => ({ id: sh.id, startMin: sh.inMin, endMin: sh.status === 'open' ? (d === today ? nowMin : 1440) : sh.outDateKey && sh.outDateKey > sh.dateKey ? 1440 : (sh.outMin ?? sh.inMin), open: sh.status === 'open' })),
         maxLanes: settings.schedule.maxConcurrentStudentsPerTutor,
         addEmptyLane: false,
       }).map((r) => ({ ...r, laneCount: settings.schedule.maxConcurrentStudentsPerTutor }))

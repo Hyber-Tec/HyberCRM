@@ -39,6 +39,8 @@ import { moveEventTime } from './eventsApi'
 import { MasterSchedule } from './MasterSchedule'
 import { MonthView } from './MonthView'
 import { useScheduleData } from './useScheduleData'
+import { useShifts } from '@/features/timeclock/api'
+import type { ClockInterval } from '@shared/schedule/dayModel'
 import { useScheduleRoute } from './useScheduleRoute'
 import { WeekBar } from './WeekBar'
 import { WeekEventHeader } from './WeekEventHeader'
@@ -120,6 +122,16 @@ export function SchedulePage() {
   }, [view, date, weekStartsOn])
 
   const data = useScheduleData(range.from, range.to, view === 'month' ? null : tutorFilter)
+  const { data: shifts } = useShifts(range.from, range.to, null, view !== 'month' && !master)
+  const clocksByKey = useMemo(() => {
+    const m = new Map<string, ClockInterval[]>()
+    for (const sh of shifts) {
+      const endMin = sh.status === 'open' ? -1 : sh.outDateKey && sh.outDateKey > sh.dateKey ? 1440 : (sh.outMin ?? sh.inMin)
+      const key = `${sh.staffId}|${sh.dateKey}`
+      m.set(key, [...(m.get(key) ?? []), { id: sh.id, startMin: sh.inMin, endMin, open: sh.status === 'open' }].sort((a, b) => a.startMin - b.startMin))
+    }
+    return m
+  }, [shifts])
   const hoursOf = useCallback((d: DateKey) => dayHours(d, settings, data.dayConfigs), [settings, data.dayConfigs])
   const isClosed = useCallback((d: DateKey) => !hoursOf(d).isOpen, [hoursOf])
   const isLocked = useCallback((d: DateKey) => d < today, [today])
@@ -155,13 +167,14 @@ export function SchedulePage() {
             return a ? { ranges: a.ranges, unavailable: a.unavailable, hidden: a.hidden } : null
           },
           sessions: data.sessionsByDate.get(d) ?? [],
+          clocks: (id) => (clocksByKey.get(`${id}|${d}`) ?? []).map((c) => (c.open ? { ...c, endMin: d === today ? nowMin : 1440 } : c)),
           maxLanes,
           addEmptyLane: true,
           nameFor: (id) => staffMap.get(id)?.name ?? 'Former tutor',
         })
         return { dateKey: d, hours, rows, events: data.eventsByDate.get(d) ?? [] }
       }),
-    [days, hoursOf, today, visibleTutors, data.availabilityByKey, data.sessionsByDate, data.eventsByDate, maxLanes, staffMap],
+    [days, hoursOf, today, nowMin, visibleTutors, data.availabilityByKey, data.sessionsByDate, data.eventsByDate, maxLanes, staffMap, clocksByKey],
   )
 
   const ctx: ScheduleCtx = useMemo(() => ({ branchId, actor, timezone, settings }), [branchId, actor, timezone, settings])

@@ -83,6 +83,9 @@ const STUDENT_LAST = [
 const SCHOOLS = ['Northfield High School', 'Lakeside Middle School', 'Riverside Academy', 'Westbrook High School', 'Oak Hill Prep']
 const PARENT_FIRST = ['Jennifer', 'Michael', 'Sarah', 'David', 'Laura', 'James', 'Emily', 'Robert', 'Anna', 'Kevin']
 
+/** Demo kiosk PINs for the fictional staff (staff ID → PIN). */
+export const DEMO_KIOSK_PINS: Record<string, string> = Object.fromEntries(DEMO_STAFF.map((st, i) => [demoStaffId(st.first, st.last), String(i + 1).repeat(4)]))
+
 export function demoStaffId(first: string, last: string) {
   return `demo-${slug(`${first} ${last}`)}`
 }
@@ -351,6 +354,48 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
     d.data.firstSessionDate = stat.first
     d.data.lastSessionDate = stat.last
     d.data.nextSessionDate = stat.next
+  }
+
+  // Clock shifts for past days: clocked in a bit before the first session and
+  // out a bit after the last one (admin time around teaching time).
+  const shiftRand = rng(777)
+  const byTutorDay = new Map<string, { startMin: number; endMin: number; tutorName: string }[]>()
+  for (const d of docs) {
+    if (!d.path.includes(`/${COL.sessions}/`)) continue
+    const data = d.data
+    if (data.status === 'canceled' || (data.dateKey as string) >= opts.today) continue
+    const key = `${data.tutorId}|${data.dateKey}`
+    byTutorDay.set(key, [...(byTutorDay.get(key) ?? []), { startMin: data.startMin as number, endMin: data.endMin as number, tutorName: data.tutorName as string }])
+  }
+  for (const [key, list] of byTutorDay) {
+    const [staffId, dateKey] = key.split('|')
+    const inMin = Math.min(...list.map((x) => x.startMin)) - 10 - Math.floor(shiftRand() * 4) * 5
+    const outMin = Math.max(...list.map((x) => x.endMin)) + 5 + Math.floor(shiftRand() * 6) * 5
+    const clockInAt = toInstant(dateKey, inMin, opts.timezone)
+    const clockOutAt = toInstant(dateKey, outMin, opts.timezone)
+    docs.push({
+      path: `${base}/${COL.clockShifts}/demo-shift-${dateKey}-${staffId.replace('demo-', '')}`,
+      data: {
+        staffId,
+        staffName: list[0].tutorName,
+        dateKey,
+        inMin,
+        clockInAt,
+        clockOutAt,
+        outDateKey: dateKey,
+        outMin,
+        status: 'closed',
+        source: 'kiosk',
+        autoClosed: false,
+        autoCorrected: false,
+        forcedType: null,
+        note: '',
+        createdAt: now,
+        createdBy: 'seed',
+        updatedAt: now,
+        updatedBy: 'seed',
+      },
+    })
   }
 
   // Events ---------------------------------------------------------------

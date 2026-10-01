@@ -324,6 +324,50 @@ service cloud.firestore {
         allow read, write: if isAdmin(b);
       }
 
+      // ------------------------------------------------------ time & pay
+
+      function lockedThrough() {
+        let path = /databases/$(database)/documents/branches/$(b)/payroll/state;
+        return exists(path) ? get(path).data.get('lockedThrough', '') : '';
+      }
+
+      // Shifts inside a locked pay period can't change.
+      function shiftEditable(data) {
+        return data.dateKey is string && data.dateKey > lockedThrough();
+      }
+
+      match /clockShifts/{shiftId} {
+        allow read: if isAdmin(b) || (isTutor(b) && resource.data.staffId == myStaffId(b));
+        allow create: if isAdmin(b) && notRestricted(b, 'timeEntries') && shiftEditable(request.resource.data);
+        allow update: if isAdmin(b) && notRestricted(b, 'timeEntries')
+          && shiftEditable(resource.data) && shiftEditable(request.resource.data);
+        allow delete: if isAdmin(b) && notRestricted(b, 'timeEntries') && shiftEditable(resource.data);
+      }
+
+      // Pointer to an employee's open shift (written by the kiosk functions).
+      match /openShifts/{staffId} {
+        allow read: if isAdmin(b) || (isTutor(b) && staffId == myStaffId(b));
+        allow delete: if isAdmin(b) && notRestricted(b, 'timeEntries');
+      }
+
+      match /payroll/{docId} {
+        allow read: if isStaff(b);
+        allow write: if isAdmin(b) && notRestricted(b, 'payroll');
+      }
+
+      match /payPeriods/{periodId} {
+        allow read, write: if isAdmin(b) && notRestricted(b, 'payroll');
+
+        match /lines/{staffId} {
+          allow read: if (isAdmin(b) && notRestricted(b, 'payroll')) || (isTutor(b) && staffId == myStaffId(b));
+          allow write: if isAdmin(b) && notRestricted(b, 'payroll');
+        }
+      }
+
+      match /kioskPinOwners/{id} {
+        allow read, write: if false;
+      }
+
       // ------------------------------------------------------ audit log
 
       match /auditLog/{entryId} {

@@ -8,6 +8,10 @@ import type { Session } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { branchCol, useQuery } from '@/lib/firestore'
 import { type DayCell, HoursCalendar } from './HoursCalendar'
+import { addDays, formatInstantTime } from '@shared/time'
+import { effectiveRates, priceShifts, useSessionsRange, useShifts } from '@/features/timeclock/api'
+import { useCompensationMap } from '@/features/timeclock/hooks'
+import { useStaffList as useStaffListForPay } from '@/features/data/hooks'
 import { STAFF_STATUSES, STAFF_STATUS_LABELS } from '@shared/people'
 import type { StaffStatus } from '@shared/types'
 import { OptionPicker } from '@/components/app/OptionPicker'
@@ -22,9 +26,9 @@ type CalendarMode = 'availability' | 'scheduled' | 'clock' | 'teaching' | 'admin
 const MODES: { value: CalendarMode; label: string; ready: boolean }[] = [
   { value: 'availability', label: 'Availability', ready: true },
   { value: 'scheduled', label: 'Scheduled hours', ready: true },
-  { value: 'clock', label: 'Clock in/out', ready: false },
-  { value: 'teaching', label: 'Teaching hours', ready: false },
-  { value: 'admin', label: 'Admin hours', ready: false },
+  { value: 'clock', label: 'Clock in/out', ready: true },
+  { value: 'teaching', label: 'Teaching hours', ready: true },
+  { value: 'admin', label: 'Admin hours', ready: true },
 ]
 
 export function EmployeeCalendarPage() {
@@ -99,6 +103,8 @@ export function EmployeeCalendarPage() {
       </div>
       {selected && mode === 'scheduled' ? (
         <ScheduledHours key={selected.id} staffId={selected.id} />
+      ) : selected && (mode === 'clock' || mode === 'teaching' || mode === 'admin') ? (
+        <WorkedHours key={`${selected.id}-${mode}`} staffId={selected.id} mode={mode} />
       ) : selected ? (
         <AvailabilityCalendar key={selected.id} staffId={selected.id} staffName={selected.name} mode="admin" />
       ) : (
@@ -133,4 +139,48 @@ function ScheduledHours({ staffId }: { staffId: string }) {
     return m
   }, [data])
   return <HoursCalendar cells={cells} tone="scheduled" onRange={onRange} footnote="Scheduled hours from assigned sessions. Canceled sessions are excluded; overlapping students count once." />
+}
+
+function WorkedHours({ staffId, mode }: { staffId: string; mode: 'clock' | 'teaching' | 'admin' }) {
+  const { settings, timezone } = useBranch()
+  const [range, setRange] = useState<{ from: string; to: string } | null>(null)
+  const onRange = useCallback((from: string, to: string) => setRange({ from, to }), [])
+  const from = range?.from ?? '0000-00-00'
+  const to = range?.to ?? '0000-00-00'
+  const { data: shifts } = useShifts(from, to, staffId, !!range)
+  const { data: sessions } = useSessionsRange(addDays(from, -1), addDays(to, 1), staffId, !!range && mode !== 'clock')
+  const { data: staff } = useStaffListForPay()
+  const comps = useCompensationMap([staffId])
+  const cells = useMemo(() => {
+    const m = new Map<string, DayCell>()
+    const priced = priceShifts({
+      shifts: shifts.filter((s) => s.status === 'closed'),
+      sessions,
+      settings,
+      timezone,
+      ratesFor: () => effectiveRates(staff.find((s) => s.id === staffId), comps.get(staffId), settings),
+    })
+    for (const p of priced) {
+      const d = p.shift.dateKey
+      const cell = m.get(d) ?? { minutes: 0, lines: [] }
+      if (mode === 'clock') {
+        const mins = (p.shift.clockOutAt!.toMillis() - p.shift.clockInAt.toMillis()) / 60000
+        cell.minutes += mins
+        cell.lines!.push({ label: `${formatInstantTime(p.shift.clockInAt.toDate(), timezone)} – ${formatInstantTime(p.shift.clockOutAt!.toDate(), timezone)}`, tone: 'clock' })
+      } else {
+        for (const seg of p.segments.filter((x) => x.type === mode)) {
+          cell.minutes += (seg.endMs - seg.startMs) / 60000
+          cell.lines!.push({ label: `${formatInstantTime(seg.startMs, timezone)} – ${formatInstantTime(seg.endMs, timezone)}`, tone: mode })
+        }
+      }
+      if (cell.minutes > 0) m.set(d, cell)
+    }
+    return m
+  }, [shifts, sessions, settings, timezone, staff, comps, staffId, mode])
+  const notes = {
+    clock: 'Worked time from clock-ins and time entries.',
+    teaching: 'Clocked time inside sessions that count as teaching (logged sessions).',
+    admin: 'Clocked time outside teaching sessions.',
+  }
+  return <HoursCalendar cells={cells} tone={mode} onRange={onRange} footnote={notes[mode]} />
 }
