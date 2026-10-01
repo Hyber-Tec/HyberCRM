@@ -1,7 +1,7 @@
-import { orderBy, query } from 'firebase/firestore'
+import { orderBy, query, where } from 'firebase/firestore'
 import { useMemo } from 'react'
 import { COL } from '@shared/paths'
-import type { ConferenceCategory, Member, Staff, Student, Subject, SubjectCategory } from '@shared/types'
+import type { Availability, ConferenceCategory, DayConfig, Member, Staff, Student, Subject, SubjectCategory } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { branchCol, useQuery } from '@/lib/firestore'
 
@@ -41,4 +41,31 @@ export function useMembers(enabled = true) {
   const { branchId } = useBranch()
   const q = useMemo(() => (enabled ? query(branchCol(branchId, COL.members), orderBy('email')) : null), [branchId, enabled])
   return useQuery<Member>(q, `members-${branchId}`)
+}
+
+/** Day configs (opening-hour overrides) between two dates, as a map by dateKey. */
+export function useDayConfigs(from: string, to: string) {
+  const { branchId } = useBranch()
+  const q = useMemo(
+    () => query(branchCol(branchId, COL.dayConfigs), where('dateKey', '>=', from), where('dateKey', '<=', to)),
+    [branchId, from, to],
+  )
+  const { data, loading } = useQuery<DayConfig>(q, `dayconfigs-${branchId}-${from}-${to}`)
+  const map = useMemo(() => new Map(data.map((d) => [d.dateKey, d])), [data])
+  return { map, loading }
+}
+
+/** One employee's availability between two dates, as a map by dateKey. */
+export function useAvailability(staffId: string | null, from: string, to: string) {
+  const { branchId } = useBranch()
+  const q = useMemo(
+    () =>
+      staffId
+        ? query(branchCol(branchId, COL.availability), where('staffId', '==', staffId), where('dateKey', '>=', from), where('dateKey', '<=', to))
+        : null,
+    [branchId, staffId, from, to],
+  )
+  const { data, loading, error } = useQuery<Availability>(q, `availability-${staffId}-${from}-${to}`)
+  const map = useMemo(() => new Map(data.map((d) => [d.dateKey, d])), [data])
+  return { map, loading, error }
 }

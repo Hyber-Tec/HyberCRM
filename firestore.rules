@@ -244,6 +244,48 @@ service cloud.firestore {
         allow write: if isAdmin(b);
       }
 
+      // ------------------------------------------------------ availability
+
+      // Tutors can't touch days that start inside the lock window (or the lead time,
+      // when the branch blocks late availability). Admins can change any day.
+      function lockDays() {
+        let a = branchDoc(b).data.get('settings', {}).get('availability', {});
+        let lock = a.get('lockWindowDays', 7);
+        let lead = a.get('leadTimeDays', 14);
+        return a.get('leadTimeEnforcement', 'warn') == 'block' && lead > lock ? lead : lock;
+      }
+
+      function tutorMayEdit(data) {
+        return data.dayStartAt is timestamp
+          && data.dayStartAt > request.time + duration.value(lockDays(), 'd');
+      }
+
+      function validAvailability(docId, data) {
+        let utcMidnight = timestamp.date(int(data.dateKey[0:4]), int(data.dateKey[5:7]), int(data.dateKey[8:10]));
+        return docId == data.staffId + '_' + data.dateKey
+          && data.ranges is list
+          && data.dayStartAt is timestamp
+          && data.dayStartAt > utcMidnight - duration.value(15, 'h')
+          && data.dayStartAt < utcMidnight + duration.value(15, 'h');
+      }
+
+      match /availability/{docId} {
+        allow read: if isAdmin(b) || (isTutor(b) && resource.data.staffId == myStaffId(b));
+        allow create: if validAvailability(docId, request.resource.data)
+          && (isAdmin(b)
+              || (isTutor(b) && request.resource.data.staffId == myStaffId(b) && tutorMayEdit(request.resource.data)));
+        allow update: if validAvailability(docId, request.resource.data)
+          && (isAdmin(b)
+              || (isTutor(b) && resource.data.staffId == myStaffId(b) && request.resource.data.staffId == myStaffId(b)
+                  && tutorMayEdit(resource.data) && tutorMayEdit(request.resource.data)));
+        allow delete: if isAdmin(b) || (isTutor(b) && resource.data.staffId == myStaffId(b) && tutorMayEdit(resource.data));
+      }
+
+      match /dayConfigs/{dateKey} {
+        allow read: if isMember(b) || isSuperAdmin();
+        allow write: if isAdmin(b);
+      }
+
       // ------------------------------------------------------ schedule
 
       // Nobody edits a session once its day is over (dayEndAt = next local midnight).

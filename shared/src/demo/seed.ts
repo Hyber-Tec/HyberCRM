@@ -1,5 +1,8 @@
+import { dayStartInstant } from '../availability'
 import { STAFF_COLORS } from '../colors'
-import { COL, DOC } from '../paths'
+import { COL, DOC, availabilityDocId } from '../paths'
+import { DEFAULT_SETTINGS } from '../settings/defaults'
+import { addDays, weekdayOf } from '../time'
 import type { StaffRole, StudentStatus } from '../types'
 
 /**
@@ -201,6 +204,54 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
         customFields: {},
       },
     })
+  })
+
+  // Availability: 2 weeks back to 6 weeks ahead, on open days ---------------
+  const week = DEFAULT_SETTINGS.schedule.defaultWeek
+  const patterns: { startMin: number; endMin: number }[][] = [
+    [{ startMin: 840, endMin: 1260 }],
+    [{ startMin: 900, endMin: 1200 }],
+    [{ startMin: 840, endMin: 1080 }],
+    [{ startMin: 960, endMin: 1260 }],
+    [
+      { startMin: 840, endMin: 990 },
+      { startMin: 1080, endMin: 1260 },
+    ],
+  ]
+  DEMO_STAFF.forEach((st, i) => {
+    if (!st.roles.includes('tutor')) return
+    const staffId = demoStaffId(st.first, st.last)
+    const dayRand = rng(1000 + i)
+    for (let offset = -14; offset <= 42; offset++) {
+      const dateKey = addDays(opts.today, offset)
+      const wd = weekdayOf(dateKey)
+      const hours = week[wd]
+      if (!hours.isOpen) continue
+      const r = dayRand()
+      if (r < 0.18) continue // day off
+      const ranges =
+        wd === 'saturday'
+          ? r < 0.6
+            ? []
+            : [{ startMin: hours.openMin, endMin: hours.closeMin }]
+          : patterns[Math.floor(dayRand() * patterns.length)]
+      if (!ranges.length) continue
+      docs.push({
+        path: `${base}/${COL.availability}/${availabilityDocId(staffId, dateKey)}`,
+        data: {
+          staffId,
+          dateKey,
+          weekday: wd,
+          ranges,
+          unavailable: false,
+          hidden: false,
+          dayStartAt: dayStartInstant(dateKey, opts.timezone),
+          updatedVia: 'admin',
+          updatedAt: now,
+          updatedBy: createdBy,
+        },
+      })
+    }
   })
 
   return docs

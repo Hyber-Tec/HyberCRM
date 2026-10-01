@@ -30,6 +30,7 @@ export const SCENARIOS: Scenario[] = [
       `${b}/admin/employees/pay-rates`, `${b}/admin/students/directory`, `${b}/admin/students/directory/demo-student-ava-patel/info`,
       `${b}/admin/students/directory/demo-student-ava-patel/school`, `${b}/admin/students/directory/demo-student-ava-patel/conference`,
       `${b}/admin/students/directory/demo-student-ava-patel/sessions`,
+      `${b}/admin/employees/calendar?staff=demo-maya-thompson`,
     ],
     expect: {
       '/platform': ['Demo Academy'],
@@ -52,11 +53,12 @@ export const SCENARIOS: Scenario[] = [
   {
     name: 'tutor',
     email: 'tutor@e2e.test',
-    paths: ['/app', `${b}/admin/home`, `${b}/tutor/students`, `${b}/tutor/my-info/profile`, `${b}/tutor/my-info/subjects`, `${b}/tutor/students/demo-student-ava-patel/info`],
+    paths: ['/app', `${b}/admin/home`, `${b}/tutor/students`, `${b}/tutor/my-info/profile`, `${b}/tutor/my-info/subjects`, `${b}/tutor/students/demo-student-ava-patel/info`, `${b}/tutor/availability`],
     expect: {
       '/app': ['Announcements'],
       [`${b}/tutor/my-info/profile`]: ['Maya Thompson', 'Teaching rate'],
       [`${b}/tutor/my-info/subjects`]: ['Test Prep'],
+      [`${b}/tutor/availability`]: ['THIS MONTH'],
     },
   },
   { name: 'admin + tutor', email: 'multi@e2e.test', paths: ['/app', `${b}/tutor`] },

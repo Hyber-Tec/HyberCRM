@@ -34,7 +34,7 @@ const adminRoutes: RouteObject[] = [
   { path: 'employees', element: <Navigate to="directory" replace /> },
   { path: 'employees/directory', lazy: page(() => import('@/features/employees/EmployeeDirectoryPage'), 'EmployeeDirectoryPage') },
   { path: 'employees/directory/:staffId', lazy: page(() => import('@/features/employees/EmployeeDetailPage'), 'EmployeeDetailPage') },
-  { path: 'employees/calendar', element: soon('Employee Calendar') },
+  { path: 'employees/calendar', lazy: page(() => import('@/features/employees/EmployeeCalendarPage'), 'EmployeeCalendarPage') },
   { path: 'employees/subjects', lazy: page(() => import('@/features/employees/SubjectsPage'), 'SubjectsPage') },
   {
     path: 'employees/pay-rates',
@@ -60,7 +60,7 @@ const tutorRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="announcements" replace /> },
   { path: 'announcements', element: soon('Announcements') },
   { path: 'schedule', element: soon('Schedule') },
-  { path: 'availability', element: soon('Availability') },
+  { path: 'availability', lazy: page(() => import('@/features/availability/TutorAvailabilityPage'), 'TutorAvailabilityPage') },
   { path: 'sessions', element: <Navigate to="log" replace /> },
   { path: 'sessions/log/*', element: soon('Session Log') },
   { path: 'sessions/progress-reports/*', element: soon('Progress Reports') },
