@@ -27,6 +27,7 @@ export function StudentMonthCalendar({
   compact = false,
   tutorId,
   className,
+  frameless = false,
 }: {
   studentId: string | null
   selectedDate?: DateKey | null
@@ -38,6 +39,8 @@ export function StudentMonthCalendar({
   tutorId?: string | null
   /** Sets the scroll area's height (default: most of the screen). */
   className?: string
+  /** No border of its own (inside a card that has one). */
+  frameless?: boolean
 }) {
   const { branchId, settings, timezone } = useBranch()
   const todayKey = todayKeyOf(timezone)
@@ -64,7 +67,7 @@ export function StudentMonthCalendar({
   const maxChips = compact ? 2 : 3
 
   return (
-    <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border bg-card">
+    <div className={cn('flex min-h-0 flex-col overflow-hidden bg-card', !frameless && 'rounded-lg border')}>
       <div className="flex items-center justify-between border-b px-3 py-1.5">
         <div className="text-sm font-semibold">{formatDateKey(topMonth, 'monthYear')}</div>
         <Button variant="ghost" size="xs" onClick={() => scroller.current?.scrollToDate(todayKey, { block: 'month' })}>

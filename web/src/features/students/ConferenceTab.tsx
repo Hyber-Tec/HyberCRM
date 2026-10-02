@@ -1,15 +1,16 @@
 import { collection, orderBy, query } from 'firebase/firestore'
 import { useMemo, useState } from 'react'
-import { LuPencil, LuPlus, LuRefreshCw, LuSettings, LuTag, LuTrash2 } from 'react-icons/lu'
+import { LuPencil, LuPlus, LuRefreshCw, LuTag, LuTags, LuTrash2 } from 'react-icons/lu'
 import { toast } from 'sonner'
 import { conferenceState } from '@shared/people'
 import { formatDateKey, todayKey } from '@shared/time'
 import type { ConferenceCategory, ConferenceNote, Student, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { DatePicker } from '@/components/app/DatePicker'
+import { CardContent } from '@/components/ui/card'
+import { useConfirm } from '@/components/app/useConfirm'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -31,8 +32,9 @@ import {
 
 const SWATCHES = ['#2563eb', '#7c3aed', '#db2777', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2', '#475569']
 
-export function ConferenceTab({ student }: { student: WithId<Student> }) {
+export function ConferenceTab({ student, weeklyHours }: { student: WithId<Student>; weeklyHours: number }) {
   const { branchId, actor, rules } = useBranch()
+  const { confirm, dialog: confirmDialog } = useConfirm()
   const q = useMemo(() => query(collection(db, conferenceNotesCol(branchId, student.id)), orderBy('date', 'desc')), [branchId, student.id])
   const { data: notes, loading } = useQuery<ConferenceNote>(q, `conf-${student.id}`)
   const { data: categories } = useConferenceCategories()
@@ -43,45 +45,98 @@ export function ConferenceTab({ student }: { student: WithId<Student> }) {
     { totalSessionHours: student.totalSessionHours, baselineHours: student.conference?.baselineHours ?? 0 },
     rules.conferences.everyHours,
   )
+  const cycle = conf.cycleHours
+  const pct = cycle > 0 ? Math.min(100, (conf.hoursSince / cycle) * 100) : 0
+  const left = Math.max(0, cycle - conf.hoursSince)
+  const weeksLeft = weeklyHours > 0 ? Math.max(1, Math.round(left / weeklyHours)) : null
+  const last = student.conference?.lastNoteDate ?? null
+  // Ticks every 5 hours (every 10 for long cycles).
+  const step = cycle > 30 ? 10 : 5
+  const ticks = Array.from({ length: Math.floor(cycle / step) + 1 }, (_, i) => i * step)
+
+  async function skip() {
+    const ok = await confirm({
+      title: 'Skip this conference?',
+      description: `Restart the ${cycle}-hour conference cycle for ${student.name} without a conference note.`,
+      confirmLabel: `Skip & restart ${cycle} hrs`,
+      destructive: true,
+    })
+    if (!ok) return
+    try {
+      await restartConferenceCycle(branchId, actor, student)
+      toast.success('Cycle restarted')
+    } catch (e) {
+      toast.error(`Failed to skip the conference cycle: ${(e as Error).message}`)
+    }
+  }
 
   return (
-    <div className="space-y-4">
-      <Card className="flex-row flex-wrap items-center gap-3 px-4 py-3">
-        <div className="flex-1 text-sm">
-          <span className="font-medium">{conf.needed ? 'Conference due' : 'On track'}</span>
-          <span className="text-muted-foreground">
-            {' '}
-            · {conf.hoursSince.toFixed(1)} of {conf.cycleHours} hours since the last conference
-          </span>
+    <div className="space-y-5">
+      <section className="rounded-xl border bg-card p-5" data-testid="conference-cycle">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold">Parent conferences</h2>
+            <p className="text-sm text-muted-foreground">Every {cycle} tutoring hours. Saving a note completes the conference.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" disabled={!conf.needed} title={conf.needed ? undefined : 'Available when a conference is due'} onClick={() => void skip()}>
+              <LuRefreshCw /> Skip & restart
+            </Button>
+            <Button variant="outline" onClick={() => setManaging(true)}>
+              <LuTags /> Categories
+            </Button>
+            <Button onClick={() => setEditing('new')}>
+              <LuPlus /> New note
+            </Button>
+          </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={!conf.needed}
-          onClick={() => void restartConferenceCycle(branchId, actor, student).then(() => toast.success('Cycle restarted'))}
-        >
-          <LuRefreshCw /> Skip & restart
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setManaging(true)}>
-          <LuSettings /> Categories
-        </Button>
-        <Button size="sm" onClick={() => setEditing('new')}>
-          <LuPlus /> New note
-        </Button>
-      </Card>
+        <div className="mt-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+            <span>
+              <b className="text-2xl font-semibold tabular-nums">{conf.hoursSince.toFixed(1)}</b>{' '}
+              <span className="text-muted-foreground">
+                of {cycle} hours{last ? ` since ${formatDateKey(last, 'monthDay')}` : ' so far'}
+              </span>
+            </span>
+            <span className={cn('font-medium', conf.needed ? 'text-red-700 dark:text-red-400' : 'text-emerald-700 dark:text-emerald-400')}>{conf.needed ? 'Conference due' : 'On track'}</span>
+          </div>
+          <div className="relative mt-2 h-3 overflow-hidden rounded-full bg-blue-100 dark:bg-blue-950" role="progressbar" aria-valuemin={0} aria-valuemax={cycle} aria-valuenow={conf.hoursSince}>
+            <div className={cn('h-full rounded-full', conf.needed ? 'bg-red-500' : 'bg-[#2a78d6]')} style={{ width: `${pct}%` }} />
+          </div>
+          <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground tabular-nums">
+            {ticks.map((t, i) => (
+              <span key={t}>
+                {t}
+                {i === ticks.length - 1 ? ' h' : ''}
+              </span>
+            ))}
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {conf.needed
+              ? `${student.firstName || student.name} has had ${conf.hoursSince.toFixed(1)} hours since the last conference: it’s time to meet the family.`
+              : weeksLeft
+                ? `About ${Math.round(left)} hours left: at ${weeklyHours} hours a week, the next conference is due in about ${weeksLeft === 1 ? 'a week' : `${weeksLeft} weeks`}.`
+                : `About ${Math.round(left)} hours left until the next conference.`}
+          </p>
+        </div>
+      </section>
 
       {loading ? (
         <Spinner />
       ) : notes.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">No conference notes yet. Click “New note” to add the first one.</p>
       ) : (
-        <div className="space-y-2">
+        <ol className="relative ml-3 space-y-5 border-l pl-7" data-testid="conference-notes">
           {notes.map((n) => {
             const cat = n.categoryId ? catById.get(n.categoryId) : null
             return (
-              <Card key={n.id} className="gap-2 px-4 py-3">
+              <li key={n.id} className="relative">
+                <span
+                  className="absolute top-1.5 -left-[34px] size-3.5 rounded-full border-2 border-background"
+                  style={{ backgroundColor: cat?.color ?? '#a1a1aa', boxShadow: `0 0 0 1px ${cat ? `${cat.color}66` : '#d4d4d8'}` }}
+                />
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{n.date ? formatDateKey(n.date, 'long') : 'Undated'}</span>
+                  <span className="text-sm font-semibold">{n.date ? formatDateKey(n.date, 'long') : 'Undated'}</span>
                   {cat ? (
                     <Badge variant="outline" style={{ borderColor: `${cat.color}66`, color: cat.color, backgroundColor: `${cat.color}11` }}>
                       <LuTag /> {cat.name}
@@ -90,7 +145,7 @@ export function ConferenceTab({ student }: { student: WithId<Student> }) {
                     <Badge variant="secondary">Conference note</Badge>
                   )}
                   <span className="text-xs text-muted-foreground">by {n.authorName}</span>
-                  <div className="ml-auto flex gap-1">
+                  <div className="ml-auto flex">
                     <Button variant="ghost" size="icon-sm" aria-label="Edit" onClick={() => setEditing(n)}>
                       <LuPencil />
                     </Button>
@@ -98,8 +153,10 @@ export function ConferenceTab({ student }: { student: WithId<Student> }) {
                       variant="ghost"
                       size="icon-sm"
                       aria-label="Delete"
+                      className="hover:text-red-600"
                       onClick={async () => {
-                        if (!window.confirm('Delete this conference note? This cannot be undone.')) return
+                        const ok = await confirm({ title: 'Delete this conference note?', description: 'This cannot be undone.', confirmLabel: 'Delete note', destructive: true })
+                        if (!ok) return
                         await deleteConferenceNote(branchId, student, n.id, notes.filter((x) => x.id !== n.id).map((x) => x.date))
                       }}
                     >
@@ -107,11 +164,11 @@ export function ConferenceTab({ student }: { student: WithId<Student> }) {
                     </Button>
                   </div>
                 </div>
-                <p className="text-sm whitespace-pre-wrap text-muted-foreground">{n.text || 'No content yet'}</p>
-              </Card>
+                <div className="mt-2 rounded-xl border bg-card p-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground/85">{n.text || 'No content yet'}</div>
+              </li>
             )
           })}
-        </div>
+        </ol>
       )}
 
       <NoteDialog
@@ -132,6 +189,7 @@ export function ConferenceTab({ student }: { student: WithId<Student> }) {
         }}
       />
       <CategoryManager open={managing} onOpenChange={setManaging} categories={categories} />
+      {confirmDialog}
     </div>
   )
 }

@@ -9,10 +9,11 @@ import { type ScheduleCtx, createSession, deleteSession, updateSession } from '.
 import { SessionDialog, type SessionDialogState } from './dialogs/SessionDialog'
 
 /** Create/edit-session dialog usable outside the schedule page (student calendars, Home). */
-export function useSessionDialog({ source = 'student_calendar' }: { source?: Session['source'] } = {}) {
+export function useSessionDialog({ source = 'student_calendar', enabled = true }: { source?: Session['source']; enabled?: boolean } = {}) {
   const { branchId, actor, timezone, settings, rules } = useBranch()
-  const { data: staff } = useStaffList()
-  const { data: students } = useStudentList()
+  // Off for tutors, who can't read the staff list (the dialog is admin-only).
+  const { data: staff } = useStaffList(enabled)
+  const { data: students } = useStudentList(enabled)
   const { data: subjects } = useSubjects()
   const [state, setState] = useState<SessionDialogState>(null)
   const ctx: ScheduleCtx = useMemo(
