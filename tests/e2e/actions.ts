@@ -290,7 +290,10 @@ const viewAs: Step = async (page, base) => {
   await expectText(page, 'Admin Portal')
 }
 
-/** The owner adds a tutor: the invite email goes out (emulator outbox) and the status says so. */
+/**
+ * The owner adds a tutor: their hourly rate is required, the invite email goes
+ * out (emulator outbox), the status says so, and the rate is on Pay Rates.
+ */
 const inviteNewPerson: Step = async (page, base) => {
   await page.goto(`${base}/${E2E_BRANCH}/admin/account`, { waitUntil: 'load' })
   await page.getByRole('button', { name: 'Add person' }).click()
@@ -299,9 +302,17 @@ const inviteNewPerson: Step = async (page, base) => {
   await page.locator('#m-last').fill('Invitee')
   await page.getByRole('dialog').getByText('Tutor', { exact: true }).first().click()
   await page.getByRole('dialog').getByRole('button', { name: 'Add person' }).click()
+  await expectText(page, 'Enter the teaching rate')
+  await page.locator('#m-rate-teaching').fill('30')
+  if (await page.locator('#m-rate-admin').count()) await page.locator('#m-rate-admin').fill('18')
+  await page.getByRole('dialog').getByRole('button', { name: 'Add person' }).click()
   await expectText(page, 'a link to sign in')
   const row = page.getByRole('row').filter({ hasText: 'e2e.invitee@hyber-e2e.org' })
   await row.getByText(/Invited/).last().waitFor({ state: 'visible', timeout: 15000 })
+  await page.goto(`${base}/${E2E_BRANCH}/admin/employees/pay-rates`, { waitUntil: 'load' })
+  const rate = page.getByLabel('Teaching rate for Ivy Invitee')
+  await rate.waitFor({ state: 'visible', timeout: 10000 })
+  await page.waitForFunction(() => (document.querySelector('[aria-label="Teaching rate for Ivy Invitee"]') as HTMLInputElement | null)?.value === '30', undefined, { timeout: 8000 })
 }
 
 /** Deep links opened in a fresh tab never flash an error or "paused" screen while access is checked. */

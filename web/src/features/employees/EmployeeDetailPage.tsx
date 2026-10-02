@@ -1,10 +1,11 @@
 import { query, serverTimestamp, where, writeBatch } from 'firebase/firestore'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { LuArrowLeft, LuExternalLink } from 'react-icons/lu'
-import { Link, useParams } from 'react-router'
+import { Link, useLocation, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { STAFF_COLORS } from '@shared/colors'
 import { COL } from '@shared/paths'
+import { missingRates, rateName, tutorsNeedAdminRate } from '@shared/pay/rates'
 import { STAFF_STATUSES, STAFF_STATUS_LABELS } from '@shared/people'
 import { ROLE_LABELS, isAdminRole } from '@shared/roles'
 import { payModelOn } from '@shared/settings/businessRules'
@@ -35,6 +36,7 @@ import { db } from '@/lib/firebase'
 import { branchCol, branchDocRef, useDoc, useQuery } from '@/lib/firestore'
 import { cn } from '@/lib/utils'
 import { KioskPinCard } from '@/features/timeclock/KioskPinCard'
+import { RateMissingNotice } from './PayGapNotice'
 import { compensationRef, countUpcomingSessions, saveCompensation, saveEmployeeProfile, saveStaffNotes, staffNotesRef, stopTeachingQuestion } from './api'
 
 export function EmployeeDetailPage() {
@@ -353,7 +355,13 @@ function AccessCard({ member }: { member: (Member & { id: string }) | null }) {
 function PayCard({ staff }: { staff: Staff & { id: string } }) {
   const { branchId, actor, timezone, rules } = useBranch()
   const ref = useMemo(() => compensationRef(branchId, staff.id), [branchId, staff.id])
-  const { data: comp } = useDoc<Compensation>(ref)
+  const { data: comp, loading } = useDoc<Compensation>(ref)
+  const card = useRef<HTMLDivElement>(null)
+  const { hash } = useLocation()
+  // Links that say "set the rate" open the page at this card.
+  useEffect(() => {
+    if (hash === '#pay') card.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }, [hash])
   const [teaching, setTeaching] = useState('')
   const [admin, setAdmin] = useState('')
   const [effective, setEffective] = useState(todayKey(timezone))
@@ -384,6 +392,8 @@ function PayCard({ staff }: { staff: Staff & { id: string } }) {
     }
   }
 
+  // Rates their pay needs that are unset: their worked time is priced at $0 until they're saved.
+  const missing = loading || staff.status !== 'active' ? [] : missingRates(staff.role, comp?.rates, tutorsNeedAdminRate(rules, today))
   const fields = single
     ? [{ id: 'admin', label: 'Hourly rate', value: admin, set: setAdmin }]
     : [
@@ -397,13 +407,18 @@ function PayCard({ staff }: { staff: Staff & { id: string } }) {
       : 'Time inside logged sessions is paid at the teaching rate; the rest of the shift at the admin rate.'
 
   return (
-    <Card>
+    <Card ref={card} id="pay" className="scroll-mt-4">
       <CardHeader>
         <CardTitle>Pay</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         <FieldGroup>
+          {missing.length ? (
+            <RateMissingNotice>
+              No {missing.map((k) => rateName(k, staff.role).replace(/ rate$/, '')).join(' or ')} rate yet, so {staff.firstName || staff.name}’s worked time is paid $0 until you save one.
+            </RateMissingNotice>
+          ) : null}
           <div className="grid gap-4 sm:grid-cols-3">
             {fields.map((r) => (
               <Field key={r.id}>

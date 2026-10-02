@@ -3,10 +3,12 @@ import { newMemberData } from '@shared/branchFactory'
 import { pickStaffColor } from '@shared/colors'
 import { COL, emailKey } from '@shared/paths'
 import { ROLE_LABELS, type Role, isStaffRole } from '@shared/roles'
-import type { Member, SignupRequest, Staff, StaffRole, Student, WithId } from '@shared/types'
+import type { DateKey } from '@shared/time'
+import type { Compensation, Member, SignupRequest, Staff, StaffRole, Student, WithId } from '@shared/types'
 import { type Actor, addAudit } from '@/lib/audit'
 import { db } from '@/lib/firebase'
 import { branchCol, branchDocRef } from '@/lib/firestore'
+import { writeCompensation } from '@/features/employees/compensation'
 
 export interface PersonLinkInput {
   /** Existing staff record to link, or 'new' to create one. */
@@ -24,6 +26,8 @@ export interface MemberInput {
   role: Role
   status: Member['status']
   links: PersonLinkInput
+  /** Hourly rates for a new employee record (left out when the person can't set pay). */
+  pay?: { rates: Compensation['rates']; effectiveFrom: DateKey } | null
 }
 
 export function newStaffData(input: {
@@ -124,6 +128,7 @@ export async function saveMember(opts: {
         tutorId: ref.id,
         tutorName: displayName,
       })
+      if (input.pay) writeCompensation(batch, branchId, actor, { id: ref.id, name: displayName, role: staffRole }, null, input.pay.rates, input.pay.effectiveFrom)
     } else {
       staffId = input.links.staffId
       const staff = staffById.get(staffId)

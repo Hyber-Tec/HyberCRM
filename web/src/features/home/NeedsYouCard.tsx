@@ -2,6 +2,7 @@ import { serverTimestamp, updateDoc } from 'firebase/firestore'
 import { useState } from 'react'
 import type { IconType } from 'react-icons'
 import {
+  LuBadgeDollarSign,
   LuCalendarDays,
   LuCalendarX2,
   LuChevronRight,
@@ -23,6 +24,7 @@ import { useBranch } from '@/branch/BranchProvider'
 import { ContextMenuFor, type MenuEntry, menu } from '@/components/app/ItemMenu'
 import { useConfirm } from '@/components/app/useConfirm'
 import { Button } from '@/components/ui/button'
+import { gapLabel } from '@/features/employees/payGaps'
 import { restartConferenceCycle } from '@/features/students/api'
 import type { ClockShift } from '@/features/timeclock/api'
 import { branchDocRef } from '@/lib/firestore'
@@ -162,6 +164,28 @@ export function NeedsYouCard({ attention, onFixClock }: { attention: Attention; 
         actions: menu(
           fix && { label: 'Change clock-out time', onSelect: () => onFixClock(s) },
           { label: 'Open employee', separatorBefore: fix, onSelect: () => navigate(`${admin}/employees/directory/${s.staffId}`) },
+        ),
+      })),
+    })
+  }
+  if (attention.payGaps.length) {
+    const gaps = attention.payGaps
+    groups.push({
+      id: 'pay',
+      icon: LuBadgeDollarSign,
+      tone: 'red',
+      title: `${plural(gaps.length, 'employee')} without a pay rate`,
+      subtitle: `${nameList(gaps.map((g) => g.staff.name))} · paid $0 until it’s set`,
+      seeAll: { label: 'Open Pay Rates', to: `${admin}/employees/pay-rates` },
+      items: gaps.map((g) => ({
+        key: g.staff.id,
+        title: g.staff.name,
+        detail: `${ROLE_LABELS[g.staff.role] ?? 'Employee'} · ${gapLabel(g)}`,
+        onOpen: () => navigate(`${admin}/employees/directory/${g.staff.id}`),
+        action: { label: 'Set rate', onClick: () => navigate(`${admin}/employees/directory/${g.staff.id}#pay`) },
+        actions: menu(
+          { label: 'Set their pay rate', icon: LuBadgeDollarSign, onSelect: () => navigate(`${admin}/employees/directory/${g.staff.id}#pay`) },
+          { label: 'Open Pay Rates', onSelect: () => navigate(`${admin}/employees/pay-rates`) },
         ),
       })),
     })

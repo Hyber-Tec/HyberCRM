@@ -8,6 +8,7 @@ import { addDays, dateKeyOf, nowMinutes, todayKey } from '@shared/time'
 import type { Availability, Session, SignupRequest, Student, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { useDayConfigs, useMembers, useStaffList, useStudentList } from '@/features/data/hooks'
+import { usePayGaps } from '@/features/employees/payGaps'
 import { computeConflicts } from '@/features/schedule/conflicts'
 import { type ClockShift, useShifts } from '@/features/timeclock/api'
 import { branchCol, useQuery } from '@/lib/firestore'
@@ -37,8 +38,8 @@ export interface NewStudent {
 /**
  * What needs an admin's attention (True Education's Home badge): sessions
  * without a submitted log, unfixed automatic clock-outs, new students nobody
- * has opened yet, plus Hyber's pending sign-up requests and sessions in the
- * next four weeks that are in conflict (listed first). The sidebar badge and the
+ * has opened yet, plus Hyber's pending sign-up requests, sessions in the next
+ * four weeks that are in conflict (listed first) and employees without a pay rate. The sidebar badge and the
  * Home page run the same queries, so Firestore shares the listeners.
  */
 export function useAttention(enabled = true) {
@@ -109,6 +110,9 @@ export function useAttention(enabled = true) {
       .map((session) => ({ session, conflicts: byId.get(session.id) ?? [] }))
   }, [enabled, ahead.data, avail.data, dayConfigs, settings, staff.data, members.data, studentList.data, rules.maxStudentsPerTutor, today, timezone, now])
 
+  // Active employees without the hourly rate their pay needs (their time would be paid $0).
+  const { gaps: payGaps } = usePayGaps(enabled)
+
   // Students due for a parent conference, longest overdue first.
   const conferenceDue = useMemo<ConferenceDue[]>(() => {
     if (!enabled || !rules.conferences.enabled) return []
@@ -158,11 +162,12 @@ export function useAttention(enabled = true) {
       pendingRequests,
       newStudents,
       conferenceDue,
+      payGaps,
       shifts: shifts.data,
-      total: items.length + newStudents.length + conferenceDue.length,
+      total: items.length + newStudents.length + conferenceDue.length + payGaps.length,
       loading: sessions.loading || shifts.loading || students.loading || requests.loading,
       now,
       today,
     }
-  }, [sessions, shifts, students, requests, settings, now, today, timezone, conflicts, conferenceDue])
+  }, [sessions, shifts, students, requests, settings, now, today, timezone, conflicts, conferenceDue, payGaps])
 }

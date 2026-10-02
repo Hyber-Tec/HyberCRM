@@ -1,9 +1,10 @@
 import { limit, orderBy, query, where } from 'firebase/firestore'
 import { useEffect, useMemo, useState } from 'react'
 import { LuArrowDown, LuArrowUp, LuCalendarCheck, LuCalendarClock, LuDownload, LuLock, LuPencil, LuTrash2, LuUserRound } from 'react-icons/lu'
-import { useNavigate, useSearchParams } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { COL } from '@shared/paths'
+import { missingRates, rateName } from '@shared/pay/rates'
 import { type PricedSegment, formatMoney, totals } from '@shared/pay/segment'
 import { STAFF_STATUSES, STAFF_STATUS_LABELS } from '@shared/people'
 import { type BusinessRules, type PayModel } from '@shared/settings/businessRules'
@@ -24,6 +25,8 @@ import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useStaffList } from '@/features/data/hooks'
+import { PayGapNotice, RateMissingNotice } from '@/features/employees/PayGapNotice'
+import { usePayGaps } from '@/features/employees/payGaps'
 import { branchCol, useQuery } from '@/lib/firestore'
 import { cn } from '@/lib/utils'
 import { type ClockShift, deleteShift, effectiveRates, priceShifts, useSessionsRange, useShifts } from './api'
@@ -171,6 +174,9 @@ export function PayrollPage() {
   const models = report ? modelsBetween(rules, report.from, report.to) : []
   const paysAdmin = singleRate || models.includes('teaching_admin')
   const sum = totals(rows.map((r) => r.seg))
+  // Rates the report's employee is missing (their time is priced at $0), and anyone missing one.
+  const reportMissing = report && person && rates ? missingRates(person.role, rates, models.includes('teaching_admin')) : []
+  const { gaps } = usePayGaps(!report)
 
   const [editing, setEditing] = useState<PayRow | null>(null)
   const [deleting, setDeleting] = useState<PayRow | null>(null)
@@ -212,6 +218,7 @@ export function PayrollPage() {
         }
       />
 
+      {!report ? <PayGapNotice gaps={gaps} className="mb-4" /> : null}
       <Card className="mb-4 px-4 py-4" data-testid="payroll-filters">
         <div className="flex flex-wrap items-end gap-3">
           <div className="grid w-[calc(50%-0.375rem)] gap-1.5 sm:w-36">
@@ -315,6 +322,14 @@ export function PayrollPage() {
               </div>
             ))}
           </div>
+          {reportMissing.length && person ? (
+            <RateMissingNotice>
+              {person.name} has no {reportMissing.map((k) => rateName(k, person.role).replace(/ rate$/, '')).join(' or ')} rate, so this time is priced at $0.{' '}
+              <Link to={`/${branchId}/admin/employees/directory/${person.id}#pay`} className="font-medium underline underline-offset-2">
+                Set it
+              </Link>
+            </RateMissingNotice>
+          ) : null}
           {!singleRate && models.includes('teaching_only') ? (
             <p className="text-xs text-muted-foreground">
               {paysAdmin ? 'Part of this range uses Teaching only: ' : 'This branch pays Teaching only: '}clocked time outside sessions isn’t paid, so it isn’t listed.

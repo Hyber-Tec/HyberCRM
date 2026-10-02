@@ -3,6 +3,7 @@ import { LuSearch } from 'react-icons/lu'
 import { toast } from 'sonner'
 import { STAFF_STATUSES, STAFF_STATUS_LABELS } from '@shared/people'
 import { ROLE_LABELS, isAdminRole } from '@shared/roles'
+import type { RateKind } from '@shared/pay/rates'
 import { PAY_MODEL_LABELS, payModelOn } from '@shared/settings/businessRules'
 import { todayKey } from '@shared/time'
 import type { Compensation, Staff, StaffStatus, WithId } from '@shared/types'
@@ -18,7 +19,10 @@ import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useStaffList } from '@/features/data/hooks'
 import { useDoc } from '@/lib/firestore'
+import { cn } from '@/lib/utils'
 import { compensationRef, saveCompensation } from './api'
+import { PayGapNotice } from './PayGapNotice'
+import { usePayGaps } from './payGaps'
 
 export function PayRatesPage() {
   const { rules, timezone } = useBranch()
@@ -38,6 +42,8 @@ export function PayRatesPage() {
   // Tutors' admin rate only matters while the branch pays admin time.
   const usesAdminRate = rules.payModels.some((p) => p.model === 'teaching_admin')
   const modelNow = payModelOn(rules, todayKey(timezone))
+  const { gaps } = usePayGaps()
+  const missingOf = useMemo(() => new Map(gaps.map((g) => [g.staff.id, g.missing])), [gaps])
 
   return (
     <div className="max-w-5xl">
@@ -45,6 +51,7 @@ export function PayRatesPage() {
         title="Pay Rates"
         description={`Hourly rates per employee. Changes save when you leave a field and apply from today. Pay model: ${PAY_MODEL_LABELS[modelNow]}; owners and admins are paid their admin rate for all clocked time.`}
       />
+      <PayGapNotice gaps={gaps} link={false} className="mb-4" />
       <div className="mb-4 flex flex-col gap-3 sm:flex-row">
         <InputGroup className="sm:w-72">
           <InputGroupAddon>
@@ -88,7 +95,7 @@ export function PayRatesPage() {
           </TableHeader>
           <TableBody>
             {rows.map((s) => (
-              <RateRow key={s.id} staff={s} usesAdminRate={usesAdminRate} />
+              <RateRow key={s.id} staff={s} usesAdminRate={usesAdminRate} missing={missingOf.get(s.id) ?? []} />
             ))}
           </TableBody>
         </Table>
@@ -97,7 +104,7 @@ export function PayRatesPage() {
   )
 }
 
-function RateRow({ staff, usesAdminRate }: { staff: WithId<Staff>; usesAdminRate: boolean }) {
+function RateRow({ staff, usesAdminRate, missing }: { staff: WithId<Staff>; usesAdminRate: boolean; missing: RateKind[] }) {
   const { branchId, actor, timezone } = useBranch()
   const ref = useMemo(() => compensationRef(branchId, staff.id), [branchId, staff.id])
   const { data: comp } = useDoc<Compensation>(ref)
@@ -136,14 +143,15 @@ function RateRow({ staff, usesAdminRate }: { staff: WithId<Staff>; usesAdminRate
     }
   }
 
-  const rateInput = (value: string, set: (v: string) => void, label: string) => (
-    <InputGroup className="h-8">
+  const rateInput = (value: string, set: (v: string) => void, label: string, kind: RateKind) => (
+    <InputGroup className={cn('h-8', missing.includes(kind) && 'border-amber-400 bg-amber-50/60 dark:border-amber-700 dark:bg-amber-950/30')}>
       <InputGroupAddon>
         <InputGroupText>$</InputGroupText>
       </InputGroupAddon>
       <InputGroupInput
         aria-label={`${label} for ${staff.name}`}
         inputMode="decimal"
+        placeholder={missing.includes(kind) ? 'Not set' : undefined}
         value={value}
         disabled={busy}
         onChange={(e) => set(e.target.value.replace(/[^\d.]/g, ''))}
@@ -172,9 +180,9 @@ function RateRow({ staff, usesAdminRate }: { staff: WithId<Staff>; usesAdminRate
           </div>
         </div>
       </TableCell>
-      <TableCell>{single ? <span className="text-sm text-muted-foreground">Doesn’t teach</span> : rateInput(teaching, setTeaching, 'Teaching rate')}</TableCell>
+      <TableCell>{single ? <span className="text-sm text-muted-foreground">Doesn’t teach</span> : rateInput(teaching, setTeaching, 'Teaching rate', 'teaching')}</TableCell>
       <TableCell>
-        {single || usesAdminRate ? rateInput(admin, setAdmin, 'Admin rate') : <span className="text-sm text-muted-foreground">Not paid (teaching only)</span>}
+        {single || usesAdminRate ? rateInput(admin, setAdmin, 'Admin rate', 'admin') : <span className="text-sm text-muted-foreground">Not paid (teaching only)</span>}
       </TableCell>
       <TableCell>{busy ? <Spinner className="size-4" /> : null}</TableCell>
     </TableRow>

@@ -8,6 +8,9 @@ import { type Actor, addAudit, diffChanges } from '@/lib/audit'
 import { db } from '@/lib/firebase'
 import { branchCol, branchDocRef } from '@/lib/firestore'
 import { newStaffData } from '@/features/access/api'
+import { compensationRef, writeCompensation } from './compensation'
+
+export { compensationRef, writeCompensation }
 
 /** How many pending or confirmed sessions the tutor still has ahead (they'd become conflicts if the tutor stops teaching). */
 export async function countUpcomingSessions(branchId: string, staffId: string, timezone: string): Promise<number> {
@@ -30,10 +33,6 @@ export function stopTeachingQuestion(name: string, count: number, what: string) 
   }
 }
 
-export function compensationRef(branchId: string, staffId: string) {
-  return doc(db, branchCol(branchId, COL.staff).path, staffId, 'private', DOC.compensation)
-}
-
 export function staffNotesRef(branchId: string, staffId: string) {
   return doc(db, branchCol(branchId, COL.staff).path, staffId, 'private', DOC.staffNotes)
 }
@@ -42,6 +41,8 @@ export async function createEmployee(
   branchId: string,
   actor: Actor,
   input: { firstName: string; lastName: string; email: string; role: Staff['role'] },
+  /** Hourly rates, from the day it's created (left out when the person can't set pay). */
+  pay?: { rates: Compensation['rates']; effectiveFrom: string } | null,
 ): Promise<string> {
   const ref = doc(branchCol(branchId, COL.staff))
   const name = `${input.firstName} ${input.lastName}`.trim()
@@ -60,6 +61,7 @@ export async function createEmployee(
     tutorId: ref.id,
     tutorName: name,
   })
+  if (pay) writeCompensation(batch, branchId, actor, { id: ref.id, name, role: input.role }, null, pay.rates, pay.effectiveFrom)
   await batch.commit()
   return ref.id
 }
@@ -133,33 +135,8 @@ export async function saveCompensation(
 ) {
   const changed = !before || before.rates.teaching !== next.rates.teaching || before.rates.admin !== next.rates.admin
   if (!changed) return
-  const history = [...(before?.history ?? []), { effectiveFrom, rates: next.rates, setAt: new Date().toISOString(), setBy: actor.email }]
-  // Owners and admins have one hourly rate, kept in `rates.admin`.
-  const single = staff.role === 'owner' || staff.role === 'admin'
   const batch = writeBatch(db)
-  batch.set(compensationRef(branchId, staff.id), {
-    rates: next.rates,
-    history,
-    updatedAt: serverTimestamp(),
-    updatedBy: actor.email,
-  })
-  addAudit(batch, branchId, actor, {
-    action: 'pay.rates',
-    category: 'pay',
-    entityType: 'staff',
-    entityId: staff.id,
-    summary: `Changed pay rates for ${staff.name}`,
-    tutorId: staff.id,
-    tutorName: staff.name,
-    changes: [
-      ...(before?.rates.teaching !== next.rates.teaching
-        ? [{ field: 'teaching', label: 'Teaching rate', from: before?.rates.teaching ?? null, to: next.rates.teaching }]
-        : []),
-      ...(before?.rates.admin !== next.rates.admin
-        ? [{ field: 'admin', label: single ? 'Hourly rate' : 'Admin rate', from: before?.rates.admin ?? null, to: next.rates.admin }]
-        : []),
-    ],
-  })
+  writeCompensation(batch, branchId, actor, staff, before, next.rates, effectiveFrom)
   await batch.commit()
 }
 
