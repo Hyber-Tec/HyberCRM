@@ -2,7 +2,7 @@ import { query, where } from 'firebase/firestore'
 import { useMemo } from 'react'
 import { dayHours } from '@shared/availability'
 import { COL } from '@shared/paths'
-import { isInactiveStudent } from '@shared/people'
+import { type ConferenceState, conferenceState, isInactiveStudent } from '@shared/people'
 import type { Conflict } from '@shared/schedule/conflicts'
 import { addDays, dateKeyOf, nowMinutes, todayKey } from '@shared/time'
 import type { Availability, Session, SignupRequest, Student, WithId } from '@shared/types'
@@ -21,6 +21,12 @@ export type AttentionItem =
   | { kind: 'missingLog'; id: string; at: number; session: WithId<Session> }
   | { kind: 'autoClockOut'; id: string; at: number; shift: WithId<ClockShift> }
   | { kind: 'signup'; id: string; at: number; request: WithId<SignupRequest> }
+
+/** A student due for a parent conference (branches that hold them). */
+export interface ConferenceDue {
+  student: WithId<Student>
+  state: ConferenceState
+}
 
 export interface NewStudent {
   student: WithId<Student>
@@ -103,6 +109,17 @@ export function useAttention(enabled = true) {
       .map((session) => ({ session, conflicts: byId.get(session.id) ?? [] }))
   }, [enabled, ahead.data, avail.data, dayConfigs, settings, staff.data, members.data, studentList.data, rules.maxStudentsPerTutor, today, timezone, now])
 
+  // Students due for a parent conference, longest overdue first.
+  const conferenceDue = useMemo<ConferenceDue[]>(() => {
+    if (!enabled || !rules.conferences.enabled) return []
+    const cycle = rules.conferences.everyHours
+    return studentList.data
+      .filter((s) => !isInactiveStudent(s.status) && (s.totalSessionHours ?? 0) > 0)
+      .map((student) => ({ student, state: conferenceState({ totalSessionHours: student.totalSessionHours, baselineHours: student.conference?.baselineHours ?? 0 }, cycle) }))
+      .filter((x) => x.state.needed)
+      .sort((a, b) => b.state.hoursSince - a.state.hoursSince)
+  }, [enabled, rules.conferences.enabled, rules.conferences.everyHours, studentList.data])
+
   return useMemo(() => {
     const loggable = new Set<string>(settings.sessionLogs.allowForStatuses)
     const grace = settings.home.missingLogGraceMinutes * 60_000
@@ -140,11 +157,12 @@ export function useAttention(enabled = true) {
       autoClockOuts,
       pendingRequests,
       newStudents,
+      conferenceDue,
       shifts: shifts.data,
-      total: items.length + newStudents.length,
+      total: items.length + newStudents.length + conferenceDue.length,
       loading: sessions.loading || shifts.loading || students.loading || requests.loading,
       now,
       today,
     }
-  }, [sessions, shifts, students, requests, settings, now, today, timezone, conflicts])
+  }, [sessions, shifts, students, requests, settings, now, today, timezone, conflicts, conferenceDue])
 }

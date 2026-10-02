@@ -167,14 +167,14 @@ const futureLogBlocked: Step = async (page, base) => {
   if (await page.getByTestId('log-record').count()) throw new Error('A log was submitted before its session started')
 }
 
-/** Home → Missing & Needs Attention → fix an automatic clock-out. */
+/** Home → Needs you → automatic clock-outs → fix Daniel's. */
 const homeClockFix: Step = async (page, base) => {
   await page.goto(`${base}/${E2E_BRANCH}/admin/home`, { waitUntil: 'load' })
-  const card = page.getByTestId('home-attention')
-  // Daniel also has sessions today that show as missing logs once they start: pick the clock-out row.
-  const row = card.getByRole('button').filter({ hasText: 'Daniel Kim' }).filter({ hasText: 'Auto clock-out' }).first()
-  await row.waitFor({ timeout: 15000 })
-  await row.click()
+  const card = page.getByTestId('home-needs-you')
+  const group = card.getByRole('button', { name: /automatic clock-out/ })
+  await group.waitFor({ timeout: 15000 })
+  await group.click()
+  await card.locator('li li', { hasText: 'Daniel Kim' }).getByRole('button', { name: 'Fix time' }).first().click()
   await expectText(page, 'Correct clock-out time')
   await page.getByRole('button', { name: 'Save' }).click()
   await expectText(page, 'Clock-out time updated')
@@ -303,7 +303,9 @@ const conflictAdminResolve: Step = async (page, base) => {
   const f = conflictFixture()
   await commit(f.writes.map((w) => ({ path: `branches/${E2E_BRANCH}/${w.path}`, data: w.data })))
   await page.goto(`${base}/${E2E_BRANCH}/admin/home`, { waitUntil: 'load' })
-  await page.getByTestId('home-attention').getByText('E2E Conflict Check').waitFor({ timeout: 15000 })
+  const needs = page.getByTestId('home-needs-you')
+  await needs.getByRole('button', { name: /in conflict/ }).click({ timeout: 15000 })
+  await needs.getByText('E2E Conflict Check').first().waitFor({ timeout: 15000 })
   await page.goto(`${base}/${E2E_BRANCH}/admin/schedule/day/${f.dateKey}`, { waitUntil: 'load' })
   const card = page.getByTestId('session-card').filter({ hasText: 'E2E Conflict Check' })
   await card.getByTestId('session-conflict').waitFor({ timeout: 15000 })

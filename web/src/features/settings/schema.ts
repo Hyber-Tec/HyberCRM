@@ -209,7 +209,6 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     title: 'Home & announcements',
     description: 'What the admin Home dashboard looks at, and the announcement categories.',
     fields: [
-      { kind: 'number', path: 'home.upcomingDays', label: 'Upcoming schedule covers', min: 1, max: 31, suffix: 'days' },
       { kind: 'number', path: 'home.missingLogLookbackDays', label: 'Look for missing session logs in the last', min: 1, max: 90, suffix: 'days' },
       {
         kind: 'number',
@@ -220,7 +219,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
         suffix: 'min',
         help: '0 flags it as soon as the session starts.',
       },
-      { kind: 'number', path: 'home.clockLookbackDays', label: 'Clock activity covers the last', min: 1, max: 31, suffix: 'days' },
+      { kind: 'number', path: 'home.clockLookbackDays', label: 'Look for automatic clock-outs in the last', min: 1, max: 31, suffix: 'days' },
       { kind: 'list', path: 'announcements.defaultCategories', label: 'Announcement categories', help: 'One per line. Listed first, in this order.' },
     ],
   },

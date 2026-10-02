@@ -156,12 +156,11 @@ Student statuses are a **fixed enum** with TE's colors: Signed Up, Enrolled, Pau
 
 | Key | Default (TE) | Source |
 |---|---|---|
-| `home.upcomingDays` | 7 | 09 §3.7 |
 | `home.missingLogLookbackDays` | 14 | 09 §5.8 |
 | `home.missingLogGraceMinutes` | 0 | 09 §12 (TE has no grace period) |
-| `home.clockLookbackDays` | 7 | 06 §5.8 |
-| `home.maxAutoClockOutRows` | 12 | 06 §5.8 |
-| `home.defaultShortcuts` | schedule, students, empcal, sessionlog, progress | 09 §3.7 (diagnostics removed) |
+| `home.clockLookbackDays` | 7 | 06 §5.8 (automatic clock-outs to fix) |
+
+Round 3 replaced TE's Home (shortcut buttons and multi-day cards) with option 1 "Today", so the upcoming-days and shortcut settings are gone.
 
 ## `announcements` and `notifications`
 

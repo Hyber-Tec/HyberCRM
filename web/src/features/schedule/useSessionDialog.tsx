@@ -8,8 +8,8 @@ import { useStaffList, useStudentList, useSubjects } from '@/features/data/hooks
 import { type ScheduleCtx, createSession, deleteSession, updateSession } from './api'
 import { SessionDialog, type SessionDialogState } from './dialogs/SessionDialog'
 
-/** Create/edit-session dialog usable outside the schedule page (student calendars). */
-export function useSessionDialog() {
+/** Create/edit-session dialog usable outside the schedule page (student calendars, Home). */
+export function useSessionDialog({ source = 'student_calendar' }: { source?: Session['source'] } = {}) {
   const { branchId, actor, timezone, settings, rules } = useBranch()
   const { data: staff } = useStaffList()
   const { data: students } = useStudentList()
@@ -21,20 +21,21 @@ export function useSessionDialog() {
   )
   const isLocked = useCallback((d: DateKey) => d < todayKey(timezone), [timezone])
 
+  /** `startMin` defaults to the day's opening time; it is kept inside the day's hours. */
   const openCreate = useCallback(
-    (studentId: string, dateKey: DateKey) => {
-      const st = students.find((s) => s.id === studentId)
+    (studentId: string | null, dateKey: DateKey, startMin?: number) => {
+      const st = studentId ? students.find((s) => s.id === studentId) : undefined
       const h = dayHours(dateKey, settings)
-      const startMin = h.openMin
+      const start = Math.max(h.openMin, Math.min(startMin ?? h.openMin, h.closeMin - settings.schedule.snapMinutes))
       setState({
         mode: 'create',
         draft: {
-          studentId,
+          studentId: studentId ?? '',
           studentName: st?.name ?? '',
           studentGrade: st?.grade ?? '',
           dateKey,
-          startMin,
-          endMin: Math.min(h.closeMin, startMin + settings.schedule.defaultSessionMinutes),
+          startMin: start,
+          endMin: Math.min(h.closeMin, start + settings.schedule.defaultSessionMinutes),
           status: 'pending',
         },
       })
@@ -53,7 +54,7 @@ export function useSessionDialog() {
       isLocked={isLocked}
       onSave={async (draft, existing) => {
         if (existing) await updateSession(ctx, existing, draft)
-        else await createSession(ctx, draft, 'student_calendar')
+        else await createSession(ctx, draft, source)
         toast.success(existing ? 'Session updated' : 'Session created')
       }}
       onDelete={async (s) => {
