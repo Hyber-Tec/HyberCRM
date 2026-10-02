@@ -13,6 +13,7 @@ import { NoBranchAccess } from './NoBranchAccess'
 import type { Actor } from '@/lib/audit'
 import { db } from '@/lib/firebase'
 import { useDoc } from '@/lib/firestore'
+import { useBranchTabIcon } from '@/lib/tabIcon'
 
 /**
  * What a Super Admin is previewing ("View the app as"). It only changes what is
@@ -128,6 +129,13 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     }
     return { value: ctx, blocked: role !== null ? null : memberState.data ? 'paused' : 'none' }
   }, [branchState.data, memberState.data, user, email, isSuperAdmin, branchId, viewAs, setViewAs])
+
+  const branchDoc = branchState.data
+  useBranchTabIcon(
+    branchDoc
+      ? { id: branchId, name: branchDoc.name, shortName: branchDoc.shortName, logoUrl: branchDoc.branding?.logoUrl, accentColor: branchDoc.branding?.accentColor }
+      : null,
+  )
 
   // Branch accent color as a CSS variable for brand marks.
   const accent = value?.branch.branding?.accentColor ?? null

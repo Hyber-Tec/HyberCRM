@@ -11,8 +11,8 @@
     "seed": "tsx scripts/seed.ts",
     "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage --project hyber-crm",
     "deploy:functions": "firebase deploy --only functions --project hyber-crm",
-    "deploy:hosting": "npm run build && firebase deploy --only hosting --project hyber-crm",
-    "deploy": "npm run build && firebase deploy --project hyber-crm",
+    "deploy:hosting": "npm run build && tsx scripts/branch-pages.ts && firebase deploy --only hosting --project hyber-crm",
+    "deploy": "npm run build && tsx scripts/branch-pages.ts && firebase deploy --project hyber-crm",
     "e2e": "bash scripts/e2e.sh"
   },
   "devDependencies": {

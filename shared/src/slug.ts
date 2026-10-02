@@ -3,7 +3,7 @@ export const RESERVED_BRANCH_IDS: ReadonlySet<string> = new Set([
   'app', 'login', 'logout', 'signup', 'sign-up', 'register', 'platform', 'admin', 'tutor', 'parent',
   'student', 'kiosk', 'api', 'assets', 'static', 'public', 'no-access', 'select', 'branches', 'b',
   'www', 'help', 'docs', 'support', 'settings', 'account', 'auth', 'hyber', 'hyber-crm', 'index',
-  'manifest', 'service-worker', 'sw', 'robots', 'favicon', 'icons', 'images',
+  'manifest', 'service-worker', 'sw', 'robots', 'favicon', 'icons', 'images', 'brand',
 ])
 
 export function slugify(input: string): string {

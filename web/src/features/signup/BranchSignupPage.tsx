@@ -18,6 +18,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { db } from '@/lib/firebase'
 import { useDoc } from '@/lib/firestore'
+import { useBranchTabIcon } from '@/lib/tabIcon'
 import { cn } from '@/lib/utils'
 import { GoogleSignInButton } from '@/pages/public/GoogleButton'
 
@@ -39,8 +40,9 @@ export function BranchSignupPage() {
   const { data: request, loading: requestLoading } = useDoc<SignupRequest>(requestRef)
 
   useEffect(() => {
-    if (profile) document.title = `Join ${profile.name} | Hyber CRM`
+    if (profile) document.title = `Join ${profile.name}`
   }, [profile])
+  useBranchTabIcon(profile ? { id: branchId, name: profile.name, shortName: profile.shortName, logoUrl: profile.logoUrl, accentColor: profile.accentColor } : null)
 
   if (loading || status === 'loading') return <FullPageSpinner />
   if (!profile) {

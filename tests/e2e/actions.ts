@@ -214,6 +214,18 @@ const noWrongScreenWhileLoading: Step = async (page, base) => {
   }
 }
 
+/** Inside a branch the tab shows the branch's icon (from the first paint on later visits); elsewhere Hyber's. */
+const branchTabIcon: Step = async (page, base) => {
+  const iconHref = () => page.evaluate(() => document.querySelector<HTMLLinkElement>('link[rel="icon"]')?.getAttribute('href') ?? '')
+  await page.goto(`${base}/${E2E_BRANCH}/admin/home`, { waitUntil: 'load' })
+  await page.waitForFunction(() => document.querySelector<HTMLLinkElement>('link[rel="icon"]')?.href.startsWith('data:image/png'), null, { timeout: 10000 })
+  await page.goto(`${base}/app`, { waitUntil: 'load' })
+  await page.waitForFunction(() => document.querySelector<HTMLLinkElement>('link[rel="icon"]')?.href.includes('/favicon.svg'), null, { timeout: 10000 })
+  // A later visit shows the saved icon before the app has started.
+  await page.goto(`${base}/${E2E_BRANCH}/admin/home`, { waitUntil: 'domcontentloaded' })
+  if (!(await iconHref()).startsWith('data:image/png')) throw new Error('The saved branch icon was not shown at first paint')
+}
+
 export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'schedule create/status/delete', email: 'goochoi913@gmail.com', run: scheduleCrud },
   { name: 'kiosk clock in/out', email: 'goochoi913@gmail.com', run: kiosk },
@@ -224,5 +236,6 @@ export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'session changes reach the tutor', email: 'tutor@e2e.test', run: sessionNotifications },
   { name: 'super admin views the app as a tutor', email: 'goochoi913@gmail.com', run: viewAs },
   { name: 'super admin deep links load without a wrong screen', email: 'goochoi913@gmail.com', run: noWrongScreenWhileLoading },
+  { name: 'branch pages use the branch tab icon', email: 'owner@e2e.test', run: branchTabIcon },
   { name: 'owner adds a person and the invite goes out', email: 'owner@e2e.test', run: inviteNewPerson },
 ]
