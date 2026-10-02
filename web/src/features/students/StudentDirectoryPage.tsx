@@ -3,13 +3,14 @@ import { useMemo, useState } from 'react'
 import {
   LuArrowDown,
   LuArrowUp,
+  LuCalendarDays,
   LuCircleAlert,
   LuCircleCheck,
-  LuEllipsis,
   LuExternalLink,
   LuGraduationCap,
   LuListFilter,
   LuMessageSquareText,
+  LuNotebookPen,
   LuRefreshCw,
   LuSearch,
   LuUserPlus,
@@ -28,6 +29,7 @@ import {
 import { addDays, formatDateKey, todayKey } from '@shared/time'
 import type { Session, Student, StudentStatus, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
+import { ContextMenuFor, ItemMenuButton, menu } from '@/components/app/ItemMenu'
 import { PageHeader } from '@/components/app/PageHeader'
 import { StudentStatusBadge } from '@/components/app/StatusBadge'
 import { Button } from '@/components/ui/button'
@@ -38,8 +40,6 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -88,6 +88,37 @@ export function StudentDirectoryPage({ mode = 'admin' }: { mode?: 'admin' | 'tut
   // Parent conferences are a branch rule; when off, nothing about them shows.
   const conferencesOn = rules.conferences.enabled
   const cycle = rules.conferences.everyHours
+
+  /** A student row's actions: right-click, or the "⋯" button. */
+  const rowMenu = (s: WithId<Student>, conf: { needed: boolean }) =>
+    menu(
+      { kind: 'label', label: s.name },
+      { label: 'Open student profile', icon: LuGraduationCap, onSelect: () => navigate(`${base}/${s.id}`) },
+      { label: 'Open in new tab', icon: LuExternalLink, onSelect: () => window.open(`${base}/${s.id}`, '_blank') },
+      { label: 'Sessions', icon: LuNotebookPen, onSelect: () => navigate(`${base}/${s.id}/sessions`) },
+      { label: 'Calendar', icon: LuCalendarDays, onSelect: () => navigate(`${base}/${s.id}/calendar`) },
+      isAdmin && {
+        kind: 'sub',
+        label: 'Change status',
+        separatorBefore: true,
+        entries: [
+          {
+            kind: 'radio',
+            value: s.status,
+            options: STUDENT_STATUSES.map((st) => ({ value: st, label: STUDENT_STATUS_LABELS[st] })),
+            onChange: (v) => void setStudentStatus(branchId, actor, s, v as StudentStatus).catch((err) => toast.error((err as Error).message)),
+          },
+        ],
+      },
+      isAdmin && conferencesOn && { label: 'Conference notes', icon: LuMessageSquareText, onSelect: () => navigate(`${base}/${s.id}/conference`), separatorBefore: true },
+      isAdmin &&
+        conferencesOn && {
+          label: `Skip & restart ${cycle} hours`,
+          icon: LuRefreshCw,
+          disabled: !conf.needed,
+          onSelect: () => void restartConferenceCycle(branchId, actor, s).then(() => toast.success(`Restarted the ${cycle}-hour cycle`)),
+        },
+    )
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
     const list = students
@@ -215,93 +246,67 @@ export function StudentDirectoryPage({ mode = 'admin' }: { mode?: 'admin' | 'tut
               const conf = conferenceState({ totalSessionHours: s.totalSessionHours, baselineHours: s.conference?.baselineHours ?? 0 }, cycle)
               const showConf = !isInactiveStudent(s.status) && !!s.lastSessionDate
               return (
-                <TableRow key={s.id} className="cursor-pointer" onClick={() => navigate(`${base}/${s.id}`)}>
-                  <TableCell className="font-medium">{s.name}</TableCell>
-                  <TableCell>{s.grade || '—'}</TableCell>
-                  <TableCell onClick={(e) => isAdmin && e.stopPropagation()}>
-                    {isAdmin ? (
-                      <Select
-                        value={s.status}
-                        onValueChange={(v) =>
-                          void setStudentStatus(branchId, actor, s, v as StudentStatus).catch((err) => toast.error((err as Error).message))
-                        }
-                      >
-                        <SelectTrigger size="sm" className="h-auto border-0 bg-transparent p-0 shadow-none [&>svg]:hidden">
-                          <StudentStatusBadge status={s.status} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STUDENT_STATUSES.map((st) => (
-                            <SelectItem key={st} value={st}>
-                              {STUDENT_STATUS_LABELS[st]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <StudentStatusBadge status={s.status} />
-                    )}
-                  </TableCell>
-                  <TableCell className="hidden text-sm text-muted-foreground lg:table-cell">
-                    {s.signUpDate ? formatDateKey(s.signUpDate, 'short') : '—'}
-                  </TableCell>
-                  <TableCell className="hidden text-sm md:table-cell">
-                    <DateWithRelative date={s.lastSessionDate} today={today} />
-                  </TableCell>
-                  <TableCell className="hidden text-sm md:table-cell">
-                    <DateWithRelative date={s.nextSessionDate && s.nextSessionDate >= today ? s.nextSessionDate : null} today={today} />
-                  </TableCell>
-                  <TableCell className="hidden text-sm tabular-nums sm:table-cell">
-                    {s.lastSessionDate ? `${Math.round((s.totalSessionHours ?? 0) * 10) / 10}h` : '—'}
-                  </TableCell>
-                  {conferencesOn ? (
-                  <TableCell className="hidden xl:table-cell">
-                    {showConf ? (
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium tabular-nums',
-                          conf.needed ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700',
-                        )}
-                      >
-                        {conf.needed ? <LuCircleAlert className="size-3" /> : <LuCircleCheck className="size-3" />}
-                        {conf.needed ? 'Conference due' : 'On track'} · {conf.hoursSince.toFixed(1)}/{cycle}h
-                      </span>
-                    ) : (
-                      '—'
-                    )}
-                  </TableCell>
-                  ) : null}
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon-sm" aria-label="Actions">
-                          <LuEllipsis />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => window.open(`${base}/${s.id}`, '_blank')}>
-                          <LuExternalLink /> Open in new tab
-                        </DropdownMenuItem>
-                        {isAdmin && conferencesOn ? (
-                          <>
-                            <DropdownMenuItem onSelect={() => navigate(`${base}/${s.id}/conference`)}>
-                              <LuMessageSquareText /> Conference notes
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuLabel className="text-xs text-muted-foreground">Conference cycle</DropdownMenuLabel>
-                            <DropdownMenuItem
-                              disabled={!conf.needed}
-                              onSelect={() =>
-                                void restartConferenceCycle(branchId, actor, s).then(() => toast.success(`Restarted the ${cycle}-hour cycle`))
-                              }
-                            >
-                              <LuRefreshCw /> Skip & restart {cycle} hours
-                            </DropdownMenuItem>
-                          </>
-                        ) : null}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
+                <ContextMenuFor key={s.id} entries={rowMenu(s, conf)}>
+                  <TableRow className="cursor-pointer" onClick={() => navigate(`${base}/${s.id}`)}>
+                    <TableCell className="font-medium">{s.name}</TableCell>
+                    <TableCell>{s.grade || '—'}</TableCell>
+                    <TableCell onClick={(e) => isAdmin && e.stopPropagation()}>
+                      {isAdmin ? (
+                        <Select
+                          value={s.status}
+                          onValueChange={(v) =>
+                            void setStudentStatus(branchId, actor, s, v as StudentStatus).catch((err) => toast.error((err as Error).message))
+                          }
+                        >
+                          <SelectTrigger size="sm" className="h-auto border-0 bg-transparent p-0 shadow-none [&>svg]:hidden">
+                            <StudentStatusBadge status={s.status} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STUDENT_STATUSES.map((st) => (
+                              <SelectItem key={st} value={st}>
+                                {STUDENT_STATUS_LABELS[st]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <StudentStatusBadge status={s.status} />
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden text-sm text-muted-foreground lg:table-cell">
+                      {s.signUpDate ? formatDateKey(s.signUpDate, 'short') : '—'}
+                    </TableCell>
+                    <TableCell className="hidden text-sm md:table-cell">
+                      <DateWithRelative date={s.lastSessionDate} today={today} />
+                    </TableCell>
+                    <TableCell className="hidden text-sm md:table-cell">
+                      <DateWithRelative date={s.nextSessionDate && s.nextSessionDate >= today ? s.nextSessionDate : null} today={today} />
+                    </TableCell>
+                    <TableCell className="hidden text-sm tabular-nums sm:table-cell">
+                      {s.lastSessionDate ? `${Math.round((s.totalSessionHours ?? 0) * 10) / 10}h` : '—'}
+                    </TableCell>
+                    {conferencesOn ? (
+                    <TableCell className="hidden xl:table-cell">
+                      {showConf ? (
+                        <span
+                          className={cn(
+                            'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium tabular-nums',
+                            conf.needed ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700',
+                          )}
+                        >
+                          {conf.needed ? <LuCircleAlert className="size-3" /> : <LuCircleCheck className="size-3" />}
+                          {conf.needed ? 'Conference due' : 'On track'} · {conf.hoursSince.toFixed(1)}/{cycle}h
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </TableCell>
+                    ) : null}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <ItemMenuButton entries={rowMenu(s, conf)} label="Actions" />
+                    </TableCell>
+                  </TableRow>
+                </ContextMenuFor>
               )
             })}
             {!loading && taught !== null && rows.length === 0 ? (

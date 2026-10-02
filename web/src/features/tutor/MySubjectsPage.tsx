@@ -63,7 +63,7 @@ export function MySubjectsPage() {
                       <label key={s.id} className="flex cursor-pointer items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted/50">
                         <Checkbox
                           checked={mine.has(s.id)}
-                          onCheckedChange={(v) => void setQualification(branchId, actor, staffId, s.id, v === true)}
+                          onCheckedChange={(v) => void setQualification(branchId, actor, staffId, s.id, v === true, { staff: actor.name, subject: s.name })}
                         />
                         {s.name}
                       </label>

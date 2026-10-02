@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
-import { LuSearch, LuUserPlus } from 'react-icons/lu'
+import { LuCalendarClock, LuSearch, LuUserPlus, LuUserRound } from 'react-icons/lu'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { STAFF_STATUSES, STAFF_STATUS_LABELS, formatPhone } from '@shared/people'
 import { ROLE_LABELS, isAdminRole } from '@shared/roles'
-import type { StaffRole, StaffStatus } from '@shared/types'
+import type { Staff, StaffRole, StaffStatus, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { initials } from '@/components/app/BrandMark'
+import { ContextMenuFor, menu } from '@/components/app/ItemMenu'
 import { PageHeader } from '@/components/app/PageHeader'
 import { StaffStatusBadge } from '@/components/app/StatusBadge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -22,14 +23,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useStaffList } from '@/features/data/hooks'
-import { createEmployee, setEmployeeStatus } from './api'
+import { useConfirm } from '@/components/app/useConfirm'
+import { countUpcomingSessions, createEmployee, setEmployeeStatus, stopTeachingQuestion } from './api'
 
 type RoleFilter = StaffRole | 'all'
 type StatusFilter = StaffStatus | 'all'
 
 export function EmployeeDirectoryPage() {
-  const { branchId, actor } = useBranch()
+  const { branchId, actor, timezone } = useBranch()
   const navigate = useNavigate()
+  const { confirm, dialog: confirmDialog } = useConfirm()
+  const pathOf = (id: string) => `/${branchId}/admin/employees/directory/${id}`
+
+  /** Asks first when a tutor with upcoming sessions stops teaching (they'd become conflicts). */
+  async function changeStatus(s: WithId<Staff>, next: StaffStatus) {
+    if (next === s.status) return
+    try {
+      if (next !== 'active' && s.role === 'tutor') {
+        const q = stopTeachingQuestion(s.name, await countUpcomingSessions(branchId, s.id, timezone), `set ${s.firstName || s.name} to ${STAFF_STATUS_LABELS[next]}`)
+        if (q && !(await confirm(q))) return
+      }
+      await setEmployeeStatus(branchId, actor, s, next)
+    } catch (err) {
+      toast.error('Could not change the status', { description: (err as Error).message })
+    }
+  }
   const { data: staff, loading } = useStaffList()
   const [search, setSearch] = useState('')
   const [role, setRole] = useState<RoleFilter>('all')
@@ -99,46 +117,56 @@ export function EmployeeDirectoryPage() {
           </TableHeader>
           <TableBody>
             {rows.map((s) => (
-              <TableRow key={s.id} className="cursor-pointer" onClick={() => navigate(`/${branchId}/admin/employees/directory/${s.id}`)}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="size-8">
-                      <AvatarFallback style={{ backgroundColor: `${s.color}22`, color: s.color }}>{initials(s.name)}</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <div className="truncate font-medium">{s.name}</div>
-                      <div className="truncate text-xs text-muted-foreground">{s.email || 'No email'}</div>
+              <ContextMenuFor
+                key={s.id}
+                entries={menu(
+                  { kind: 'label', label: s.name },
+                  { label: 'Open employee profile', icon: LuUserRound, onSelect: () => navigate(pathOf(s.id)) },
+                  { label: 'Open in new tab', onSelect: () => window.open(pathOf(s.id), '_blank', 'noopener') },
+                  s.role === 'tutor' && { label: 'Availability calendar', icon: LuCalendarClock, onSelect: () => navigate(`/${branchId}/admin/employees/calendar?staff=${s.id}`) },
+                  {
+                    kind: 'sub',
+                    label: 'Change status',
+                    separatorBefore: true,
+                    entries: [{ kind: 'radio', value: s.status, options: STAFF_STATUSES.map((st) => ({ value: st, label: STAFF_STATUS_LABELS[st] })), onChange: (v) => void changeStatus(s, v as StaffStatus) }],
+                  },
+                )}
+              >
+                <TableRow className="cursor-pointer" onClick={() => navigate(pathOf(s.id))}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="size-8">
+                        <AvatarFallback style={{ backgroundColor: `${s.color}22`, color: s.color }}>{initials(s.name)}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{s.name}</div>
+                        <div className="truncate text-xs text-muted-foreground">{s.email || 'No email'}</div>
+                      </div>
                     </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {s.role ? <Badge variant={isAdminRole(s.role) ? 'default' : 'secondary'}>{ROLE_LABELS[s.role]}</Badge> : null}
-                </TableCell>
-                <TableCell className="hidden text-sm text-muted-foreground md:table-cell">{formatPhone(s.phone) || '—'}</TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <Select
-                    value={s.status}
-                    onValueChange={async (v) => {
-                      try {
-                        await setEmployeeStatus(branchId, actor, s, v as StaffStatus)
-                      } catch (err) {
-                        toast.error('Could not change the status', { description: (err as Error).message })
-                      }
-                    }}
-                  >
-                    <SelectTrigger size="sm" className="h-auto border-0 bg-transparent p-0 shadow-none [&>svg]:hidden">
-                      <StaffStatusBadge status={s.status} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STAFF_STATUSES.map((st) => (
-                        <SelectItem key={st} value={st}>
-                          {STAFF_STATUS_LABELS[st]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-              </TableRow>
+                  </TableCell>
+                  <TableCell>
+                    {s.role ? <Badge variant={isAdminRole(s.role) ? 'default' : 'secondary'}>{ROLE_LABELS[s.role]}</Badge> : null}
+                  </TableCell>
+                  <TableCell className="hidden text-sm text-muted-foreground md:table-cell">{formatPhone(s.phone) || '—'}</TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Select
+                      value={s.status}
+                      onValueChange={(v) => void changeStatus(s, v as StaffStatus)}
+                    >
+                      <SelectTrigger size="sm" className="h-auto border-0 bg-transparent p-0 shadow-none [&>svg]:hidden">
+                        <StaffStatusBadge status={s.status} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STAFF_STATUSES.map((st) => (
+                          <SelectItem key={st} value={st}>
+                            {STAFF_STATUS_LABELS[st]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                </TableRow>
+              </ContextMenuFor>
             ))}
             {!loading && rows.length === 0 ? (
               <TableRow>
@@ -159,6 +187,7 @@ export function EmployeeDirectoryPage() {
           navigate(`/${branchId}/admin/employees/directory/${id}`)
         }}
       />
+      {confirmDialog}
     </div>
   )
 }

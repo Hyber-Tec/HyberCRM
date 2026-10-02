@@ -36,8 +36,14 @@ export const seedDemoData = onCall({ timeoutSeconds: 300, memory: '512MiB' }, as
     if (staff) staff.data.hasKioskPin = true
   }
 
+  // The branch's own subjects (possibly renamed or reordered) stay as they are: only missing ones are added.
+  const catalogPaths = new Set(
+    (await Promise.all([db.collection(`${base}/${COL.subjects}`).listDocuments(), db.collection(`${base}/${COL.subjectCategories}`).listDocuments()]))
+      .flat()
+      .map((r) => r.path),
+  )
   const writer = db.bulkWriter()
-  for (const d of docs) void writer.set(db.doc(d.path), d.data)
+  for (const d of docs) if (!catalogPaths.has(d.path)) void writer.set(db.doc(d.path), d.data)
   await writer.close()
   await db.collection(`${base}/${COL.auditLog}`).add({
     at: FieldValue.serverTimestamp(),

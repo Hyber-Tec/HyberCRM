@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { LuLock, LuPencil, LuPlus, LuTrash2, LuTriangleAlert } from 'react-icons/lu'
+import { LuCalendarClock, LuLock, LuPencil, LuPlus, LuTrash2, LuTriangleAlert, LuUserRound } from 'react-icons/lu'
+import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { type DateKey, formatDateKey, formatDuration, formatInstantTime } from '@shared/time'
 import type { WithId } from '@shared/types'
@@ -7,6 +8,7 @@ import { useBranch } from '@/branch/BranchProvider'
 import { OptionPicker } from '@/components/app/OptionPicker'
 import { PageHeader } from '@/components/app/PageHeader'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ContextMenuFor, menu } from '@/components/app/ItemMenu'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -22,6 +24,7 @@ const SOURCE_LABEL: Record<ClockShift['source'], string> = { kiosk: 'Kiosk', adm
 /** Worked times (TE "Log Hours" + the Payroll page's edit/delete): add, fix and remove shifts. */
 export function TimeEntriesPage() {
   const { branchId, actor, timezone } = useBranch()
+  const navigate = useNavigate()
   const { data: staff } = useStaffList()
   const [staffId, setStaffId] = useState<string | null>(null)
   const [range, setRange] = useState<RangeValue>(useDefaultRange())
@@ -74,51 +77,69 @@ export function TimeEntriesPage() {
           </TableHeader>
           <TableBody>
             {rows.map((s) => (
-              <TableRow key={s.id}>
-                <TableCell className="whitespace-nowrap">{formatDateKey(s.dateKey, 'weekdayMedium')}</TableCell>
-                <TableCell className="font-medium">{s.staffName}</TableCell>
-                <TableCell className="tabular-nums">{formatInstantTime(s.clockInAt.toDate(), timezone)}</TableCell>
-                <TableCell className="tabular-nums">
-                  {s.clockOutAt ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      {formatInstantTime(s.clockOutAt.toDate(), timezone)}
-                      {s.autoClosed && !s.autoCorrected ? (
-                        <Badge variant="destructive" className="gap-1">
-                          <LuTriangleAlert /> Auto
-                        </Badge>
-                      ) : null}
-                    </span>
-                  ) : (
-                    <Badge className="bg-emerald-600">Clocked in</Badge>
-                  )}
-                </TableCell>
-                <TableCell className="tabular-nums">{s.clockOutAt ? formatDuration(minutesOf(s)) : '—'}</TableCell>
-                <TableCell className="hidden md:table-cell">
-                  <div className="flex flex-wrap gap-1">
-                    <Badge variant="outline">{SOURCE_LABEL[s.source] ?? s.source}</Badge>
-                    {s.forcedType ? <Badge variant="secondary">All {s.forcedType}</Badge> : null}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {locked(s.dateKey) ? (
-                    <LuLock className="text-muted-foreground" aria-label="Locked" />
-                  ) : (
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon-sm" aria-label="Edit" onClick={() => setDialog(s)}>
-                        <LuPencil />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Delete"
-                        onClick={() => window.confirm('Delete this time entry?') && void deleteShift(branchId, actor, s).then(() => toast.success('Deleted'))}
-                      >
-                        <LuTrash2 />
-                      </Button>
+              <ContextMenuFor
+                key={s.id}
+                entries={menu(
+                  { kind: 'label', label: `${s.staffName} · ${formatDateKey(s.dateKey, 'weekdayMedium')}` },
+                  locked(s.dateKey) && { kind: 'label', label: 'In a locked pay period' },
+                  { label: 'Edit time entry…', icon: LuPencil, disabled: locked(s.dateKey), onSelect: () => setDialog(s) },
+                  {
+                    label: 'Delete time entry',
+                    icon: LuTrash2,
+                    destructive: true,
+                    disabled: locked(s.dateKey),
+                    onSelect: () => window.confirm('Delete this time entry?') && void deleteShift(branchId, actor, s).then(() => toast.success('Deleted')),
+                  },
+                  { label: 'Open employee profile', icon: LuUserRound, separatorBefore: true, onSelect: () => navigate(`/${branchId}/admin/employees/directory/${s.staffId}`) },
+                  { label: 'Clock in/out calendar', icon: LuCalendarClock, onSelect: () => navigate(`/${branchId}/admin/employees/calendar?staff=${s.staffId}&mode=clock`) },
+                )}
+              >
+                <TableRow>
+                  <TableCell className="whitespace-nowrap">{formatDateKey(s.dateKey, 'weekdayMedium')}</TableCell>
+                  <TableCell className="font-medium">{s.staffName}</TableCell>
+                  <TableCell className="tabular-nums">{formatInstantTime(s.clockInAt.toDate(), timezone)}</TableCell>
+                  <TableCell className="tabular-nums">
+                    {s.clockOutAt ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        {formatInstantTime(s.clockOutAt.toDate(), timezone)}
+                        {s.autoClosed && !s.autoCorrected ? (
+                          <Badge variant="destructive" className="gap-1">
+                            <LuTriangleAlert /> Auto
+                          </Badge>
+                        ) : null}
+                      </span>
+                    ) : (
+                      <Badge className="bg-emerald-600">Clocked in</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="tabular-nums">{s.clockOutAt ? formatDuration(minutesOf(s)) : '—'}</TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <div className="flex flex-wrap gap-1">
+                      <Badge variant="outline">{SOURCE_LABEL[s.source] ?? s.source}</Badge>
+                      {s.forcedType ? <Badge variant="secondary">All {s.forcedType}</Badge> : null}
                     </div>
-                  )}
-                </TableCell>
-              </TableRow>
+                  </TableCell>
+                  <TableCell>
+                    {locked(s.dateKey) ? (
+                      <LuLock className="text-muted-foreground" aria-label="Locked" />
+                    ) : (
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon-sm" aria-label="Edit" onClick={() => setDialog(s)}>
+                          <LuPencil />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Delete"
+                          onClick={() => window.confirm('Delete this time entry?') && void deleteShift(branchId, actor, s).then(() => toast.success('Deleted'))}
+                        >
+                          <LuTrash2 />
+                        </Button>
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              </ContextMenuFor>
             ))}
             {!loading && rows.length === 0 ? (
               <TableRow>

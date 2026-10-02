@@ -1,3 +1,4 @@
+import { defaultSubjectDocs, subjectSlug } from '../subjects'
 import { dayStartInstant } from '../availability'
 import { STAFF_COLORS } from '../colors'
 import { type BusinessRules, PAY_MODEL_SINCE_START } from '../settings/businessRules'
@@ -55,13 +56,8 @@ function rng(seed: number) {
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
-export const DEMO_SUBJECTS: Record<string, string[]> = {
-  'Test Prep': ['SAT Math', 'SAT Reading & Writing', 'PSAT', 'ACT Math', 'ACT English', 'ACT Science'],
-  Math: ['Pre-Algebra', 'Algebra 1', 'Geometry', 'Algebra 2', 'Pre-Calculus', 'AP Calculus AB', 'AP Statistics'],
-  English: ['Reading Comprehension', 'Essay Writing', 'Grammar'],
-  Science: ['Biology', 'Chemistry', 'Physics'],
-  Other: ['Homework Help', 'Study Skills'],
-}
+/** Subjects the sample center added to the default list (shows that each branch can customize it). */
+export const DEMO_EXTRA_SUBJECTS = { category: 'Other', subjects: ['Homework Help', 'Study Skills'] }
 
 
 interface DemoStaff {
@@ -74,13 +70,13 @@ interface DemoStaff {
 }
 
 const DEMO_STAFF: DemoStaff[] = [
-  { first: 'Maya', last: 'Thompson', role: 'tutor', subjects: ['SAT Math', 'PSAT', 'Algebra 2', 'Pre-Calculus', 'AP Calculus AB'], teaching: 38, admin: 20 },
-  { first: 'Daniel', last: 'Kim', role: 'tutor', subjects: ['SAT Reading & Writing', 'ACT English', 'Essay Writing', 'Reading Comprehension'], teaching: 36, admin: 20 },
+  { first: 'Maya', last: 'Thompson', role: 'tutor', subjects: ['SAT Math', 'PSAT Math', 'Algebra 2', 'Precalculus', 'AP Calculus AB'], teaching: 38, admin: 20 },
+  { first: 'Daniel', last: 'Kim', role: 'tutor', subjects: ['SAT R/W', 'ACT English', 'High School English', 'Middle School English'], teaching: 36, admin: 20 },
   { first: 'Priya', last: 'Raman', role: 'tutor', subjects: ['Biology', 'Chemistry', 'ACT Science', 'Homework Help'], teaching: 35, admin: 19 },
   { first: 'Lucas', last: 'Ortega', role: 'tutor', subjects: ['Algebra 1', 'Geometry', 'Pre-Algebra', 'ACT Math', 'Physics'], teaching: 32, admin: 18 },
-  { first: 'Hannah', last: 'Becker', role: 'tutor', subjects: ['SAT Math', 'SAT Reading & Writing', 'PSAT', 'Study Skills'], teaching: 34, admin: 19 },
+  { first: 'Hannah', last: 'Becker', role: 'tutor', subjects: ['SAT Math', 'SAT R/W', 'PSAT R/W', 'Study Skills'], teaching: 34, admin: 19 },
   { first: 'Ethan', last: 'Brooks', role: 'tutor', subjects: ['AP Statistics', 'Algebra 2', 'Geometry', 'Homework Help'], teaching: 30, admin: 18 },
-  { first: 'Sofia', last: 'Alvarez', role: 'tutor', subjects: ['Grammar', 'Essay Writing', 'Reading Comprehension', 'Study Skills'], teaching: 31, admin: 18 },
+  { first: 'Sofia', last: 'Alvarez', role: 'tutor', subjects: ['Middle School English', 'High School English', 'Study Skills'], teaching: 31, admin: 18 },
   { first: 'Grace', last: 'Liu', role: 'admin', subjects: [], teaching: 24, admin: 24 },
 ]
 
@@ -112,19 +108,19 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
   const stamp = { createdAt: now, createdBy, updatedAt: now, updatedBy: createdBy }
   const docs: SeedDoc[] = []
 
-  // Subjects -------------------------------------------------------------
+  // Subjects: the default list (every branch has it) plus the sample center's own extras.
   const subjectIdByName = new Map<string, string>()
-  Object.entries(DEMO_SUBJECTS).forEach(([category, names], ci) => {
-    const categoryId = `demo-${slug(category)}`
-    docs.push({ path: `${base}/${COL.subjectCategories}/${categoryId}`, data: { name: category, order: ci } })
-    names.forEach((name, si) => {
-      const id = `demo-${slug(name)}`
-      subjectIdByName.set(name, id)
-      docs.push({
-        path: `${base}/${COL.subjects}/${id}`,
-        data: { name, categoryId, order: si, ...stamp },
-      })
-    })
+  const catalog = defaultSubjectDocs()
+  for (const c of catalog.categories) docs.push({ path: `${base}/${COL.subjectCategories}/${c.id}`, data: { name: c.name, order: c.order } })
+  for (const s of catalog.subjects) {
+    subjectIdByName.set(s.name, s.id)
+    docs.push({ path: `${base}/${COL.subjects}/${s.id}`, data: { name: s.name, categoryId: s.categoryId, order: s.order, ...stamp } })
+  }
+  const extraCategory = subjectSlug(DEMO_EXTRA_SUBJECTS.category)
+  docs.push({ path: `${base}/${COL.subjectCategories}/${extraCategory}`, data: { name: DEMO_EXTRA_SUBJECTS.category, order: catalog.categories.length } })
+  DEMO_EXTRA_SUBJECTS.subjects.forEach((name, order) => {
+    subjectIdByName.set(name, subjectSlug(name))
+    docs.push({ path: `${base}/${COL.subjects}/${subjectSlug(name)}`, data: { name, categoryId: extraCategory, order, ...stamp } })
   })
 
   // Staff ----------------------------------------------------------------
@@ -168,7 +164,8 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
   })
 
   // Students -------------------------------------------------------------
-  const subjectNames = [...subjectIdByName.keys()]
+  // Students study what the tutors teach.
+  const subjectNames = [...new Set(DEMO_STAFF.flatMap((s) => s.subjects))]
   // Hours from before the generated two weeks, so a few students are due a conference.
   const priorHours = new Map<string, number>()
   STUDENT_FIRST.forEach((first, i) => {
@@ -399,7 +396,7 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
     const sessionType = /PSAT/.test(subj) ? 'PSAT' : /SAT/.test(subj) ? 'SAT' : /ACT/.test(subj) ? 'ACT' : lp(['School Help', 'Skill Building', 'Homework Support'])
     let topics: string[] = []
     if (sessionType === 'SAT' || sessionType === 'PSAT') {
-      const section = /Reading|Writing/.test(subj) ? 'Reading & Writing' : 'Math'
+      const section = /R\/W|Reading|Writing/.test(subj) ? 'Reading & Writing' : 'Math'
       const domain = lp(Object.keys(SAT_PSAT_TOPICS[section]))
       topics = [`${section} > ${domain} > ${lp(SAT_PSAT_TOPICS[section][domain])}`]
     } else if (sessionType === 'ACT') {

@@ -1,10 +1,11 @@
 import { query, where } from 'firebase/firestore'
 import { useEffect, useMemo, useState } from 'react'
-import { LuFileText, LuTrash2 } from 'react-icons/lu'
+import { LuFileText, LuTrash2, LuTriangleAlert } from 'react-icons/lu'
 import { toast } from 'sonner'
-import { dayHours, rangesContain } from '@shared/availability'
+import { dayHours, effectiveRanges, rangesContain } from '@shared/availability'
 import { COL } from '@shared/paths'
 import { studentLabel } from '@shared/people'
+import type { Conflict } from '@shared/schedule/conflicts'
 import { orderTutors } from '@shared/schedule/dayModel'
 import { seatsLeft } from '@shared/schedule/lanes'
 import { SESSION_STATUSES, SESSION_STATUS_LABELS } from '@shared/schedule/status'
@@ -15,7 +16,7 @@ import { useBranch } from '@/branch/BranchProvider'
 import { OptionPicker } from '@/components/app/OptionPicker'
 import { TimeSelect } from '@/components/app/TimeSelect'
 import { DatePicker } from '@/components/app/DatePicker'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -43,6 +44,7 @@ export function SessionDialog({
   onSave,
   onDelete,
   onOpenLog,
+  conflicts = [],
 }: {
   state: SessionDialogState
   onClose: () => void
@@ -53,6 +55,8 @@ export function SessionDialog({
   onSave: (draft: SessionDraft, existing: WithId<Session> | null) => Promise<void>
   onDelete: (s: WithId<Session>) => Promise<void>
   onOpenLog: (s: WithId<Session>) => void
+  /** Why the session being edited may not happen as booked. */
+  conflicts?: Conflict[]
 }) {
   const { branchId, settings, rules } = useBranch()
   const [form, setForm] = useState<SessionDraft | null>(null)
@@ -112,7 +116,7 @@ export function SessionDialog({
     if (!form || !hours) return []
     return tutors.map((t) => {
       const a = avail.find((x) => x.staffId === t.id)
-      const available = !!a && !a.unavailable && rangesContain(a.ranges, form.startMin, form.endMin)
+      const available = !!a && !a.unavailable && rangesContain(effectiveRanges(a.ranges, hours), form.startMin, form.endMin)
       const items = daySessions.filter((s) => s.tutorId === t.id && !s.isDeleted && s.status !== 'canceled')
       const left = seatsLeft(items, form.startMin, form.endMin, rules.maxStudentsPerTutor, existing?.id)
       return { tutor: t, ok: hours.isOpen && available && left > 0, left }
@@ -124,6 +128,8 @@ export function SessionDialog({
   const closed = hours ? !hours.isOpen : false
   const pastDate = !existing && isLocked(form.dateKey)
   const current = options.find((o) => o.tutor.id === form.tutorId)
+  const tutorRecord = staff.find((t) => t.id === form.tutorId) ?? null
+  const teaches = (t: Staff) => !!form.subjectId && (t.subjectIds ?? []).includes(form.subjectId)
   const studentOptions = students.map((s) => ({ value: s.id, label: studentLabel(s.name, s.grade), hint: s.status === 'finished' ? 'finished' : undefined }))
   const snap = settings.schedule.snapMinutes
 
@@ -131,12 +137,16 @@ export function SessionDialog({
     if (!form) return
     if (!form.studentId) return setError('Choose a student.')
     if (!form.subject.trim()) return setError('Choose or type a subject.')
-    if (closed) return setError('This day is closed — please choose another date.')
+    if (closed && (!existing || existing.dateKey !== form.dateKey)) return setError('This day is closed — please choose another date.')
     if (pastDate) return setError('Past days can’t be changed.')
     if (form.endMin <= form.startMin) return setError('The end time must be after the start time.')
     if (!form.tutorId) return setError('Choose a tutor.')
+    // A session in conflict can still get a new status, subject or note: the tutor's
+    // time and seat are checked when the tutor, date or time change.
+    const moved =
+      !existing || existing.tutorId !== form.tutorId || existing.dateKey !== form.dateKey || existing.startMin !== form.startMin || existing.endMin !== form.endMin
     const opt = options.find((o) => o.tutor.id === form.tutorId)
-    if (!opt?.ok) return setError('The selected tutor is unavailable or fully booked at this time. Choose another tutor or time.')
+    if (moved && !opt?.ok) return setError('The selected tutor is unavailable or fully booked at this time. Choose another tutor or time.')
     setBusy(true)
     try {
       await onSave(form, existing)
@@ -181,6 +191,15 @@ export function SessionDialog({
                 <AlertDescription>View only — past session.</AlertDescription>
               </Alert>
             ) : null}
+            {existing && !readOnly && conflicts.length > 0 ? (
+              <Alert className="mb-3 border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200" data-testid="dialog-conflict">
+                <LuTriangleAlert />
+                <AlertTitle>This session is in conflict</AlertTitle>
+                <AlertDescription className="text-red-800 dark:text-red-300">
+                  {conflicts.map((c) => c.message).join(' ')} Change the date or time, choose another tutor, or cancel it.
+                </AlertDescription>
+              </Alert>
+            ) : null}
             <FieldGroup className="gap-4">
               <Field>
                 <FieldLabel>Student</FieldLabel>
@@ -215,7 +234,13 @@ export function SessionDialog({
               ) : null}
               <Field>
                 <FieldLabel>Subject</FieldLabel>
-                <SubjectPicker subjects={subjects} value={{ subjectId: form.subjectId, subject: form.subject }} onChange={(v) => set(v)} disabled={readOnly} />
+                <SubjectPicker
+                  subjects={subjects}
+                  value={{ subjectId: form.subjectId, subject: form.subject }}
+                  onChange={(v) => set(v)}
+                  disabled={readOnly}
+                  tutor={tutorRecord ? { name: tutorRecord.name, subjectIds: tutorRecord.subjectIds ?? [] } : null}
+                />
               </Field>
               <div className="grid grid-cols-[1fr_auto] items-end gap-3">
                 <Field>
@@ -265,9 +290,12 @@ export function SessionDialog({
                   <SelectContent>
                     {options
                       .filter((o) => o.ok)
+                      // Tutors who teach the subject come first (a hint only; anyone free can be booked).
+                      .sort((a, b) => Number(teaches(b.tutor)) - Number(teaches(a.tutor)))
                       .map((o) => (
                         <SelectItem key={o.tutor.id} value={o.tutor.id}>
                           {o.tutor.name} ({o.left} seat{o.left === 1 ? '' : 's'} left)
+                          {teaches(o.tutor) ? <span className="text-xs text-emerald-700 dark:text-emerald-400">· teaches {form.subject}</span> : null}
                         </SelectItem>
                       ))}
                     {form.tutorId && !current?.ok ? (

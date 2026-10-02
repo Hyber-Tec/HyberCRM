@@ -5,12 +5,15 @@ import { deliverSessionNotices, snapshotOf } from './sessionNotify'
 import { onDocumentCreated } from 'firebase-functions/v2/firestore'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
-import { COL, ROOT } from '@shared/paths'
+import { dayHours } from '@shared/availability'
+import { COL, ROOT, availabilityDocId } from '@shared/paths'
+import { type ConflictSession, sessionConflicts, staffTutorState } from '@shared/schedule/conflicts'
+import { resolveBusinessRules } from '@shared/settings/businessRules'
 import { sessionCreatedNotices } from '@shared/schedule/notify'
 import { resolveSettings } from '@shared/settings/resolve'
 import type { BranchSettings } from '@shared/settings/defaults'
 import { addDays, dateKeyOf, formatMinutes, minutesOf, parseHHMM, toInstant, todayKey } from '@shared/time'
-import type { Branch } from '@shared/types'
+import type { Availability, Branch, DayConfig, Member, Session, StaffStatus, StudentStatus } from '@shared/types'
 
 
 // ------------------------------------------------------------------ helpers
@@ -245,12 +248,50 @@ export const autoClockOut = onSchedule({ schedule: 'every 15 minutes', timeZone:
   }
 })
 
-async function confirmIfDue(branchId: string, ref: FirebaseFirestore.DocumentReference, data: FirebaseFirestore.DocumentData, settings: BranchSettings) {
+/**
+ * Whether a session may not happen as booked (the same check the schedules show:
+ * tutor unavailable or inactive, day closed, outside hours, too many students,
+ * student double-booked or inactive).
+ */
+async function inConflict(branchId: string, id: string, data: FirebaseFirestore.DocumentData, settings: BranchSettings, branch: Branch | undefined) {
+  const base = `${ROOT.branches}/${branchId}`
+  const [cfg, avail, staff, student, day, members] = await Promise.all([
+    db.doc(`${base}/${COL.dayConfigs}/${data.dateKey}`).get(),
+    db.doc(`${base}/${COL.availability}/${availabilityDocId(data.tutorId, data.dateKey)}`).get(),
+    db.doc(`${base}/${COL.staff}/${data.tutorId}`).get(),
+    db.doc(`${base}/${COL.students}/${data.studentId}`).get(),
+    db.collection(`${base}/${COL.sessions}`).where('dateKey', '==', data.dateKey).get(),
+    db.collection(`${base}/${COL.members}`).where('staffId', '==', data.tutorId).get(),
+  ])
+  const a = avail.data() as Availability | undefined
+  const sessions = day.docs.map((d) => ({ id: d.id, ...(d.data() as Session) })).filter((s) => !s.isDeleted)
+  const memberActive = members.empty ? null : members.docs.some((m) => (m.data() as Member).status === 'active')
+  const conflicts = sessionConflicts({ id, ...data } as ConflictSession, {
+    hours: dayHours(data.dateKey, settings, cfg.exists ? new Map([[data.dateKey as string, cfg.data() as DayConfig]]) : null),
+    availability: a ? { ranges: a.ranges, unavailable: a.unavailable } : null,
+    tutorState: staffTutorState(staff.exists ? (staff.data()?.status as StaffStatus) : null, memberActive),
+    studentStatus: student.exists ? ((student.data()?.status as StudentStatus) ?? null) : null,
+    tutorSessions: sessions.filter((s) => s.tutorId === data.tutorId),
+    studentSessions: sessions.filter((s) => s.studentId === data.studentId),
+    maxPerTutor: resolveBusinessRules(branch?.businessRules).maxStudentsPerTutor,
+  })
+  return conflicts.length > 0
+}
+
+async function confirmIfDue(
+  branchId: string,
+  ref: FirebaseFirestore.DocumentReference,
+  data: FirebaseFirestore.DocumentData,
+  settings: BranchSettings,
+  branch: Branch | undefined,
+) {
   const ac = settings.schedule.autoConfirm
   if (!ac.enabled || data.status !== 'pending' || data.isDeleted) return false
   const start = (data.startAt as Timestamp).toMillis()
   const now = Date.now()
   if (start <= now || start > now + ac.hoursBefore * 3_600_000) return false
+  // A session in conflict stays Pending until an admin moves, reassigns or cancels it.
+  if (await inConflict(branchId, ref.id, data, settings, branch)) return false
   await ref.update({ status: 'confirmed', confirmedAt: FieldValue.serverTimestamp(), confirmedBy: 'auto', updatedAt: FieldValue.serverTimestamp(), updatedBy: 'system' })
   await audit(branchId, {
     action: 'session.status',
@@ -273,16 +314,17 @@ export const autoConfirmSessions = onSchedule({ schedule: 'every 60 minutes', ti
   const now = Timestamp.now()
   const horizon = Timestamp.fromMillis(now.toMillis() + 7 * 24 * 3_600_000)
   const snap = await db.collectionGroup(COL.sessions).where('status', '==', 'pending').where('startAt', '>', now).where('startAt', '<=', horizon).get()
-  const settingsCache = new Map<string, BranchSettings>()
+  const cache = new Map<string, { settings: BranchSettings; branch: Branch | undefined }>()
   for (const d of snap.docs) {
     const branchId = d.ref.parent.parent?.id
     if (!branchId) continue
-    if (!settingsCache.has(branchId)) {
+    if (!cache.has(branchId)) {
       const b = await db.doc(`${ROOT.branches}/${branchId}`).get()
       const data = b.data() as Branch | undefined
-      settingsCache.set(branchId, resolveSettings(data?.status === 'active' ? data.settings : { schedule: { autoConfirm: { enabled: false } } }))
+      cache.set(branchId, { branch: data, settings: resolveSettings(data?.status === 'active' ? data.settings : { schedule: { autoConfirm: { enabled: false } } }) })
     }
-    await confirmIfDue(branchId, d.ref, d.data(), settingsCache.get(branchId)!)
+    const { settings, branch } = cache.get(branchId)!
+    await confirmIfDue(branchId, d.ref, d.data(), settings, branch)
   }
 })
 
@@ -297,7 +339,7 @@ export const onSessionCreated = onDocumentCreated(`${ROOT.branches}/{branchId}/$
   const { branchId, sessionId } = event.params
   const { branch, settings } = await loadBranch(branchId)
   const data = snap.data()
-  const confirmed = (await confirmIfDue(branchId, snap.ref, data, settings)) || data.status === 'confirmed'
+  const confirmed = (await confirmIfDue(branchId, snap.ref, data, settings, branch)) || data.status === 'confirmed'
   if (!confirmed || branch.status !== 'active') return
   const notices = sessionCreatedNotices(
     { ...snapshotOf(data), status: 'confirmed' },

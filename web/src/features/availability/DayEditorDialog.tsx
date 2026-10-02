@@ -27,7 +27,8 @@ export function DayEditorDialog({
 }: {
   state: DayEditorState | null
   onClose: () => void
-  onSave: (ranges: AvailabilityRange[]) => Promise<void>
+  /** False: the person backed out (keep the dialog open). */
+  onSave: (ranges: AvailabilityRange[]) => Promise<boolean | void>
 }) {
   const { settings } = useBranch()
   const a = settings.availability
@@ -69,8 +70,7 @@ export function DayEditorDialog({
     }
     setBusy(true)
     try {
-      await onSave(fit.ranges)
-      onClose()
+      if ((await onSave(fit.ranges)) !== false) onClose()
     } catch (e) {
       setError((e as Error).message.includes('permission') ? 'This day is locked. Please contact an admin.' : (e as Error).message)
     } finally {

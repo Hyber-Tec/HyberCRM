@@ -8,6 +8,7 @@ import { newBranchData, newMemberData, publicProfileFor } from '@shared/branchFa
 import { COL, DOC, ROOT, emailKey } from '@shared/paths'
 import { type BusinessRules, PAY_MODEL_LABELS, PAY_MODEL_SINCE_START, type PayModel } from '@shared/settings/businessRules'
 import { slugify, validateBranchId } from '@shared/slug'
+import { defaultSubjectDocs } from '@shared/subjects'
 import { useAuth } from '@/auth/AuthProvider'
 import { PageHeader } from '@/components/app/PageHeader'
 import { TimeZonePicker } from '@/components/app/TimeZonePicker'
@@ -101,6 +102,20 @@ export function CreateBranch() {
           },
         ),
       )
+      // Every branch starts with its own copy of the default subject list.
+      const catalog = defaultSubjectDocs()
+      for (const c of catalog.categories) auditBatch.set(doc(db, ROOT.branches, effectiveId, COL.subjectCategories, c.id), { name: c.name, order: c.order })
+      for (const s of catalog.subjects) {
+        auditBatch.set(doc(db, ROOT.branches, effectiveId, COL.subjects, s.id), {
+          name: s.name,
+          categoryId: s.categoryId,
+          order: s.order,
+          createdAt: serverTimestamp(),
+          createdBy: email,
+          updatedAt: serverTimestamp(),
+          updatedBy: email,
+        })
+      }
       await auditBatch.commit()
 
       if (sample) {

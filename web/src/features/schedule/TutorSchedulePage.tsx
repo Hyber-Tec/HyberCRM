@@ -1,10 +1,11 @@
 import { query, where } from 'firebase/firestore'
-import { useEffect, useMemo, useState } from 'react'
-import { LuChevronLeft, LuChevronRight, LuFileText } from 'react-icons/lu'
-import { useSearchParams } from 'react-router'
-import { dayHours } from '@shared/availability'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { LuChevronLeft, LuChevronRight, LuFileText, LuTriangleAlert } from 'react-icons/lu'
+import { useNavigate, useSearchParams } from 'react-router'
+import { dayHours, effectiveRanges } from '@shared/availability'
 import { COL } from '@shared/paths'
 import { studentLabel } from '@shared/people'
+import { type Conflict, tutorConflictText } from '@shared/schedule/conflicts'
 import { buildDayRows } from '@shared/schedule/dayModel'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_STYLE } from '@shared/schedule/status'
 import { type DateKey, addDays, formatDateKey, formatTimeRange, isDateKey, nowMinutes, todayKey, weekDays } from '@shared/time'
@@ -17,6 +18,8 @@ import { useDayConfigs, useStudentList } from '@/features/data/hooks'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { branchCol, branchDocRef, useDoc, useQuery } from '@/lib/firestore'
 import { useShifts } from '@/features/timeclock/api'
+import { cn } from '@/lib/utils'
+import { computeConflicts } from './conflicts'
 import { type ScheduleUi, ScheduleUiContext } from './context'
 import { DaySection } from './DaySection'
 
@@ -28,6 +31,7 @@ export function TutorSchedulePage() {
   const [today, setToday] = useState(() => todayKey(timezone))
   const [nowMin, setNowMin] = useState(() => nowMinutes(timezone))
   const [search] = useSearchParams()
+  const navigate = useNavigate()
   const dateParam = search.get('date')
   const [anchor, setAnchor] = useState(() => (dateParam && isDateKey(dateParam) ? dateParam : today))
   // Notifications link here with ?date=… to jump to the session's week.
@@ -63,8 +67,40 @@ export function TutorSchedulePage() {
   const { data: students } = useStudentList()
   const { data: shifts } = useShifts(from, to, staffId, !!staffId)
   const studentMap = useMemo(() => new Map(students.map((s) => [s.id, s])), [students])
-  const sessions = sessionsRaw.filter((s) => !s.isDeleted)
+  const sessions = useMemo(() => sessionsRaw.filter((s) => !s.isDeleted), [sessionsRaw])
   const openLog = (s: WithId<Session>) => window.open(`/${branchId}/session-log/${s.id}`, '_blank', 'noopener')
+
+  // Sessions that may not happen as booked: shown as waiting for the admin.
+  const hoursOf = useCallback((d: DateKey) => dayHours(d, settings, dayConfigs), [settings, dayConfigs])
+  const conflicts = useMemo(
+    () =>
+      computeConflicts({
+        sessions,
+        availabilityByKey: new Map(avail.map((a) => [`${a.staffId}|${a.dateKey}`, a])),
+        hoursOf,
+        staffById: null,
+        studentsById: studentMap,
+        maxPerTutor: rules.maxStudentsPerTutor,
+        today,
+        nowMin,
+      }),
+    [sessions, avail, hoursOf, studentMap, rules.maxStudentsPerTutor, today, nowMin],
+  )
+  const conflictsOf = useCallback((s: WithId<Session>): Conflict[] => conflicts.get(s.id) ?? [], [conflicts])
+  const waiting = conflicts.size
+  const waitingNote =
+    waiting > 0 ? (
+      <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200" data-testid="tutor-conflicts">
+        <LuTriangleAlert className="mt-0.5 size-4 shrink-0 text-red-600" />
+        <p>
+          <span className="font-semibold">
+            {waiting === 1 ? 'One of your sessions is' : `${waiting} of your sessions are`} waiting for the admin.
+          </span>{' '}
+          {waiting > 1 ? 'They’re' : 'It’s'} marked in red because something changed since booking (for example your availability). The admin will move,
+          reassign or cancel {waiting > 1 ? 'them' : 'it'}; until then, don’t count on {waiting > 1 ? 'them' : 'it'}.
+        </p>
+      </div>
+    ) : null
 
   if (!staffId) return <p className="text-sm text-muted-foreground">Your employee record isn’t linked yet. Ask an admin.</p>
 
@@ -81,6 +117,7 @@ export function TutorSchedulePage() {
     students: studentMap,
     isLocked: () => true,
     bellFor: () => [],
+    conflictsOf,
     createAt: () => undefined,
     editSession: () => undefined,
     setStatus: () => undefined,
@@ -88,10 +125,27 @@ export function TutorSchedulePage() {
     resizeSession: () => undefined,
     reorderSession: () => undefined,
     openLog,
+    viewLog: (s) => window.open(`/${branchId}/session-log/${s.id}/view`, '_blank', 'noopener'),
+    openStudent: (s, newTab) => {
+      const path = `/${branchId}/tutor/students/${s.studentId}/info`
+      if (newTab) window.open(path, '_blank', 'noopener')
+      else navigate(path)
+    },
     showBell: () => undefined,
+    reassignOptions: () => null,
+    reassign: () => undefined,
+    makeAvailable: () => undefined,
+    copySession: () => undefined,
+    duplicateSession: () => undefined,
+    trashSession: () => undefined,
+    openEmployee: () => undefined,
+    showOnlyTutor: () => undefined,
+    pasteAt: () => undefined,
+    hasClipboard: () => false,
     createEvent: () => undefined,
     editEvent: () => undefined,
     moveEvent: () => undefined,
+    deleteEvent: () => undefined,
     editDay: () => undefined,
   }
 
@@ -103,6 +157,7 @@ export function TutorSchedulePage() {
     return (
       <div>
         <PageHeader title="Schedule" description="Your sessions for the next four weeks. Tap a session to open its log." />
+        {waitingNote}
         {byDate.size === 0 ? <p className="py-10 text-center text-sm text-muted-foreground">No sessions scheduled.</p> : null}
         <div className="space-y-5">
           {[...byDate.entries()].map(([d, list]) => (
@@ -114,18 +169,25 @@ export function TutorSchedulePage() {
               <div className="space-y-2">
                 {list.map((s) => {
                   const st = SESSION_STATUS_STYLE[s.status]
+                  const why = tutorConflictText(conflictsOf(s))
                   return (
                     <button
                       key={s.id}
                       type="button"
                       onClick={() => openLog(s)}
-                      className="flex w-full items-center gap-3 rounded-xl border p-3 text-left"
-                      style={{ backgroundColor: st.bg, borderColor: st.border, opacity: s.status === 'canceled' ? 0.6 : 1 }}
+                      className={cn('flex w-full items-center gap-3 rounded-xl border p-3 text-left', why && 'border-2 border-dashed')}
+                      style={{ backgroundColor: st.bg, borderColor: why ? '#dc2626' : st.border, opacity: s.status === 'canceled' ? 0.6 : 1 }}
                     >
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-semibold text-black">{studentLabel(s.studentName, s.studentGrade)}</div>
                         <div className="truncate text-sm text-neutral-700">{s.subject || 'No subject'}</div>
                         <div className="text-xs text-neutral-600">{formatTimeRange(s.startMin, s.endMin)}</div>
+                        {why ? (
+                          <div className="mt-1.5 flex items-start gap-1.5 text-xs font-medium text-red-700">
+                            <LuTriangleAlert className="mt-px size-3.5 shrink-0" />
+                            {why}
+                          </div>
+                        ) : null}
                       </div>
                       <div className="flex flex-col items-end gap-1 text-xs" style={{ color: st.text }}>
                         {SESSION_STATUS_LABELS[s.status]}
@@ -151,7 +213,7 @@ export function TutorSchedulePage() {
         today,
         hours,
         tutors: [{ id: staffId, name: me?.name ?? 'Me' }],
-        availability: () => (a ? { ranges: a.ranges, unavailable: a.unavailable, hidden: false } : null),
+        availability: () => (a ? { ranges: effectiveRanges(a.ranges, hours), unavailable: a.unavailable, hidden: false } : null),
         sessions: sessions.filter((s) => s.dateKey === d),
         clocks: () =>
           shifts
@@ -162,7 +224,8 @@ export function TutorSchedulePage() {
       }).map((r) => ({ ...r, laneCount: rules.maxStudentsPerTutor }))
       return { d, hours, rows }
     })
-    .filter((s) => s.hours.isOpen && s.rows.length > 0)
+    // Closed days still show when sessions are booked on them.
+    .filter((s) => (s.hours.isOpen && s.rows.length > 0) || s.rows.some((r) => r.active.length > 0))
 
   return (
     <ScheduleUiContext value={ui}>
@@ -188,6 +251,7 @@ export function TutorSchedulePage() {
             </div>
           }
         />
+        {waitingNote}
         <div className="mb-3 text-sm font-medium text-muted-foreground">
           {view === 'week' ? `${formatDateKey(days[0], 'medium')} – ${formatDateKey(days[6], 'medium')}` : formatDateKey(anchor, 'weekdayLong')}
         </div>

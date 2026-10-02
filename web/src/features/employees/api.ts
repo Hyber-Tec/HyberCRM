@@ -1,11 +1,34 @@
-import { arrayRemove, arrayUnion, doc, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore'
+import { arrayRemove, arrayUnion, doc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore'
 import { COL, DOC } from '@shared/paths'
 import { STAFF_STATUS_LABELS } from '@shared/people'
+import { isAhead, isCheckable } from '@shared/schedule/conflicts'
+import { nowMinutes, todayKey } from '@shared/time'
 import type { Compensation, Staff, StaffStatus, WithId } from '@shared/types'
 import { type Actor, addAudit, diffChanges } from '@/lib/audit'
 import { db } from '@/lib/firebase'
 import { branchCol, branchDocRef } from '@/lib/firestore'
 import { newStaffData } from '@/features/access/api'
+
+/** How many pending or confirmed sessions the tutor still has ahead (they'd become conflicts if the tutor stops teaching). */
+export async function countUpcomingSessions(branchId: string, staffId: string, timezone: string): Promise<number> {
+  const today = todayKey(timezone)
+  const nowMin = nowMinutes(timezone)
+  const snap = await getDocs(query(branchCol(branchId, COL.sessions), where('tutorId', '==', staffId), where('dateKey', '>=', today)))
+  return snap.docs.filter((d) => {
+    const s = d.data() as Parameters<typeof isCheckable>[0] & { dateKey: string; endMin: number }
+    return isCheckable(s) && isAhead(s, today, nowMin)
+  }).length
+}
+
+/** The question to ask before a tutor with upcoming sessions stops teaching; null when there is nothing to ask. */
+export function stopTeachingQuestion(name: string, count: number, what: string) {
+  if (count === 0) return null
+  return {
+    title: `${name} has ${count} upcoming session${count > 1 ? 's' : ''}`,
+    description: `If you ${what}, ${count > 1 ? 'they stay' : 'it stays'} booked and ${count > 1 ? 'show' : 'shows'} as ${count > 1 ? 'conflicts' : 'a conflict'} on the schedule (and on Home) until ${count > 1 ? 'they’re' : 'it’s'} reassigned or canceled.`,
+    confirmLabel: 'Continue',
+  }
+}
 
 export function compensationRef(branchId: string, staffId: string) {
   return doc(db, branchCol(branchId, COL.staff).path, staffId, 'private', DOC.compensation)
@@ -145,10 +168,28 @@ export async function saveStaffNotes(branchId: string, actor: Actor, staffId: st
 }
 
 /** Qualifies or unqualifies an employee for a subject (single source: staff.subjectIds). */
-export async function setQualification(branchId: string, actor: Actor, staffId: string, subjectId: string, on: boolean) {
-  await updateDoc(branchDocRef(branchId, COL.staff, staffId), {
+export async function setQualification(
+  branchId: string,
+  actor: Actor,
+  staffId: string,
+  subjectId: string,
+  on: boolean,
+  names?: { staff: string; subject: string },
+) {
+  const batch = writeBatch(db)
+  batch.update(branchDocRef(branchId, COL.staff, staffId), {
     subjectIds: on ? arrayUnion(subjectId) : arrayRemove(subjectId),
     updatedAt: serverTimestamp(),
     updatedBy: actor.email,
   })
+  addAudit(batch, branchId, actor, {
+    action: 'staff.subjects',
+    category: 'people',
+    entityType: 'staff',
+    entityId: staffId,
+    tutorId: staffId,
+    tutorName: names?.staff ?? null,
+    summary: names ? `${on ? 'Added' : 'Removed'} ${names.subject} ${on ? 'to' : 'from'} ${names.staff}’s subjects` : `${on ? 'Added a subject to' : 'Removed a subject from'} a tutor’s subjects`,
+  })
+  await batch.commit()
 }

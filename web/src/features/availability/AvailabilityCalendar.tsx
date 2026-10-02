@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { LuClipboardPaste, LuCopy, LuCopyPlus, LuLock, LuPencil, LuRepeat, LuTrash2, LuX } from 'react-icons/lu'
 import { toast } from 'sonner'
 import { dayHours, effectiveLockDays, effectiveRanges, fitRangesToDay, isInsideLeadTime, isLockedForTutor, normalizeRanges, weeklyRepeats } from '@shared/availability'
-import { type DateKey, addDays, dateRange, diffDays, formatDateKey, formatMinutesShort, startOfWeek, todayKey } from '@shared/time'
+import { type DateKey, addDays, dateRange, diffDays, formatDateKey, formatMinutesShort, nowMinutes, startOfWeek, todayKey } from '@shared/time'
 import type { AvailabilityRange } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { MonthScroller, type MonthScrollerHandle } from '@/components/app/MonthScroller'
@@ -17,7 +17,8 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { useLoadWindow } from '@/lib/useLoadWindow'
 import { useNow } from '@/lib/useNow'
 import { cn } from '@/lib/utils'
-import { type DayWrite, describeRanges, writeAvailability } from './api'
+import { useConfirm } from '@/components/app/useConfirm'
+import { type DayWrite, describeRanges, describeSessions, sessionsLeftUncovered, writeAvailability } from './api'
 import { DayEditorDialog, type DayEditorState } from './DayEditorDialog'
 
 /** What is selected: one time range, or a run of days (Shift-click extends it). */
@@ -76,9 +77,38 @@ export function AvailabilityCalendar({ staffId, staffName, mode }: { staffId: st
   }, [selection])
   const selectedSet = useMemo(() => new Set(selectedDays), [selectedDays])
 
+  const { confirm, dialog: confirmDialog } = useConfirm()
+  /**
+   * Saves days of availability; first warns when booked sessions would end up
+   * outside it (they stay booked, as conflicts). False when the person cancels.
+   */
   const write = useCallback(
-    (days: DayWrite[], summary?: string) => writeAvailability({ branchId, actor, timezone, staffId, staffName, via: mode, days, summary }),
-    [branchId, actor, timezone, staffId, staffName, mode],
+    async (days: DayWrite[], summary?: string): Promise<boolean> => {
+      const uncovered = await sessionsLeftUncovered({
+        branchId,
+        staffId,
+        days,
+        currentRanges: rangesOf,
+        hoursOf,
+        today,
+        nowMin: nowMinutes(timezone, new Date(now)),
+      })
+      if (uncovered.length) {
+        const n = uncovered.length
+        const ok = await confirm({
+          title: `${n} booked session${n > 1 ? 's are' : ' is'} in this time`,
+          description:
+            mode === 'tutor'
+              ? `${describeSessions(uncovered)} ${n > 1 ? 'are' : 'is'} booked in the time you’re removing. If you save, ${n > 1 ? 'they stay' : 'it stays'} booked and ${n > 1 ? 'show' : 'shows'} as a conflict until the admin moves, reassigns or cancels ${n > 1 ? 'them' : 'it'}. If it’s urgent, tell the admin too.`
+              : `${describeSessions(uncovered)} ${n > 1 ? 'are' : 'is'} booked in this time. If you save, ${n > 1 ? 'they' : 'it'} will show as ${n > 1 ? 'conflicts' : 'a conflict'} on the schedule until ${n > 1 ? 'they’re' : 'it’s'} moved, reassigned or canceled.`,
+          confirmLabel: 'Save anyway',
+        })
+        if (!ok) return false
+      }
+      await writeAvailability({ branchId, actor, timezone, staffId, staffName, via: mode, days, summary })
+      return true
+    },
+    [branchId, actor, timezone, staffId, staffName, mode, rangesOf, hoursOf, today, now, confirm],
   )
 
   /**
@@ -105,7 +135,7 @@ export function AvailabilityCalendar({ staffId, staffName, mode }: { staffId: st
         if (JSON.stringify(before) !== JSON.stringify(fit.ranges)) writes.push({ dateKey: date, ranges: fit.ranges })
       }
       try {
-        if (writes.length) await write(writes, summary)
+        if (writes.length && !(await write(writes, summary))) return
       } catch (e) {
         toast.error((e as Error).message.includes('permission') ? 'Some of those days are locked. Please contact an admin.' : (e as Error).message)
         return
@@ -219,7 +249,8 @@ export function AvailabilityCalendar({ staffId, staffName, mode }: { staffId: st
         days,
         `${asCopy ? 'Copied' : 'Moved'} ${staffName}’s ${label} availability from ${formatDateKey(source.date, 'weekdayMedium')} to ${formatDateKey(target, 'weekdayMedium')}`,
       )
-        .then(() => {
+        .then((ok) => {
+          if (!ok) return
           toast.success(`${asCopy ? 'Copied' : 'Moved'} to ${formatDateKey(target, 'weekdayMedium')}`, fit.trimmed ? { description: 'Trimmed to that day’s opening hours.' } : undefined)
           setSelection({ kind: 'item', date: target, index: fit.ranges.findIndex((r) => r.startMin <= range.startMin && r.endMin >= Math.min(range.endMin, r.endMin)) })
         })
@@ -524,11 +555,13 @@ export function AvailabilityCalendar({ staffId, staffName, mode }: { staffId: st
         state={editor}
         onClose={() => setEditor(null)}
         onSave={async (ranges) => {
-          if (!editor) return
-          await write([{ dateKey: editor.dateKey, ranges }])
+          if (!editor) return false
+          if (!(await write([{ dateKey: editor.dateKey, ranges }]))) return false
           toast.success('Availability saved')
+          return true
         }}
       />
+      {confirmDialog}
       <RepeatDialog
         open={repeatOpen}
         onOpenChange={setRepeatOpen}

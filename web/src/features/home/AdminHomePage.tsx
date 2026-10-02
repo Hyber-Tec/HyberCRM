@@ -332,6 +332,29 @@ function AttentionCard({ items, today, onFix }: { items: AttentionItem[]; today:
       testId="home-attention"
     >
       {items.map((i) => {
+        if (i.kind === 'conflict') {
+          const s = i.session
+          return (
+            <HomeRow
+              key={i.id}
+              onOpen={() => navigate(paths.day(s.dateKey))}
+              actions={[
+                { label: 'Go to Schedule on this day', onSelect: () => navigate(paths.day(s.dateKey)) },
+                { label: 'Open Schedule in new tab', onSelect: () => openInNewTab(paths.day(s.dateKey)) },
+              ]}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium">
+                  {s.studentName} · {s.subject || 'No subject'}
+                </div>
+                <div className="truncate text-xs text-muted-foreground tabular-nums">
+                  {dayLabel(s.dateKey, today)} · {formatTimeRange(s.startMin, s.endMin)} · {i.conflicts[0]?.message}
+                </div>
+              </div>
+              <Pill tone="red">Conflict</Pill>
+            </HomeRow>
+          )
+        }
         if (i.kind === 'missingLog') {
           const s = i.session
           return (

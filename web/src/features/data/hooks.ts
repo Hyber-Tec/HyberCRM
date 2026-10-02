@@ -7,15 +7,15 @@ import { branchCol, useQuery } from '@/lib/firestore'
 
 /** Live branch-wide lists shared by many pages (Firestore de-duplicates identical listeners). */
 
-export function useStaffList() {
+export function useStaffList(enabled = true) {
   const { branchId } = useBranch()
-  const q = useMemo(() => query(branchCol(branchId, COL.staff), orderBy('nameLower')), [branchId])
+  const q = useMemo(() => (enabled ? query(branchCol(branchId, COL.staff), orderBy('nameLower')) : null), [branchId, enabled])
   return useQuery<Staff>(q, `staff-${branchId}`)
 }
 
-export function useStudentList() {
+export function useStudentList(enabled = true) {
   const { branchId } = useBranch()
-  const q = useMemo(() => query(branchCol(branchId, COL.students), orderBy('nameLower')), [branchId])
+  const q = useMemo(() => (enabled ? query(branchCol(branchId, COL.students), orderBy('nameLower')) : null), [branchId, enabled])
   return useQuery<Student>(q, `students-${branchId}`)
 }
 
@@ -44,11 +44,12 @@ export function useMembers(enabled = true) {
 }
 
 /** Day configs (opening-hour overrides) between two dates, as a map by dateKey. */
-export function useDayConfigs(from: string, to: string, opts?: { keepPrevious?: boolean }) {
+export function useDayConfigs(from: string, to: string, opts?: { keepPrevious?: boolean; enabled?: boolean }) {
   const { branchId } = useBranch()
+  const enabled = opts?.enabled ?? true
   const q = useMemo(
-    () => query(branchCol(branchId, COL.dayConfigs), where('dateKey', '>=', from), where('dateKey', '<=', to)),
-    [branchId, from, to],
+    () => (enabled ? query(branchCol(branchId, COL.dayConfigs), where('dateKey', '>=', from), where('dateKey', '<=', to)) : null),
+    [branchId, from, to, enabled],
   )
   const { data, loading } = useQuery<DayConfig>(q, `dayconfigs-${branchId}-${from}-${to}`, opts)
   const map = useMemo(() => new Map(data.map((d) => [d.dateKey, d])), [data])

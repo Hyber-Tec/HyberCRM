@@ -67,7 +67,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
         options: WEEKDAYS.map((d) => ({ value: d, label: WEEKDAY_LABELS[d] })),
         help: 'The first column of the schedule’s week and of every calendar.',
       },
-      { kind: 'weekHours', path: 'schedule.defaultWeek', label: 'Default opening hours', help: 'Each weekday’s usual hours. Dates set in “Opening hours by date” below (or edited on the schedule) override them.' },
+      { kind: 'weekHours', path: 'schedule.defaultWeek', label: 'Default opening hours', help: 'Each weekday’s usual hours. Dates set in “Opening hours by date” below (or edited on the schedule) override them. Sessions already booked outside new hours stay booked and show as conflicts on the schedule until moved.' },
       { kind: 'number', path: 'schedule.defaultSessionMinutes', label: 'Default session length', min: 15, max: 480, step: 5, suffix: 'min' },
       { kind: 'number', path: 'schedule.snapMinutes', label: 'Time snap', min: 1, max: 60, step: 1, suffix: 'min', help: 'Clicks, drags and resizes snap to this step.' },
       {

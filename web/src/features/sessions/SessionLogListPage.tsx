@@ -1,6 +1,7 @@
 import { orderBy, query, where } from 'firebase/firestore'
 import { useMemo, useState } from 'react'
-import { LuExternalLink, LuPlus } from 'react-icons/lu'
+import { LuCalendarDays, LuExternalLink, LuGraduationCap, LuNotebookPen, LuPencil, LuPlus } from 'react-icons/lu'
+import { useNavigate } from 'react-router'
 import { COL } from '@shared/paths'
 import { studentLabel } from '@shared/people'
 import { SESSION_STATUS_LABELS } from '@shared/schedule/status'
@@ -8,6 +9,7 @@ import { type SessionLog, averageRating, canLog } from '@shared/sessions/logs'
 import { addDays, formatDateKey, formatTimeRange, todayKey } from '@shared/time'
 import type { Session } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
+import { ContextMenuFor, menu } from '@/components/app/ItemMenu'
 import { OptionPicker } from '@/components/app/OptionPicker'
 import { PageHeader } from '@/components/app/PageHeader'
 import { DatePicker } from '@/components/app/DatePicker'
@@ -30,6 +32,7 @@ export function openLog(branchId: string, sessionId: string, view = false) {
 /** Session → Log (admin and tutor). */
 export function SessionLogListPage({ mode = 'admin' }: { mode?: 'admin' | 'tutor' }) {
   const { branchId, settings, staffId, timezone } = useBranch()
+  const navigate = useNavigate()
   const today = todayKey(timezone)
   const [studentId, setStudentId] = useState<string | null>(null)
   const [from, setFrom] = useState(addDays(today, -14))
@@ -97,23 +100,43 @@ export function SessionLogListPage({ mode = 'admin' }: { mode?: 'admin' | 'tutor
           </TableHeader>
           <TableBody>
             {rows.slice(page * PAGE, page * PAGE + PAGE).map((l) => (
-              <TableRow key={l.id} className="cursor-pointer" onClick={() => openLog(branchId, l.sessionId, true)}>
-                <TableCell className="whitespace-nowrap">{formatDateKey(l.dateKey, 'medium')}</TableCell>
-                <TableCell className="hidden whitespace-nowrap text-muted-foreground md:table-cell">{formatTimeRange(l.startMin, l.endMin)}</TableCell>
-                <TableCell className="font-medium">{l.studentName}</TableCell>
-                <TableCell className="hidden sm:table-cell">{l.tutorName}</TableCell>
-                <TableCell className="hidden lg:table-cell">{l.subject}</TableCell>
-                <TableCell className="hidden md:table-cell">
-                  <HomeworkBadge status={l.homeworkStatus} />
-                </TableCell>
-                <TableCell>
-                  <StarRating value={averageRating(l.ratings)} />
-                </TableCell>
-                <TableCell className="hidden lg:table-cell">
-                  <FlagBadge flag={l.studentFlag} />
-                </TableCell>
-                <TableCell className="hidden text-right tabular-nums sm:table-cell">{l.usedHours ? `${l.usedHours.toFixed(1)} hrs` : '—'}</TableCell>
-              </TableRow>
+              <ContextMenuFor
+                key={l.id}
+                entries={menu(
+                  { kind: 'label', label: `${l.studentName} · ${formatDateKey(l.dateKey, 'medium')}` },
+                  { label: 'View log', icon: LuNotebookPen, onSelect: () => openLog(branchId, l.sessionId, true) },
+                  (mode === 'admin' || (l.tutorId === staffId && settings.sessionLogs.allowEditAfterSubmit)) && {
+                    label: mode === 'admin' && l.tutorId !== staffId ? 'Edit log (on behalf of the tutor)' : 'Edit log',
+                    icon: LuPencil,
+                    onSelect: () => openLog(branchId, l.sessionId),
+                  },
+                  {
+                    label: 'Open on schedule',
+                    icon: LuCalendarDays,
+                    separatorBefore: true,
+                    onSelect: () => navigate(mode === 'admin' ? `/${branchId}/admin/schedule/day/${l.dateKey}` : `/${branchId}/tutor/schedule?date=${l.dateKey}`),
+                  },
+                  { label: 'Open student profile', icon: LuGraduationCap, onSelect: () => navigate(`/${branchId}/${mode}/students/${l.studentId}`) },
+                )}
+              >
+                <TableRow className="cursor-pointer" onClick={() => openLog(branchId, l.sessionId, true)}>
+                  <TableCell className="whitespace-nowrap">{formatDateKey(l.dateKey, 'medium')}</TableCell>
+                  <TableCell className="hidden whitespace-nowrap text-muted-foreground md:table-cell">{formatTimeRange(l.startMin, l.endMin)}</TableCell>
+                  <TableCell className="font-medium">{l.studentName}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{l.tutorName}</TableCell>
+                  <TableCell className="hidden lg:table-cell">{l.subject}</TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <HomeworkBadge status={l.homeworkStatus} />
+                  </TableCell>
+                  <TableCell>
+                    <StarRating value={averageRating(l.ratings)} />
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    <FlagBadge flag={l.studentFlag} />
+                  </TableCell>
+                  <TableCell className="hidden text-right tabular-nums sm:table-cell">{l.usedHours ? `${l.usedHours.toFixed(1)} hrs` : '—'}</TableCell>
+                </TableRow>
+              </ContextMenuFor>
             ))}
             {!loading && rows.length === 0 ? (
               <TableRow>

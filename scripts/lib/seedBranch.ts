@@ -1,6 +1,7 @@
 import { newBranchData, newMemberData, publicProfileFor } from '../../shared/src/branchFactory'
 import { createHash } from 'node:crypto'
 import { DEMO_BUSINESS_RULES, DEMO_KIOSK_PINS, buildDemoData } from '../../shared/src/demo/seed'
+import { defaultSubjectDocs } from '../../shared/src/subjects'
 import { COL, DOC, ROOT } from '../../shared/src/paths'
 import type { Role } from '../../shared/src/roles'
 import { todayKey } from '../../shared/src/time'
@@ -51,6 +52,18 @@ export async function seedBranch(opts: SeedBranchOptions) {
       },
     })
     log(`+ Branch ${opts.branchId} (${opts.name}, ${timezone})`)
+    // Every branch starts with its own copy of the default subject list (sample data writes it too).
+    if (!opts.sample) {
+      const catalog = defaultSubjectDocs()
+      for (const c of catalog.categories) writes.push({ path: `${branchPath}/${COL.subjectCategories}/${c.id}`, data: { name: c.name, order: c.order } })
+      for (const s of catalog.subjects) {
+        writes.push({
+          path: `${branchPath}/${COL.subjects}/${s.id}`,
+          data: { name: s.name, categoryId: s.categoryId, order: s.order, createdAt: now, createdBy: superAdmin, updatedAt: now, updatedBy: superAdmin },
+        })
+      }
+      log(`+ Default subjects (${catalog.subjects.length})`)
+    }
   } else {
     log(`= Branch ${opts.branchId} already exists`)
   }

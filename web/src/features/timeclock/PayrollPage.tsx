@@ -1,7 +1,7 @@
 import { limit, orderBy, query, where } from 'firebase/firestore'
 import { useEffect, useMemo, useState } from 'react'
-import { LuArrowDown, LuArrowUp, LuCalendarCheck, LuDownload, LuLock } from 'react-icons/lu'
-import { useSearchParams } from 'react-router'
+import { LuArrowDown, LuArrowUp, LuCalendarCheck, LuCalendarClock, LuDownload, LuLock, LuPencil, LuTrash2, LuUserRound } from 'react-icons/lu'
+import { useNavigate, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { COL } from '@shared/paths'
 import { type PricedSegment, formatMoney, totals } from '@shared/pay/segment'
@@ -14,6 +14,7 @@ import { ConfirmDialog } from '@/components/app/ConfirmDialog'
 import { DatePicker } from '@/components/app/DatePicker'
 import { OptionPicker } from '@/components/app/OptionPicker'
 import { PageHeader } from '@/components/app/PageHeader'
+import { ContextMenuFor, menu } from '@/components/app/ItemMenu'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -66,6 +67,7 @@ function modelsBetween(rules: BusinessRules, from: DateKey, to: DateKey): PayMod
  */
 export function PayrollPage() {
   const { branchId, actor, settings, rules, timezone } = useBranch()
+  const navigate = useNavigate()
   const today = todayKey(timezone)
   const [params, setParams] = useSearchParams()
   const { data: staff } = useStaffList()
@@ -372,42 +374,60 @@ export function PayrollPage() {
             ) : (
               pageRows.map((r, i) => {
                 const locked = isLocked(r.shift.dateKey)
+                const employeePath = `/${branchId}/admin/employees/directory/${r.shift.staffId}`
                 return (
-                  <TableRow key={r.id} className={cn(shaded[i] && 'bg-muted/80 hover:bg-muted')} data-testid="payroll-row">
-                    <TableCell className="whitespace-nowrap">{formatDateKey(r.shift.dateKey, r.shift.dateKey.slice(0, 4) === today.slice(0, 4) ? 'weekdayMedium' : 'medium')}</TableCell>
-                    <TableCell className="font-medium whitespace-nowrap">{r.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={r.seg.type === 'teaching' ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300' : 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300'}>
-                        {r.seg.type === 'teaching' ? 'Teaching' : 'Admin'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">{timeOf(r.seg.startMs)}</TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">{timeOf(r.seg.endMs)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{r.seg.hours.toFixed(2)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{money(r.seg.rate)}</TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">{money(r.seg.pay)}</TableCell>
-                    <TableCell>
-                      {locked ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                              <LuLock className="size-3.5" /> Locked
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>In a locked pay period</TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="xs" onClick={() => setEditing(r)}>
-                            Edit
-                          </Button>
-                          <Button variant="ghost" size="xs" className="text-destructive hover:text-destructive" onClick={() => setDeleting(r)}>
-                            Delete
-                          </Button>
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
+                  <ContextMenuFor
+                    key={r.id}
+                    entries={menu(
+                      { kind: 'label', label: `${r.name} · ${formatDateKey(r.shift.dateKey, 'weekdayMedium')}` },
+                      locked && { kind: 'label', label: 'In a locked pay period' },
+                      { label: 'Edit shift…', icon: LuPencil, disabled: locked, onSelect: () => setEditing(r) },
+                      { label: 'Delete shift', icon: LuTrash2, destructive: true, disabled: locked, onSelect: () => setDeleting(r) },
+                      { label: 'Open employee profile', icon: LuUserRound, separatorBefore: true, onSelect: () => navigate(employeePath) },
+                      { label: 'Open in new tab', onSelect: () => window.open(employeePath, '_blank', 'noopener') },
+                      {
+                        label: 'Clock in/out calendar',
+                        icon: LuCalendarClock,
+                        onSelect: () => navigate(`/${branchId}/admin/employees/calendar?staff=${r.shift.staffId}&mode=clock`),
+                      },
+                    )}
+                  >
+                    <TableRow className={cn(shaded[i] && 'bg-muted/80 hover:bg-muted')} data-testid="payroll-row">
+                      <TableCell className="whitespace-nowrap">{formatDateKey(r.shift.dateKey, r.shift.dateKey.slice(0, 4) === today.slice(0, 4) ? 'weekdayMedium' : 'medium')}</TableCell>
+                      <TableCell className="font-medium whitespace-nowrap">{r.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={r.seg.type === 'teaching' ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300' : 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300'}>
+                          {r.seg.type === 'teaching' ? 'Teaching' : 'Admin'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap tabular-nums">{timeOf(r.seg.startMs)}</TableCell>
+                      <TableCell className="whitespace-nowrap tabular-nums">{timeOf(r.seg.endMs)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{r.seg.hours.toFixed(2)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{money(r.seg.rate)}</TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums">{money(r.seg.pay)}</TableCell>
+                      <TableCell>
+                        {locked ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                <LuLock className="size-3.5" /> Locked
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>In a locked pay period</TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="xs" onClick={() => setEditing(r)}>
+                              Edit
+                            </Button>
+                            <Button variant="ghost" size="xs" className="text-destructive hover:text-destructive" onClick={() => setDeleting(r)}>
+                              Delete
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  </ContextMenuFor>
                 )
               })
             )}

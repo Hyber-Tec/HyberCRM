@@ -1,6 +1,6 @@
 import { orderBy, query } from 'firebase/firestore'
 import { useMemo, useState } from 'react'
-import { LuCheck, LuCopy, LuEllipsis, LuMailPlus, LuPencil, LuQrCode, LuSearch, LuTrash2, LuUserPlus, LuX } from 'react-icons/lu'
+import { LuCheck, LuCopy, LuMailPlus, LuPencil, LuQrCode, LuSearch, LuTrash2, LuUserPlus, LuX } from 'react-icons/lu'
 import { useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { COL } from '@shared/paths'
@@ -9,6 +9,7 @@ import { formatInstant } from '@shared/time'
 import type { Member, SignupRequest, Staff, Student, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { initials } from '@/components/app/BrandMark'
+import { ContextMenuFor, ItemMenuButton, menu } from '@/components/app/ItemMenu'
 import { PageHeader } from '@/components/app/PageHeader'
 import {
   AlertDialog,
@@ -24,13 +25,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -61,6 +55,28 @@ export function AccountPage() {
   const [search, setSearch] = useState('')
   const [dialog, setDialog] = useState<{ member: WithId<Member> | null; request: WithId<SignupRequest> | null } | null>(null)
   const [removing, setRemoving] = useState<WithId<Member> | null>(null)
+
+  /** A person's actions: right-click the row, or its "⋯" button. */
+  const memberMenu = (m: WithId<Member>) =>
+    menu(
+      { kind: 'label', label: m.displayName || m.email },
+      { label: 'Edit access', icon: LuPencil, onSelect: () => setDialog({ member: m, request: null }) },
+      {
+        label: m.invite?.status === 'sent' ? 'Resend sign-in email' : 'Email sign-in link',
+        icon: LuMailPlus,
+        disabled: m.status !== 'active',
+        onSelect: () => void resendInvite(branchId, m.email),
+      },
+      { label: 'Copy sign-in link', icon: LuCopy, onSelect: () => void copySignInLink(branchId, m.email) },
+      {
+        label: 'Remove access',
+        icon: LuTrash2,
+        destructive: true,
+        separatorBefore: true,
+        disabled: (m.role === 'owner' && !isSuperAdmin) || (isAdminRole(m.role) && !isOwner) || m.id === actor.email,
+        onSelect: () => setRemoving(m),
+      },
+    )
   const [rejecting, setRejecting] = useState<WithId<SignupRequest> | null>(null)
   const [rejectNote, setRejectNote] = useState('')
   const [shareOpen, setShareOpen] = useState(false)
@@ -160,63 +176,40 @@ export function AccountPage() {
               </TableHeader>
               <TableBody>
                 {rows.map((m) => (
-                  <TableRow key={m.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="size-8">
-                          {m.photoURL ? <AvatarImage src={m.photoURL} alt="" referrerPolicy="no-referrer" /> : null}
-                          <AvatarFallback>{initials(m.displayName || m.email)}</AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <div className="truncate font-medium">
-                            {m.displayName || '—'}
+                  <ContextMenuFor key={m.id} entries={memberMenu(m)}>
+                    <TableRow>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="size-8">
+                            {m.photoURL ? <AvatarImage src={m.photoURL} alt="" referrerPolicy="no-referrer" /> : null}
+                            <AvatarFallback>{initials(m.displayName || m.email)}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">
+                              {m.displayName || '—'}
+                            </div>
+                            <div className="truncate text-xs text-muted-foreground">{m.email}</div>
+                            <InviteStatus member={m} timezone={timezone} className="text-xs md:hidden" />
                           </div>
-                          <div className="truncate text-xs text-muted-foreground">{m.email}</div>
-                          <InviteStatus member={m} timezone={timezone} className="text-xs md:hidden" />
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {m.role ? <Badge variant={isAdminRole(m.role) ? 'default' : 'secondary'}>{ROLE_LABELS[m.role]}</Badge> : null}
-                        {m.status !== 'active' ? <Badge variant="destructive">Paused</Badge> : null}
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden max-w-64 truncate text-sm text-muted-foreground lg:table-cell">
-                      {linkedLabel(m) || '—'}
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <InviteStatus member={m} timezone={timezone} />
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon-sm" aria-label="Actions">
-                            <LuEllipsis />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                          <DropdownMenuItem onSelect={() => setDialog({ member: m, request: null })}>
-                            <LuPencil /> Edit access
-                          </DropdownMenuItem>
-                          <DropdownMenuItem disabled={m.status !== 'active'} onSelect={() => void resendInvite(branchId, m.email)}>
-                            <LuMailPlus /> {m.invite?.status === 'sent' ? 'Resend sign-in email' : 'Email sign-in link'}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => void copySignInLink(branchId, m.email)}>
-                            <LuCopy /> Copy sign-in link
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            variant="destructive"
-                            disabled={(m.role === 'owner' && !isSuperAdmin) || (isAdminRole(m.role) && !isOwner) || m.id === actor.email}
-                            onSelect={() => setRemoving(m)}
-                          >
-                            <LuTrash2 /> Remove access
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {m.role ? <Badge variant={isAdminRole(m.role) ? 'default' : 'secondary'}>{ROLE_LABELS[m.role]}</Badge> : null}
+                          {m.status !== 'active' ? <Badge variant="destructive">Paused</Badge> : null}
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden max-w-64 truncate text-sm text-muted-foreground lg:table-cell">
+                        {linkedLabel(m) || '—'}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <InviteStatus member={m} timezone={timezone} />
+                      </TableCell>
+                      <TableCell>
+                        <ItemMenuButton entries={memberMenu(m)} label="Actions" />
+                      </TableCell>
+                    </TableRow>
+                  </ContextMenuFor>
                 ))}
                 {!members.loading && rows.length === 0 ? (
                   <TableRow>

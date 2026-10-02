@@ -6,6 +6,8 @@ import { ROLES, ROLE_LABELS, type Role, isAdminRole, isStaffRole } from '@shared
 import type { Member, SignupRequest, Staff, Student, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { MultiOptionPicker, OptionPicker } from '@/components/app/OptionPicker'
+import { useConfirm } from '@/components/app/useConfirm'
+import { countUpcomingSessions, stopTeachingQuestion } from '@/features/employees/api'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -41,7 +43,8 @@ export interface MemberDialogProps {
 }
 
 export function MemberDialog({ open, onOpenChange, member, request, members, staff, students }: MemberDialogProps) {
-  const { branchId, actor, isOwner } = useBranch()
+  const { branchId, actor, isOwner, timezone } = useBranch()
+  const { confirm, dialog: confirmDialog } = useConfirm()
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -120,6 +123,13 @@ export function MemberDialog({ open, onOpenChange, member, request, members, sta
     setError(null)
     setBusy(true)
     try {
+      // Pausing a tutor's access, or making them something else, leaves their upcoming sessions as conflicts: ask first.
+      const tutorStaffId = member?.role === 'tutor' && member.status === 'active' ? member.staffId : null
+      if (tutorStaffId && (!active || role !== 'tutor')) {
+        const name = member?.displayName || `${firstName} ${lastName}`.trim() || key
+        const q = stopTeachingQuestion(name, await countUpcomingSessions(branchId, tutorStaffId, timezone), !active ? 'pause their access' : 'change their role')
+        if (q && !(await confirm(q))) return
+      }
       await saveMember({
         branchId,
         actor,
@@ -160,123 +170,126 @@ export function MemberDialog({ open, onOpenChange, member, request, members, sta
   const lockedForNonOwner = !isOwner && editingAdmin
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
-        <form onSubmit={submit}>
-          <DialogHeader>
-            <DialogTitle>{member ? 'Edit access' : request ? 'Approve sign-up request' : 'Add a person'}</DialogTitle>
-            <DialogDescription>
-              {member
-                ? member.email
-                : 'We’ll email them a link to sign in with Google using this address.'}
-            </DialogDescription>
-          </DialogHeader>
-          <FieldGroup className="py-4">
-            {!member ? (
-              <Field>
-                <FieldLabel htmlFor="m-email">Google email</FieldLabel>
-                <Input
-                  id="m-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@gmail.com"
-                  disabled={!!request}
-                  autoFocus
-                />
-              </Field>
-            ) : null}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="m-first">First name</FieldLabel>
-                <Input id="m-first" value={firstName} onChange={(e) => setFirstName(e.target.value)} disabled={lockedForNonOwner} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="m-last">Last name</FieldLabel>
-                <Input id="m-last" value={lastName} onChange={(e) => setLastName(e.target.value)} disabled={lockedForNonOwner} />
-              </Field>
-            </div>
-            <FieldSet>
-              <FieldLegend variant="label">Role</FieldLegend>
-              <FieldDescription>Each person has one role. Someone with two jobs signs in with a separate Google account for each.</FieldDescription>
-              <RadioGroup value={role ?? ''} onValueChange={(v) => setRole(v as Role)} className="grid gap-2 sm:grid-cols-2">
-                {ROLES.map((r) => {
-                  const disabled = (isAdminRole(r) && !isOwner) || lockedForNonOwner
-                  return (
-                    <Field key={r} orientation="horizontal" data-disabled={disabled} className="rounded-lg border p-3 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/40">
-                      <RadioGroupItem id={`role-${r}`} value={r} disabled={disabled} />
-                      <div className="grid gap-0.5">
-                        <FieldLabel htmlFor={`role-${r}`} className="font-medium">
-                          {ROLE_LABELS[r]}
-                        </FieldLabel>
-                        <span className="text-xs text-muted-foreground">
-                          {isAdminRole(r) && !isOwner ? `Only owners can make someone ${r === 'owner' ? 'an owner' : 'an admin'}` : ROLE_HELP[r]}
-                        </span>
-                      </div>
-                    </Field>
-                  )
-                })}
-              </RadioGroup>
-            </FieldSet>
-            {staffRole ? (
-              <Field>
-                <FieldLabel>Employee record</FieldLabel>
-                <OptionPicker value={staffId} onChange={setStaffId} options={staffOptions} searchPlaceholder="Search employees…" />
-                <FieldDescription>
-                  {role === 'tutor' ? 'Schedule, availability, clock and pay belong to the employee record.' : 'Clock-ins and pay belong to the employee record.'}
-                </FieldDescription>
-              </Field>
-            ) : null}
-            {role === 'student' ? (
-              <Field>
-                <FieldLabel>Student record</FieldLabel>
-                <OptionPicker
-                  value={studentId}
-                  onChange={setStudentId}
-                  options={[
-                    { value: 'new', label: '+ Create a new student record' },
-                    ...studentOptions.map((o) => ({ ...o, disabled: linkedStudentIds.has(o.value) })),
-                  ]}
-                  searchPlaceholder="Search students…"
-                />
-              </Field>
-            ) : null}
-            {role === 'parent' ? (
-              <Field>
-                <FieldLabel>Children</FieldLabel>
-                <MultiOptionPicker
-                  value={studentIds}
-                  onChange={setStudentIds}
-                  options={studentOptions}
-                  placeholder="Add a student…"
-                  searchPlaceholder="Search students…"
-                />
-                {request?.studentNames ? (
-                  <FieldDescription>From the request: “{request.studentNames}”</FieldDescription>
-                ) : null}
-              </Field>
-            ) : null}
-            {member ? (
-              <Field orientation="horizontal">
-                <Switch id="m-active" checked={active} onCheckedChange={setActive} disabled={lockedForNonOwner} />
-                <FieldLabel htmlFor="m-active" className="font-normal">
-                  Access active
-                </FieldLabel>
-              </Field>
-            ) : null}
-            {error ? <FieldError>{error}</FieldError> : null}
-          </FieldGroup>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={busy || lockedForNonOwner}>
-              {busy ? <Spinner /> : null}
-              {member ? 'Save' : request ? 'Approve' : 'Add person'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
+          <form onSubmit={submit}>
+            <DialogHeader>
+              <DialogTitle>{member ? 'Edit access' : request ? 'Approve sign-up request' : 'Add a person'}</DialogTitle>
+              <DialogDescription>
+                {member
+                  ? member.email
+                  : 'We’ll email them a link to sign in with Google using this address.'}
+              </DialogDescription>
+            </DialogHeader>
+            <FieldGroup className="py-4">
+              {!member ? (
+                <Field>
+                  <FieldLabel htmlFor="m-email">Google email</FieldLabel>
+                  <Input
+                    id="m-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@gmail.com"
+                    disabled={!!request}
+                    autoFocus
+                  />
+                </Field>
+              ) : null}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="m-first">First name</FieldLabel>
+                  <Input id="m-first" value={firstName} onChange={(e) => setFirstName(e.target.value)} disabled={lockedForNonOwner} />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="m-last">Last name</FieldLabel>
+                  <Input id="m-last" value={lastName} onChange={(e) => setLastName(e.target.value)} disabled={lockedForNonOwner} />
+                </Field>
+              </div>
+              <FieldSet>
+                <FieldLegend variant="label">Role</FieldLegend>
+                <FieldDescription>Each person has one role. Someone with two jobs signs in with a separate Google account for each.</FieldDescription>
+                <RadioGroup value={role ?? ''} onValueChange={(v) => setRole(v as Role)} className="grid gap-2 sm:grid-cols-2">
+                  {ROLES.map((r) => {
+                    const disabled = (isAdminRole(r) && !isOwner) || lockedForNonOwner
+                    return (
+                      <Field key={r} orientation="horizontal" data-disabled={disabled} className="rounded-lg border p-3 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/40">
+                        <RadioGroupItem id={`role-${r}`} value={r} disabled={disabled} />
+                        <div className="grid gap-0.5">
+                          <FieldLabel htmlFor={`role-${r}`} className="font-medium">
+                            {ROLE_LABELS[r]}
+                          </FieldLabel>
+                          <span className="text-xs text-muted-foreground">
+                            {isAdminRole(r) && !isOwner ? `Only owners can make someone ${r === 'owner' ? 'an owner' : 'an admin'}` : ROLE_HELP[r]}
+                          </span>
+                        </div>
+                      </Field>
+                    )
+                  })}
+                </RadioGroup>
+              </FieldSet>
+              {staffRole ? (
+                <Field>
+                  <FieldLabel>Employee record</FieldLabel>
+                  <OptionPicker value={staffId} onChange={setStaffId} options={staffOptions} searchPlaceholder="Search employees…" />
+                  <FieldDescription>
+                    {role === 'tutor' ? 'Schedule, availability, clock and pay belong to the employee record.' : 'Clock-ins and pay belong to the employee record.'}
+                  </FieldDescription>
+                </Field>
+              ) : null}
+              {role === 'student' ? (
+                <Field>
+                  <FieldLabel>Student record</FieldLabel>
+                  <OptionPicker
+                    value={studentId}
+                    onChange={setStudentId}
+                    options={[
+                      { value: 'new', label: '+ Create a new student record' },
+                      ...studentOptions.map((o) => ({ ...o, disabled: linkedStudentIds.has(o.value) })),
+                    ]}
+                    searchPlaceholder="Search students…"
+                  />
+                </Field>
+              ) : null}
+              {role === 'parent' ? (
+                <Field>
+                  <FieldLabel>Children</FieldLabel>
+                  <MultiOptionPicker
+                    value={studentIds}
+                    onChange={setStudentIds}
+                    options={studentOptions}
+                    placeholder="Add a student…"
+                    searchPlaceholder="Search students…"
+                  />
+                  {request?.studentNames ? (
+                    <FieldDescription>From the request: “{request.studentNames}”</FieldDescription>
+                  ) : null}
+                </Field>
+              ) : null}
+              {member ? (
+                <Field orientation="horizontal">
+                  <Switch id="m-active" checked={active} onCheckedChange={setActive} disabled={lockedForNonOwner} />
+                  <FieldLabel htmlFor="m-active" className="font-normal">
+                    Access active
+                  </FieldLabel>
+                </Field>
+              ) : null}
+              {error ? <FieldError>{error}</FieldError> : null}
+            </FieldGroup>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={busy || lockedForNonOwner}>
+                {busy ? <Spinner /> : null}
+                {member ? 'Save' : request ? 'Approve' : 'Add person'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      {confirmDialog}
+    </>
   )
 }

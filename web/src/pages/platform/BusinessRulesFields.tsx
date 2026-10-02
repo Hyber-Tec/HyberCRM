@@ -70,7 +70,8 @@ export function CapacityAndConferenceFields({
         <FieldDescription>
           {value.maxStudentsPerTutor === 1
             ? 'Strictly one-to-one: the schedule never gives a tutor two students at the same time.'
-            : `The schedule never gives a tutor more than ${value.maxStudentsPerTutor} students at the same time.`}
+            : `The schedule never gives a tutor more than ${value.maxStudentsPerTutor} students at the same time.`}{' '}
+          Lowering it leaves sessions already booked above the new limit as conflicts on the schedule until they’re moved.
         </FieldDescription>
       </Field>
       <FieldSet>

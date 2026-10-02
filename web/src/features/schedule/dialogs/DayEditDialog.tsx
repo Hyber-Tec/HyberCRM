@@ -2,9 +2,11 @@ import { serverTimestamp, writeBatch } from 'firebase/firestore'
 import { useEffect, useState } from 'react'
 import { LuPlus, LuX } from 'react-icons/lu'
 import { toast } from 'sonner'
-import { dayHours, normalizeRanges } from '@shared/availability'
+import { dayHours, effectiveRanges, normalizeRanges, rangesContain } from '@shared/availability'
 import { COL } from '@shared/paths'
-import { type DateKey, formatDateKey, todayKey } from '@shared/time'
+import { isAhead, isCheckable } from '@shared/schedule/conflicts'
+import type { DayHours } from '@shared/settings/defaults'
+import { type DateKey, formatDateKey, nowMinutes, todayKey } from '@shared/time'
 import type { Availability, AvailabilityRange, DayConfig, Session, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { TimeSelect } from '@/components/app/TimeSelect'
@@ -79,6 +81,25 @@ export function DayEditDialog({
     if (closeMin < openMin + 60) return toast.error('The day must be open at least one hour.')
     const live = sessions.filter((s) => !s.isDeleted)
     if (!isOpen && live.length > 0 && !window.confirm(`Close this day? This will delete all ${live.length} sessions on this day.`)) return
+    if (isOpen) {
+      // Shorter hours or less availability can leave booked sessions uncovered: they stay, as conflicts.
+      const covered = (d: TutorDay | undefined, h: DayHours, s: Session) => !!d && !d.unavailable && rangesContain(effectiveRanges(d.ranges, h), s.startMin, s.endMin)
+      const before = dayHours(dateKey, settings, dayConfigs)
+      const after = { isOpen, openMin, closeMin }
+      const today = todayKey(ctx.timezone)
+      const nowMin = nowMinutes(ctx.timezone)
+      const hit = live.filter((s) => isCheckable(s) && isAhead(s, today, nowMin) && initial[s.tutorId] && covered(initial[s.tutorId], before, s) && !covered(rows[s.tutorId], after, s))
+      if (
+        hit.length &&
+        !window.confirm(
+          `${hit.length} booked session${hit.length > 1 ? 's' : ''} (${hit
+            .slice(0, 3)
+            .map((s) => `${s.studentName} with ${s.tutorName}`)
+            .join(', ')}${hit.length > 3 ? '…' : ''}) will be outside the new hours or availability. ${hit.length > 1 ? 'They' : 'It'} will show as conflicts until moved, reassigned or canceled. Save anyway?`,
+        )
+      )
+        return
+    }
     setBusy(true)
     try {
       const batch = writeBatch(db)

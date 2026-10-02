@@ -4,6 +4,7 @@ import { LuCalendarRange, LuRotateCcw, LuTriangleAlert, LuX } from 'react-icons/
 import { toast } from 'sonner'
 import { dayHours } from '@shared/availability'
 import { COL } from '@shared/paths'
+import { isAhead, isCheckable } from '@shared/schedule/conflicts'
 import type { DayHours } from '@shared/settings/defaults'
 import {
   type DateKey,
@@ -14,11 +15,12 @@ import {
   formatDateKey,
   formatMinutesShort,
   formatTimeRange,
+  nowMinutes,
   orderedWeekdays,
   todayKey,
   weekdayOf,
 } from '@shared/time'
-import type { Session } from '@shared/types'
+import type { Session, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { DatePicker } from '@/components/app/DatePicker'
 import { MonthScroller, type MonthScrollerHandle } from '@/components/app/MonthScroller'
@@ -240,36 +242,64 @@ export function DateHoursCard() {
 type FormValue = { mode: Mode; openMin: number; closeMin: number }
 
 /**
- * The sessions booked on the dates while they're about to be closed (null while
- * loading). Closing moves them to Trash, as closing a day on the schedule does.
+ * The sessions booked on the dates (null while loading). Closing moves them to
+ * Trash, as closing a day on the schedule does; shorter hours leave the ones
+ * outside them as conflicts.
  */
-function useSessionsToTrash(dates: DateKey[], closing: boolean): string[] | null {
+function useBookedSessions(dates: DateKey[]): WithId<Session>[] | null {
   const { branchId } = useBranch()
-  const [found, setFound] = useState<{ key: string; ids: string[] } | null>(null)
+  const [found, setFound] = useState<{ key: string; sessions: WithId<Session>[] } | null>(null)
   const key = dates.length ? `${dates[0]}|${dates[dates.length - 1]}|${dates.length}` : ''
   useEffect(() => {
-    if (!closing || !key) return
+    if (!key) return
     let live = true
     const wanted = new Set(dates)
     getDocs(query(branchCol(branchId, COL.sessions), where('dateKey', '>=', dates[0]), where('dateKey', '<=', dates[dates.length - 1])))
       .then((snap) => {
         if (!live) return
-        const ids = snap.docs.filter((d) => wanted.has((d.data() as Session).dateKey) && !(d.data() as Session).isDeleted).map((d) => d.id)
-        setFound({ key, ids })
+        const sessions = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Session) })).filter((s) => wanted.has(s.dateKey) && !s.isDeleted)
+        setFound({ key, sessions })
       })
-      .catch(() => live && setFound({ key, ids: [] }))
+      .catch(() => live && setFound({ key, sessions: [] }))
     return () => {
       live = false
     }
     // `key` stands for the dates.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [closing, key, branchId])
-  if (!closing || !key) return []
-  return found?.key === key ? found.ids : null
+  }, [key, branchId])
+  if (!key) return []
+  return found?.key === key ? found.sessions : null
 }
 
-/** Open with times, closed, or the weekly default; says when closing moves sessions to Trash. */
-function HoursForm({ value, onChange, trash, many }: { value: FormValue; onChange: (v: FormValue) => void; trash: string[] | null; many: boolean }) {
+/** Booked sessions still ahead that the new hours would leave outside opening hours. */
+function useOutsideHours(booked: WithId<Session>[] | null, value: FormValue): number {
+  const { settings, timezone } = useBranch()
+  return useMemo(() => {
+    if (!booked || value.mode === 'closed') return 0
+    const today = todayKey(timezone)
+    const nowMin = nowMinutes(timezone)
+    return booked.filter((s) => {
+      if (!isCheckable(s) || !isAhead(s, today, nowMin)) return false
+      const h = value.mode === 'open' ? { isOpen: true, openMin: value.openMin, closeMin: value.closeMin } : dayHours(s.dateKey, settings, null)
+      return !h.isOpen || s.startMin < h.openMin || s.endMin > h.closeMin
+    }).length
+  }, [booked, value, settings, timezone])
+}
+
+/** Open with times, closed, or the weekly default; says when closing moves sessions to Trash, or shorter hours leave some outside. */
+function HoursForm({
+  value,
+  onChange,
+  trash,
+  outside,
+  many,
+}: {
+  value: FormValue
+  onChange: (v: FormValue) => void
+  trash: string[] | null
+  outside: number
+  many: boolean
+}) {
   const { settings } = useBranch()
   const range = settings.schedule.editorRange
   return (
@@ -312,6 +342,15 @@ function HoursForm({ value, onChange, trash, many }: { value: FormValue; onChang
           </AlertDescription>
         </Alert>
       ) : null}
+      {outside > 0 ? (
+        <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200" data-testid="hours-outside">
+          <LuTriangleAlert />
+          <AlertDescription className="text-amber-800 dark:text-amber-300">
+            {outside} booked session{outside > 1 ? 's fall' : ' falls'} outside these hours. {outside > 1 ? 'They stay' : 'It stays'} booked and{' '}
+            {outside > 1 ? 'show' : 'shows'} as {outside > 1 ? 'conflicts' : 'a conflict'} on the schedule until moved, reassigned or canceled.
+          </AlertDescription>
+        </Alert>
+      ) : null}
     </FieldGroup>
   )
 }
@@ -342,7 +381,9 @@ function HoursDialog({
 }) {
   const [value, setValue] = useState<FormValue>({ mode: initial.isOpen ? 'open' : 'closed', openMin: initial.openMin, closeMin: initial.closeMin })
   const [busy, setBusy] = useState(false)
-  const trash = useSessionsToTrash(dates, value.mode === 'closed')
+  const booked = useBookedSessions(dates)
+  const trash = value.mode === 'closed' ? (booked?.map((s) => s.id) ?? null) : []
+  const outside = useOutsideHours(booked, value)
   const invalid = (value.mode === 'open' && value.closeMin <= value.openMin) || trash === null
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -351,7 +392,7 @@ function HoursDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <HoursForm value={value} onChange={setValue} trash={trash} many={dates.length > 1} />
+        <HoursForm value={value} onChange={setValue} trash={trash} outside={outside} many={dates.length > 1} />
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancel
@@ -402,7 +443,9 @@ function RangeDialog({
     return dateRange(from < today ? today : from, to).filter((d) => wanted.has(weekdayOf(d)))
   }, [from, to, days, today])
   const tooLong = !!to && diffDays(from, to) > 730
-  const trash = useSessionsToTrash(dates, value.mode === 'closed')
+  const booked = useBookedSessions(dates)
+  const trash = value.mode === 'closed' ? (booked?.map((s) => s.id) ?? null) : []
+  const outside = useOutsideHours(booked, value)
   const invalid = !dates.length || (value.mode === 'open' && value.closeMin <= value.openMin) || trash === null
   const allDays = days.length === 7
   const label = to
@@ -438,7 +481,7 @@ function RangeDialog({
             </ToggleGroup>
             <FieldDescription>Only these weekdays in the range change.</FieldDescription>
           </Field>
-          <HoursForm value={value} onChange={setValue} trash={trash} many />
+          <HoursForm value={value} onChange={setValue} trash={trash} outside={outside} many />
           {tooLong ? (
             <p className="text-sm text-destructive">Pick a range of at most two years.</p>
           ) : (

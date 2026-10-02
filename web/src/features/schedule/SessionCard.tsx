@@ -2,20 +2,14 @@ import { useRef, useState } from 'react'
 import { FaCheckCircle } from 'react-icons/fa'
 import { FaTriangleExclamation } from 'react-icons/fa6'
 import { IoMdNotificationsOutline } from 'react-icons/io'
+import { LuArrowRightLeft, LuCalendarPlus, LuCopy, LuGraduationCap, LuNotebookPen, LuPencil, LuTrash2, LuTriangleAlert, LuUserRoundCheck } from 'react-icons/lu'
 import { studentLabel } from '@shared/people'
+import { type Conflict, tutorConflictText } from '@shared/schedule/conflicts'
 import { fitsCapacity } from '@shared/schedule/lanes'
 import { SESSION_STATUSES, SESSION_STATUS_LABELS, SESSION_STATUS_STYLE } from '@shared/schedule/status'
-import { formatTimeRange } from '@shared/time'
+import { formatMinutes, formatTimeRange } from '@shared/time'
 import type { AvailabilityRange, Session, WithId } from '@shared/types'
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuLabel,
-  ContextMenuRadioGroup,
-  ContextMenuRadioItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from '@/components/ui/context-menu'
+import { ContextMenuFor, type MenuEntry, menu } from '@/components/app/ItemMenu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { useScheduleUi } from './context'
@@ -50,6 +44,8 @@ export function SessionCard({ session, left, width, top, readOnly, bounds, segme
   const loggable = (ui.loggableStatuses ?? ['pending', 'confirmed', 'present']).includes(session.status)
   const showLog = logSubmitted || (ended && loggable)
   const canEdit = !readOnly && ui.mode === 'admin'
+  const conflicts = ui.conflictsOf(session)
+  const inConflict = conflicts.length > 0
 
   const startMin = preview?.startMin ?? session.startMin
   const endMin = preview?.endMin ?? session.endMin
@@ -146,6 +142,7 @@ export function SessionCard({ session, left, width, top, readOnly, bounds, segme
         canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
         selected && 'outline-2 outline-offset-2 outline-foreground outline-dashed',
         session.note && 'border-l-[5px] border-l-[#1650A5]',
+        inConflict && 'border-2 border-dashed',
         inPopover && 'relative w-full',
       )}
       style={{
@@ -154,19 +151,34 @@ export function SessionCard({ session, left, width, top, readOnly, bounds, segme
         top: inPopover ? undefined : top,
         height: CARD_H,
         backgroundColor: selected ? undefined : st.bg,
-        borderColor: session.note ? undefined : st.border,
+        borderColor: inConflict ? '#dc2626' : session.note ? undefined : st.border,
         ...(selected ? { backgroundColor: '#F0F0F0' } : {}),
         zIndex: preview ? 8 : 5,
       }}
     >
+      {inConflict ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(135deg,rgba(220,38,38,0.13)_0,rgba(220,38,38,0.13)_5px,transparent_5px,transparent_11px)]"
+        />
+      ) : null}
       <div className="truncate pr-4 text-[13px] font-extrabold text-black">{studentLabel(session.studentName, session.studentGrade)}</div>
       <div className="truncate text-xs font-semibold text-neutral-800">{session.subject || 'No subject'}</div>
       <div className="truncate pr-4 text-[11px] font-semibold text-neutral-700">{formatTimeRange(startMin, endMin)}</div>
+      {inConflict ? (
+        <span
+          data-testid="session-conflict"
+          aria-label="In conflict"
+          className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-red-600 text-white"
+        >
+          <LuTriangleAlert className="size-2.5" />
+        </span>
+      ) : null}
       {bell.length > 0 ? (
         <button
           type="button"
           aria-label={`${bell.length} notification${bell.length > 1 ? 's' : ''}`}
-          className="absolute top-1 right-1 text-neutral-900"
+          className={cn('absolute top-1 text-neutral-900', inConflict ? 'right-6' : 'right-1')}
           onClick={(e) => {
             e.stopPropagation()
             ui.showBell(session, bell)
@@ -201,33 +213,91 @@ export function SessionCard({ session, left, width, top, readOnly, bounds, segme
     </div>
   )
 
-  const withNote = session.note ? (
+  const conflictText = !inConflict ? null : ui.mode === 'tutor' ? tutorConflictText(conflicts) : conflicts.map((c) => c.message).join(' ')
+  // The tooltip wraps the right-click menu, which wraps the card.
+  const withMenu = (
+    <ContextMenuFor entries={sessionMenu(session, { ui, canEdit, conflicts, logSubmitted })} className="w-64">
+      {card}
+    </ContextMenuFor>
+  )
+  return session.note || conflictText ? (
     <Tooltip>
-      <TooltipTrigger asChild>{card}</TooltipTrigger>
-      <TooltipContent side="bottom" className="max-w-64">
-        <span className="font-semibold">Note:</span> {session.note}
+      <TooltipTrigger asChild>{withMenu}</TooltipTrigger>
+      <TooltipContent side="bottom" className="max-w-72 space-y-1">
+        {conflictText ? (
+          <p>
+            <span className="font-semibold">{ui.mode === 'tutor' ? 'Not confirmed: ' : 'Conflict: '}</span>
+            {conflictText}
+            {ui.mode === 'admin' ? ' Move it, give it to another tutor or cancel it.' : ''}
+          </p>
+        ) : null}
+        {session.note ? (
+          <p>
+            <span className="font-semibold">Note:</span> {session.note}
+          </p>
+        ) : null}
       </TooltipContent>
     </Tooltip>
   ) : (
-    card
+    withMenu
   )
+}
 
-  if (!canEdit) return withNote
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{withNote}</ContextMenuTrigger>
-      <ContextMenuContent className="w-44">
-        <ContextMenuLabel className="text-xs text-muted-foreground">Status</ContextMenuLabel>
-        <ContextMenuSeparator />
-        <ContextMenuRadioGroup value={session.status} onValueChange={(v) => ui.setStatus(session, v as Session['status'])}>
-          {SESSION_STATUSES.map((s) => (
-            <ContextMenuRadioItem key={s} value={s}>
-              <span className="size-2.5 rounded-full border" style={{ backgroundColor: SESSION_STATUS_STYLE[s].bg, borderColor: SESSION_STATUS_STYLE[s].border }} />
-              {SESSION_STATUS_LABELS[s]}
-            </ContextMenuRadioItem>
-          ))}
-        </ContextMenuRadioGroup>
-      </ContextMenuContent>
-    </ContextMenu>
+/**
+ * Right-click menu of a session card. Admins (editable days): resolve a conflict,
+ * status, log, edit, reassign, copy, duplicate, student, Trash. Past days and
+ * tutors: the log and the student.
+ */
+function sessionMenu(
+  s: WithId<Session>,
+  { ui, canEdit, conflicts, logSubmitted }: { ui: ReturnType<typeof useScheduleUi>; canEdit: boolean; conflicts: Conflict[]; logSubmitted: boolean },
+): MenuEntry[] {
+  const admin = ui.mode === 'admin'
+  const time = formatTimeRange(s.startMin, s.endMin)
+  const firstName = s.tutorName.split(' ')[0] || 'the tutor'
+  const options = canEdit ? ui.reassignOptions(s) : null
+  const reassignMenu = (label: string, separatorBefore = false): MenuEntry | false =>
+    canEdit &&
+    (options === null
+      ? { label: `${label}…`, icon: LuArrowRightLeft, onSelect: () => ui.editSession(s), separatorBefore }
+      : {
+          kind: 'sub',
+          label,
+          icon: LuArrowRightLeft,
+          separatorBefore,
+          entries: options.length
+            ? options.map((o) => ({ label: `${o.name} · ${o.seats} seat${o.seats === 1 ? '' : 's'} left`, onSelect: () => ui.reassign(s, o.id) }))
+            : [{ label: 'No other tutor is free then', onSelect: () => undefined, disabled: true }],
+        })
+  const inConflict = conflicts.length > 0
+  const kinds = new Set(conflicts.map((c) => c.kind))
+  const canMakeAvailable = kinds.has('tutor_unavailable') && !kinds.has('center_closed') && !kinds.has('outside_hours') && !kinds.has('tutor_inactive')
+
+  return menu(
+    { kind: 'label', label: `${s.studentName} · ${formatMinutes(s.startMin)}` },
+    // Resolve first: a conflict decides whether the session happens at all.
+    inConflict && { kind: 'label', label: conflicts[0].message, tone: 'danger', separatorBefore: true },
+    inConflict && reassignMenu('Give to another tutor'),
+    inConflict && canEdit && canMakeAvailable && { label: `Make ${firstName} available ${time}`, icon: LuUserRoundCheck, onSelect: () => ui.makeAvailable(s) },
+    inConflict && canEdit && { label: 'Move to another time…', icon: LuCalendarPlus, onSelect: () => ui.editSession(s) },
+    inConflict && canEdit && { label: 'Cancel session', onSelect: () => ui.setStatus(s, 'canceled') },
+    canEdit && {
+      kind: 'radio',
+      value: s.status,
+      separatorBefore: true,
+      options: SESSION_STATUSES.map((st) => ({ value: st, label: SESSION_STATUS_LABELS[st], swatch: SESSION_STATUS_STYLE[st] })),
+      onChange: (v) => ui.setStatus(s, v as Session['status']),
+    },
+    logSubmitted
+      ? { label: 'View session log', icon: LuNotebookPen, onSelect: () => ui.viewLog(s), separatorBefore: true }
+      : { label: admin ? 'Write session log' : 'Open session log', icon: LuNotebookPen, onSelect: () => ui.openLog(s), separatorBefore: true },
+    logSubmitted && (admin || ui.mode === 'tutor') && { label: 'Edit session log', onSelect: () => ui.openLog(s) },
+    admin && { label: canEdit ? 'Edit session…' : 'View session', icon: LuPencil, onSelect: () => ui.editSession(s) },
+    !inConflict && reassignMenu('Reassign to'),
+    canEdit && { label: 'Copy', icon: LuCopy, shortcut: '⌘C', onSelect: () => ui.copySession(s), separatorBefore: true },
+    canEdit && { label: 'Duplicate to next week…', onSelect: () => ui.duplicateSession(s) },
+    { label: 'Open student profile', icon: LuGraduationCap, onSelect: () => ui.openStudent(s), separatorBefore: true },
+    { label: 'Open student in new tab', onSelect: () => ui.openStudent(s, true) },
+    canEdit && { label: 'Move to Trash', icon: LuTrash2, shortcut: '⌫', destructive: true, onSelect: () => ui.trashSession(s), separatorBefore: true },
   )
 }

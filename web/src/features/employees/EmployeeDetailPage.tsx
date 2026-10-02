@@ -8,6 +8,7 @@ import { COL } from '@shared/paths'
 import { STAFF_STATUSES, STAFF_STATUS_LABELS } from '@shared/people'
 import { ROLE_LABELS, isAdminRole } from '@shared/roles'
 import { payModelOn } from '@shared/settings/businessRules'
+import { sortSubjects } from '@shared/subjects'
 import { formatInstant, todayKey } from '@shared/time'
 import type { Compensation, Member, Staff, StaffNotes, StaffRole, StaffStatus } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
@@ -15,6 +16,7 @@ import { initials } from '@/components/app/BrandMark'
 import { MultiOptionPicker } from '@/components/app/OptionPicker'
 import { StaffStatusBadge } from '@/components/app/StatusBadge'
 import { DatePicker } from '@/components/app/DatePicker'
+import { useConfirm } from '@/components/app/useConfirm'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -27,13 +29,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
-import { useSubjects } from '@/features/data/hooks'
+import { useSubjectCategories, useSubjects } from '@/features/data/hooks'
 import { addAudit } from '@/lib/audit'
 import { db } from '@/lib/firebase'
 import { branchCol, branchDocRef, useDoc, useQuery } from '@/lib/firestore'
 import { cn } from '@/lib/utils'
 import { KioskPinCard } from '@/features/timeclock/KioskPinCard'
-import { compensationRef, saveCompensation, saveEmployeeProfile, saveStaffNotes, staffNotesRef } from './api'
+import { compensationRef, countUpcomingSessions, saveCompensation, saveEmployeeProfile, saveStaffNotes, staffNotesRef, stopTeachingQuestion } from './api'
 
 export function EmployeeDetailPage() {
   const { staffId = '' } = useParams()
@@ -87,7 +89,8 @@ export function EmployeeDetailPage() {
 }
 
 function ProfileCard({ staff, member }: { staff: Staff & { id: string }; member: (Member & { id: string }) | null }) {
-  const { branchId, actor } = useBranch()
+  const { branchId, actor, timezone } = useBranch()
+  const { confirm, dialog: confirmDialog } = useConfirm()
   const [form, setForm] = useState(staff)
   const [busy, setBusy] = useState(false)
   useEffect(() => setForm(staff), [staff])
@@ -98,6 +101,13 @@ function ProfileCard({ staff, member }: { staff: Staff & { id: string }; member:
     if (!form.firstName.trim()) return toast.error('Enter a first name.')
     setBusy(true)
     try {
+      // A tutor who stops teaching leaves their upcoming sessions as conflicts: ask first.
+      const stopsTeaching = staff.role === 'tutor' && staff.status === 'active' && (form.status !== 'active' || form.role !== 'tutor')
+      if (stopsTeaching) {
+        const what = form.status !== 'active' ? `set ${staff.firstName || staff.name} to ${STAFF_STATUS_LABELS[form.status]}` : 'change the role'
+        const q = stopTeachingQuestion(staff.name, await countUpcomingSessions(branchId, staff.id, timezone), what)
+        if (q && !(await confirm(q))) return
+      }
       await saveEmployeeProfile(branchId, actor, staff, pick(form))
       toast.success('Profile saved')
     } catch (e) {
@@ -210,6 +220,7 @@ function ProfileCard({ staff, member }: { staff: Staff & { id: string }; member:
           {busy ? <Spinner /> : null} Save changes
         </Button>
       </CardFooter>
+      {confirmDialog}
     </Card>
   )
 }
@@ -233,6 +244,8 @@ function pick(s: Staff): Partial<Staff> {
 function SubjectsCard({ staff }: { staff: Staff & { id: string } }) {
   const { branchId, actor } = useBranch()
   const { data: subjects } = useSubjects()
+  const { data: categories } = useSubjectCategories()
+  const categoryName = new Map(categories.map((c) => [c.id, c.name]))
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState<string[]>(staff.subjectIds)
   useEffect(() => setValue(staff.subjectIds), [staff.subjectIds])
@@ -274,7 +287,7 @@ function SubjectsCard({ staff }: { staff: Staff & { id: string } }) {
             <MultiOptionPicker
               value={value}
               onChange={setValue}
-              options={subjects.map((s) => ({ value: s.id, label: s.name }))}
+              options={sortSubjects(subjects, categories).map((s) => ({ value: s.id, label: s.name, hint: categoryName.get(s.categoryId) }))}
               placeholder="Add a subject…"
               searchPlaceholder="Search subjects…"
             />

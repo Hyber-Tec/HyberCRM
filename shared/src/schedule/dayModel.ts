@@ -30,7 +30,7 @@ export interface TutorRow<S extends ModelSession = ModelSession> {
   tutor: TutorRef
   /** Availability ranges (empty = not available). */
   segments: AvailabilityRange[]
-  /** Has sessions but no availability on the timeline: "Unavailable. Move sessions." */
+  /** Has live (not canceled) sessions but no availability on the timeline: shown as unavailable, sessions to move. */
   isGhost: boolean
   active: S[]
   canceled: S[]
@@ -97,7 +97,7 @@ export function buildDayRows<S extends ModelSession>(input: DayModelInput<S>): T
     rows.push({
       tutor,
       segments,
-      isGhost: hasSessions && !hasTimelineAvailability,
+      isGhost: active.length > 0 && !hasTimelineAvailability,
       active,
       canceled: isPast ? [] : canceled,
       lanes,

@@ -7,7 +7,9 @@ import {
   LuArrowLeft,
   LuClock,
   LuCornerDownRight,
+  LuExternalLink,
   LuEye,
+  LuMegaphone,
   LuMessageSquare,
   LuPaperclip,
   LuPencil,
@@ -29,6 +31,7 @@ import type { WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { ConfirmDialog } from '@/components/app/ConfirmDialog'
 import { PageHeader } from '@/components/app/PageHeader'
+import { ContextMenuFor, menu } from '@/components/app/ItemMenu'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -299,64 +302,78 @@ function AnnouncementCard({
   onReads: () => void
 }) {
   const { timezone } = useBranch()
+  const navigate = useNavigate()
   return (
-    <Card
-      className={cn('group relative gap-0 px-4 py-3.5 transition-shadow hover:shadow-md', unread && 'border-l-[3px] border-l-foreground')}
-      data-testid="announcement-card"
+    <ContextMenuFor
+      entries={menu(
+        { kind: 'label', label: a.title || '(Untitled)' },
+        { label: 'Open', icon: LuMegaphone, onSelect: () => navigate(to) },
+        { label: 'Open in new tab', icon: LuExternalLink, onSelect: () => window.open(to, '_blank', 'noopener') },
+        admin && { label: 'Edit', icon: LuPencil, separatorBefore: true, onSelect: onEdit },
+        admin && !a.archived && { label: a.pinned ? 'Unpin' : 'Pin to top', icon: a.pinned ? LuPinOff : LuPin, onSelect: onPin },
+        admin && { label: a.archived ? 'Restore from archive' : 'Archive', icon: a.archived ? LuArchiveRestore : LuArchive, onSelect: onArchive },
+        admin && { label: 'Read receipts', icon: LuEye, onSelect: onReads },
+        admin && { label: 'Delete', icon: LuTrash2, destructive: true, separatorBefore: true, onSelect: onDelete },
+      )}
     >
-      <div className="flex items-start gap-2">
-        {unread ? <span className="mt-2 size-2 shrink-0 rounded-full bg-foreground" aria-label="Unread" /> : null}
-        {a.pinned ? <LuPin className="mt-1 size-3.5 shrink-0 text-muted-foreground" aria-label="Pinned" /> : null}
-        <h3 className="min-w-0 flex-1 leading-snug font-semibold">
-          <Link to={to} className="after:absolute after:inset-0 focus-visible:outline-none">
-            {a.title || '(Untitled)'}
-          </Link>
-        </h3>
-        {admin ? (
-          <div className="relative z-10 -my-1 flex gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100">
-            <IconAction icon={LuPencil} label="Edit" onClick={onEdit} />
-            {!a.archived ? <IconAction icon={a.pinned ? LuPinOff : LuPin} label={a.pinned ? 'Unpin' : 'Pin'} onClick={onPin} /> : null}
-            <IconAction icon={a.archived ? LuArchiveRestore : LuArchive} label={a.archived ? 'Restore' : 'Archive'} onClick={onArchive} />
-            <IconAction icon={LuTrash2} label="Delete" onClick={onDelete} danger />
-          </div>
-        ) : null}
-      </div>
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-        <Badge variant="secondary" className="font-normal">
-          {a.category || 'General'}
-        </Badge>
-        <span>{a.authorName || 'Admin'}</span>
-        <span aria-hidden>·</span>
-        <span>{postedAt(a, timezone)}</span>
-        <span aria-hidden>·</span>
-        <span className="inline-flex items-center gap-1">
-          <LuUsers className="size-3.5" /> {audienceLabel(a)}
-        </span>
-        {a.commentCount ? (
+      <Card
+        className={cn('group relative gap-0 px-4 py-3.5 transition-shadow hover:shadow-md', unread && 'border-l-[3px] border-l-foreground')}
+        data-testid="announcement-card"
+      >
+        <div className="flex items-start gap-2">
+          {unread ? <span className="mt-2 size-2 shrink-0 rounded-full bg-foreground" aria-label="Unread" /> : null}
+          {a.pinned ? <LuPin className="mt-1 size-3.5 shrink-0 text-muted-foreground" aria-label="Pinned" /> : null}
+          <h3 className="min-w-0 flex-1 leading-snug font-semibold">
+            <Link to={to} className="after:absolute after:inset-0 focus-visible:outline-none">
+              {a.title || '(Untitled)'}
+            </Link>
+          </h3>
+          {admin ? (
+            <div className="relative z-10 -my-1 flex gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100">
+              <IconAction icon={LuPencil} label="Edit" onClick={onEdit} />
+              {!a.archived ? <IconAction icon={a.pinned ? LuPinOff : LuPin} label={a.pinned ? 'Unpin' : 'Pin'} onClick={onPin} /> : null}
+              <IconAction icon={a.archived ? LuArchiveRestore : LuArchive} label={a.archived ? 'Restore' : 'Archive'} onClick={onArchive} />
+              <IconAction icon={LuTrash2} label="Delete" onClick={onDelete} danger />
+            </div>
+          ) : null}
+        </div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+          <Badge variant="secondary" className="font-normal">
+            {a.category || 'General'}
+          </Badge>
+          <span>{a.authorName || 'Admin'}</span>
+          <span aria-hidden>·</span>
+          <span>{postedAt(a, timezone)}</span>
+          <span aria-hidden>·</span>
           <span className="inline-flex items-center gap-1">
-            <LuMessageSquare className="size-3.5" /> {a.commentCount}
+            <LuUsers className="size-3.5" /> {audienceLabel(a)}
           </span>
-        ) : null}
-        {a.attachments?.length ? (
-          <span className="inline-flex items-center gap-1">
-            <LuPaperclip className="size-3.5" /> {a.attachments.length}
-          </span>
-        ) : null}
-        {admin ? (
-          <button
-            type="button"
-            className="relative z-10 font-medium text-blue-600 underline underline-offset-2 hover:text-blue-700 dark:text-blue-400"
-            onClick={(e) => {
-              e.stopPropagation()
-              onReads()
-            }}
-          >
-            Read: {a.readCount ?? 0}
-          </button>
-        ) : null}
-      </div>
-      {a.contentText ? <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{a.contentText}</p> : null}
-    </Card>
+          {a.commentCount ? (
+            <span className="inline-flex items-center gap-1">
+              <LuMessageSquare className="size-3.5" /> {a.commentCount}
+            </span>
+          ) : null}
+          {a.attachments?.length ? (
+            <span className="inline-flex items-center gap-1">
+              <LuPaperclip className="size-3.5" /> {a.attachments.length}
+            </span>
+          ) : null}
+          {admin ? (
+            <button
+              type="button"
+              className="relative z-10 font-medium text-blue-600 underline underline-offset-2 hover:text-blue-700 dark:text-blue-400"
+              onClick={(e) => {
+                e.stopPropagation()
+                onReads()
+              }}
+            >
+              Read: {a.readCount ?? 0}
+            </button>
+          ) : null}
+        </div>
+        {a.contentText ? <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{a.contentText}</p> : null}
+      </Card>
+    </ContextMenuFor>
   )
 }
 

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { BiSolidEdit } from 'react-icons/bi'
+import { LuCalendarCog, LuClipboardPaste, LuPencil, LuPlus, LuTrash2, LuTriangleAlert, LuUserRound } from 'react-icons/lu'
 import type { TutorRow } from '@shared/schedule/dayModel'
 import { layoutEventLanes } from '@shared/schedule/events'
 import { slotAt } from '@shared/schedule/dayModel'
 import type { DayHours } from '@shared/settings/defaults'
 import { type DateKey, formatDateKey, formatMinutes, formatMinutesShort, formatTimeRange } from '@shared/time'
 import type { Session, WithId } from '@shared/types'
+import { ContextMenuFor, menu } from '@/components/app/ItemMenu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -45,8 +47,21 @@ export function DaySection({ dateKey, hours, rows, events, headerLabel, sectionI
   const ui = useScheduleUi()
   const locked = ui.isLocked(dateKey)
   const isToday = dateKey === ui.today
-  const openMin = Math.floor(hours.openMin / 5) * 5
-  const closeMin = Math.max(openMin + 60, Math.ceil(hours.closeMin / 5) * 5)
+  // Sessions outside the opening hours (the day was closed or shortened after booking) stay on screen.
+  let lo = hours.isOpen ? hours.openMin : Infinity
+  let hi = hours.isOpen ? hours.closeMin : -Infinity
+  for (const r of rows) {
+    for (const s of r.active) {
+      lo = Math.min(lo, s.startMin)
+      hi = Math.max(hi, s.endMin)
+    }
+  }
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) {
+    lo = hours.openMin
+    hi = hours.closeMin
+  }
+  const openMin = hours.isOpen && lo >= hours.openMin ? Math.floor(lo / 5) * 5 : Math.floor(lo / 60) * 60
+  const closeMin = Math.max(openMin + 60, hours.isOpen && hi <= hours.closeMin ? Math.ceil(hi / 5) * 5 : Math.ceil(hi / 60) * 60)
   const width = timelineWidth(openMin, closeMin)
   const x = (m: number) => ((m - openMin) / (closeMin - openMin)) * width
   const hoverRef = useRef<HTMLDivElement>(null)
@@ -104,22 +119,31 @@ export function DaySection({ dateKey, hours, rows, events, headerLabel, sectionI
 
   return (
     <section id={sectionId} className="w-max overflow-hidden rounded-xl border bg-card shadow-xs" data-date={dateKey}>
-      <header className="flex items-center justify-between border-b bg-muted px-3 py-2">
-        <h2 className="text-base font-bold tracking-tight">
-          {headerLabel ?? `${formatDateKey(dateKey, 'weekdayLong').split(',')[0]}, ${formatDateKey(dateKey, 'short')}`}
-          {isToday ? <span className="ml-2 rounded-full bg-foreground px-2 py-0.5 align-middle text-[10px] font-semibold text-background">TODAY</span> : null}
-        </h2>
-        {ui.mode === 'admin' ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button type="button" aria-label="Edit day" className="text-muted-foreground hover:text-foreground" onClick={() => ui.editDay(dateKey)}>
-                <BiSolidEdit className="size-5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Edit day</TooltipContent>
-          </Tooltip>
-        ) : null}
-      </header>
+      <ContextMenuFor
+        disabled={ui.mode !== 'admin'}
+        entries={menu(
+          { label: 'Edit day…', icon: LuCalendarCog, onSelect: () => ui.editDay(dateKey) },
+          !locked && hours.isOpen && { label: 'New event…', icon: LuPlus, onSelect: () => ui.createEvent(dateKey, hours.openMin) },
+        )}
+      >
+        <header className="flex items-center justify-between border-b bg-muted px-3 py-2">
+          <h2 className="text-base font-bold tracking-tight">
+            {headerLabel ?? `${formatDateKey(dateKey, 'weekdayLong').split(',')[0]}, ${formatDateKey(dateKey, 'short')}`}
+            {isToday ? <span className="ml-2 rounded-full bg-foreground px-2 py-0.5 align-middle text-[10px] font-semibold text-background">TODAY</span> : null}
+            {!hours.isOpen ? <span className="ml-2 rounded-full bg-red-600 px-2 py-0.5 align-middle text-[10px] font-semibold text-white">CLOSED</span> : null}
+          </h2>
+          {ui.mode === 'admin' ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" aria-label="Edit day" className="text-muted-foreground hover:text-foreground" onClick={() => ui.editDay(dateKey)}>
+                  <BiSolidEdit className="size-5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Edit day</TooltipContent>
+            </Tooltip>
+          ) : null}
+        </header>
+      </ContextMenuFor>
 
       <div
         className="relative"
@@ -159,7 +183,7 @@ export function DaySection({ dateKey, hours, rows, events, headerLabel, sectionI
 
         {/* Tutor rows */}
         {rows.map((row) => (
-          <TutorRowView key={row.tutor.id} row={row} dateKey={dateKey} openMin={openMin} closeMin={closeMin} width={width} locked={locked} isToday={isToday} />
+          <TutorRowView key={row.tutor.id} row={row} dateKey={dateKey} hours={hours} openMin={openMin} closeMin={closeMin} width={width} locked={locked} isToday={isToday} />
         ))}
         {rows.length === 0 ? (
           <div className="px-4 py-6 text-sm text-muted-foreground">{locked ? 'No sessions on this day.' : 'No tutors available.'}</div>
@@ -229,35 +253,42 @@ function EventsRow({
           return (
             <Tooltip key={ev.id}>
               <TooltipTrigger asChild>
-                <div
-                  role="button"
-                  tabIndex={-1}
-                  draggable={!locked}
-                  onDragStart={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect()
-                    const off = Math.round((((e.clientX - rect.left) / rect.width) * (ev.endMin - ev.startMin)) / ui.snap) * ui.snap
-                    e.dataTransfer.setData(EVENT_DRAG_TYPE, JSON.stringify({ id: ev.id, grabOffsetMin: off, dateKey }))
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    ui.select({ kind: 'event', id: ev.id })
-                  }}
-                  onDoubleClick={(e) => {
-                    e.stopPropagation()
-                    ui.editEvent(ev, dateKey)
-                  }}
-                  className={cn(
-                    'absolute flex cursor-pointer flex-col justify-center overflow-hidden rounded-md bg-[#009EEB] px-2 text-white shadow-xs hover:brightness-110',
-                    selected && 'ring-2 ring-[#1a5cb5] ring-offset-1',
+                <ContextMenuFor
+                  entries={menu(
+                    { label: locked ? 'View event' : 'Edit event…', icon: LuPencil, onSelect: () => ui.editEvent(ev, dateKey) },
+                    !locked && { label: ev.recurrence ? 'Delete event series' : 'Delete event', icon: LuTrash2, destructive: true, separatorBefore: true, onSelect: () => ui.deleteEvent(ev) },
                   )}
-                  style={{ left: x(ev.startMin), width: Math.max(48, x(ev.endMin) - x(ev.startMin) - 3), top: 5 + lane * (EVENT_H + EVENT_GAP), height: EVENT_H }}
                 >
-                  <div className="truncate text-[13px] leading-tight font-bold">
-                    {ev.title}
-                    {ev.recurrence ? ' ↺' : ''}
+                  <div
+                    role="button"
+                    tabIndex={-1}
+                    draggable={!locked}
+                    onDragStart={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      const off = Math.round((((e.clientX - rect.left) / rect.width) * (ev.endMin - ev.startMin)) / ui.snap) * ui.snap
+                      e.dataTransfer.setData(EVENT_DRAG_TYPE, JSON.stringify({ id: ev.id, grabOffsetMin: off, dateKey }))
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      ui.select({ kind: 'event', id: ev.id })
+                    }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation()
+                      ui.editEvent(ev, dateKey)
+                    }}
+                    className={cn(
+                      'absolute flex cursor-pointer flex-col justify-center overflow-hidden rounded-md bg-[#009EEB] px-2 text-white shadow-xs hover:brightness-110',
+                      selected && 'ring-2 ring-[#1a5cb5] ring-offset-1',
+                    )}
+                    style={{ left: x(ev.startMin), width: Math.max(48, x(ev.endMin) - x(ev.startMin) - 3), top: 5 + lane * (EVENT_H + EVENT_GAP), height: EVENT_H }}
+                  >
+                    <div className="truncate text-[13px] leading-tight font-bold">
+                      {ev.title}
+                      {ev.recurrence ? ' ↺' : ''}
+                    </div>
+                    <div className="truncate text-[11px] leading-tight opacity-95">{formatTimeRange(ev.startMin, ev.endMin).replace(' - ', ' – ')}</div>
                   </div>
-                  <div className="truncate text-[11px] leading-tight opacity-95">{formatTimeRange(ev.startMin, ev.endMin).replace(' - ', ' – ')}</div>
-                </div>
+                </ContextMenuFor>
               </TooltipTrigger>
               <TooltipContent className="max-w-64">
                 <div className="font-semibold">{ev.title}</div>
@@ -274,6 +305,7 @@ function EventsRow({
 function TutorRowView({
   row,
   dateKey,
+  hours,
   openMin,
   closeMin,
   width,
@@ -282,6 +314,7 @@ function TutorRowView({
 }: {
   row: TutorRow<WithId<Session>>
   dateKey: DateKey
+  hours: DayHours
   openMin: number
   closeMin: number
   width: number
@@ -290,12 +323,22 @@ function TutorRowView({
 }) {
   const ui = useScheduleUi()
   const [canceledOpen, setCanceledOpen] = useState<string | null>(null)
+  // Where the track was right-clicked, for "New session at …" and "Paste here".
+  const [menuSlot, setMenuSlot] = useState<{ startMin: number; endMin: number } | null>(null)
   const hasCanceled = row.canceled.length > 0 && ui.mode === 'admin'
   const height = rowHeight(row.laneCount, hasCanceled)
   const band = hasCanceled ? CANCELED_BAND : 0
   const x = (m: number) => ((m - openMin) / (closeMin - openMin)) * width
   const clampX = (m: number) => x(Math.min(Math.max(m, openMin), closeMin))
   const editable = ui.mode === 'admin' && !locked && !row.isGhost
+  const inConflict = row.active.filter((s) => ui.conflictsOf(s).length > 0).length
+  // Time the center isn't open (the whole day when closed): hatched.
+  const closedSpans = hours.isOpen
+    ? [
+        [openMin, Math.min(hours.openMin, closeMin)],
+        [Math.max(hours.closeMin, openMin), closeMin],
+      ].filter(([a, b]) => b > a)
+    : [[openMin, closeMin]]
   const selectedSlot = ui.selection?.kind === 'slot' && ui.selection.staffId === row.tutor.id && ui.selection.dateKey === dateKey ? ui.selection : null
 
   // Group canceled sessions by identical time range for the "N Canceled" pills.
@@ -307,140 +350,184 @@ function TutorRowView({
     return slotAt(row.segments, row.active, m, ui.defaultDuration, ui.maxLanes, ui.snap)
   }
 
+  const first = row.tutor.name.split(' ')[0]
   return (
     <div className="flex border-b last:border-b-0" style={{ height }}>
-      <div className="flex shrink-0 flex-col justify-center gap-1 border-r bg-card px-3 py-2" style={{ width: NAME_COL }}>
-        <div className="truncate text-[15px] font-bold">{row.tutor.name}</div>
-        {row.clocks.slice(0, 2).map((c) => (
-          <span
-            key={c.id}
-            className={cn(
-              'w-fit rounded-full border px-2 py-0.5 text-[11px] font-bold whitespace-nowrap',
-              c.open ? 'border-green-200 bg-green-50 text-green-800' : 'border-[#7EECA7] bg-[#EFFFF5] text-[#20723B]',
-            )}
-          >
-            {c.open ? `In ${formatMinutes(c.startMin)}` : `${formatMinutes(c.startMin)} - ${formatMinutes(c.endMin)}`}
-          </span>
-        ))}
-        {row.clocks.length > 2 ? (
-          <span className="w-fit rounded-full border bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">+{row.clocks.length - 2} more</span>
-        ) : null}
-        {row.isGhost && ui.mode === 'admin' ? <span className="text-xs font-bold text-red-600">Unavailable. Move sessions.</span> : null}
-      </div>
-      <div
-        data-track
-        className={cn('relative', row.isGhost ? 'bg-card' : 'bg-[#F6F6F6] dark:bg-neutral-900')}
-        style={{ width }}
-        onClick={(e) => {
-          if (!editable || (e.target !== e.currentTarget && !(e.target as HTMLElement).dataset.avail)) return
-          const r = slotFromEvent(e)
-          if (!r.ok) {
-            if (r.reason === 'full') toast.error(`This tutor already has ${ui.maxLanes} students at that time.`)
-            return
-          }
-          ui.select({ kind: 'slot', staffId: row.tutor.id, dateKey, startMin: r.startMin, endMin: r.endMin })
-        }}
-        onDoubleClick={(e) => {
-          if (!editable || (e.target !== e.currentTarget && !(e.target as HTMLElement).dataset.avail)) return
-          const r = slotFromEvent(e)
-          if (r.ok) ui.createAt(row.tutor.id, dateKey, r.startMin, r.endMin)
-        }}
-        onDragOver={(e) => {
-          if (ui.mode === 'admin' && !locked && !row.isGhost && e.dataTransfer.types.includes(SESSION_DRAG_TYPE)) e.preventDefault()
-        }}
-        onDrop={(e) => {
-          const raw = e.dataTransfer.getData(SESSION_DRAG_TYPE)
-          if (!raw || locked || row.isGhost) return
-          e.preventDefault()
-          const data = JSON.parse(raw) as { id: string; grabOffsetMin: number }
-          ui.moveSession(data.id, row.tutor.id, dateKey, dragStartMinute(e.clientX, e.currentTarget.getBoundingClientRect(), openMin, closeMin, ui.snap, data.grabOffsetMin))
-        }}
+      <ContextMenuFor
+        disabled={ui.mode !== 'admin'}
+        entries={menu(
+          { kind: 'label', label: row.tutor.name },
+          { label: 'Open employee profile', icon: LuUserRound, onSelect: () => ui.openEmployee(row.tutor.id) },
+          { label: 'Open in new tab', onSelect: () => ui.openEmployee(row.tutor.id, true) },
+          { label: `Show only ${first}`, onSelect: () => ui.showOnlyTutor(row.tutor.id), separatorBefore: true },
+          { label: 'Show all tutors', onSelect: () => ui.showOnlyTutor(null) },
+          !locked && { label: 'Edit availability and hours for this day…', icon: LuCalendarCog, onSelect: () => ui.editDay(dateKey), separatorBefore: true },
+        )}
       >
-        {/* Availability bands */}
-        {row.segments.map((r, i) => (
-          <div
-            key={i}
-            data-avail="1"
-            className="absolute inset-y-0 border-x border-[#cfd4db] bg-white dark:border-neutral-700 dark:bg-neutral-950"
-            style={{ left: clampX(r.startMin), width: Math.max(2, clampX(r.endMin) - clampX(r.startMin)) }}
-          />
-        ))}
-        {/* Clocked time */}
-        {row.clocks.map((c) => {
-          const end = c.open && isToday ? Math.max(c.startMin + 1, ui.nowMin) : c.endMin
-          return (
-            <div
+        <div className="flex shrink-0 flex-col justify-center gap-1 border-r bg-card px-3 py-2" style={{ width: NAME_COL }}>
+          <div className="truncate text-[15px] font-bold">{row.tutor.name}</div>
+          {row.clocks.slice(0, 2).map((c) => (
+            <span
               key={c.id}
-              className={cn('pointer-events-none absolute inset-y-0 z-[1] border-x-[3px] border-[#88D5A4]', c.open ? 'border-r-dashed bg-[repeating-linear-gradient(45deg,#F0FDF4,#F0FDF4_6px,#fff_6px,#fff_12px)]' : 'bg-[#F8FFF9]')}
-              style={{ left: clampX(c.startMin), width: Math.max(2, clampX(end) - clampX(c.startMin)) }}
+              className={cn(
+                'w-fit rounded-full border px-2 py-0.5 text-[11px] font-bold whitespace-nowrap',
+                c.open ? 'border-green-200 bg-green-50 text-green-800' : 'border-[#7EECA7] bg-[#EFFFF5] text-[#20723B]',
+              )}
+            >
+              {c.open ? `In ${formatMinutes(c.startMin)}` : `${formatMinutes(c.startMin)} - ${formatMinutes(c.endMin)}`}
+            </span>
+          ))}
+          {row.clocks.length > 2 ? (
+            <span className="w-fit rounded-full border bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">+{row.clocks.length - 2} more</span>
+          ) : null}
+          {inConflict > 0 ? (
+            <span className="flex items-start gap-1 text-xs leading-tight font-bold text-red-600" data-testid="row-conflicts">
+              <LuTriangleAlert className="mt-px size-3.5 shrink-0" />
+              {ui.mode === 'tutor'
+                ? `${inConflict} session${inConflict > 1 ? 's' : ''} waiting for the admin`
+                : row.isGhost
+                  ? `Unavailable · ${inConflict} session${inConflict > 1 ? 's' : ''} to move`
+                  : `${inConflict} session${inConflict > 1 ? 's' : ''} in conflict`}
+            </span>
+          ) : null}
+        </div>
+      </ContextMenuFor>
+      <ContextMenuFor
+        disabled={!editable}
+        entries={menu(
+          menuSlot && { label: `New session at ${formatMinutes(menuSlot.startMin)}`, icon: LuPlus, onSelect: () => ui.createAt(row.tutor.id, dateKey, menuSlot.startMin, menuSlot.endMin) },
+          !menuSlot && { kind: 'label', label: 'No free time here' },
+          menuSlot && ui.hasClipboard() && { label: `Paste at ${formatMinutes(menuSlot.startMin)}`, icon: LuClipboardPaste, shortcut: '⌘V', onSelect: () => ui.pasteAt(row.tutor.id, dateKey, menuSlot.startMin) },
+          { label: 'Edit availability and hours for this day…', icon: LuCalendarCog, onSelect: () => ui.editDay(dateKey), separatorBefore: true },
+        )}
+      >
+        <div
+          data-track
+          className="relative bg-[#F6F6F6] dark:bg-neutral-900"
+          style={{ width }}
+          onClick={(e) => {
+            if (!editable || (e.target !== e.currentTarget && !(e.target as HTMLElement).dataset.avail)) return
+            const r = slotFromEvent(e)
+            if (!r.ok) {
+              if (r.reason === 'full') toast.error(`This tutor already has ${ui.maxLanes} students at that time.`)
+              return
+            }
+            ui.select({ kind: 'slot', staffId: row.tutor.id, dateKey, startMin: r.startMin, endMin: r.endMin })
+          }}
+          onDoubleClick={(e) => {
+            if (!editable || (e.target !== e.currentTarget && !(e.target as HTMLElement).dataset.avail)) return
+            const r = slotFromEvent(e)
+            if (r.ok) ui.createAt(row.tutor.id, dateKey, r.startMin, r.endMin)
+          }}
+          onContextMenu={(e) => {
+            const r = slotFromEvent(e)
+            setMenuSlot(r.ok ? { startMin: r.startMin, endMin: r.endMin } : null)
+          }}
+          onDragOver={(e) => {
+            if (ui.mode === 'admin' && !locked && !row.isGhost && e.dataTransfer.types.includes(SESSION_DRAG_TYPE)) e.preventDefault()
+          }}
+          onDrop={(e) => {
+            const raw = e.dataTransfer.getData(SESSION_DRAG_TYPE)
+            if (!raw || locked || row.isGhost) return
+            e.preventDefault()
+            const data = JSON.parse(raw) as { id: string; grabOffsetMin: number }
+            ui.moveSession(data.id, row.tutor.id, dateKey, dragStartMinute(e.clientX, e.currentTarget.getBoundingClientRect(), openMin, closeMin, ui.snap, data.grabOffsetMin))
+          }}
+        >
+          {/* Availability bands */}
+          {row.segments.map((r, i) => (
+            <div
+              key={i}
+              data-avail="1"
+              className="absolute inset-y-0 border-x border-[#cfd4db] bg-white dark:border-neutral-700 dark:bg-neutral-950"
+              style={{ left: clampX(r.startMin), width: Math.max(2, clampX(r.endMin) - clampX(r.startMin)) }}
             />
-          )
-        })}
-        {/* Now line */}
-        {isToday && ui.nowMin >= openMin && ui.nowMin <= closeMin ? (
-          <div className="pointer-events-none absolute inset-y-0 z-[2] w-0.5 bg-amber-500" style={{ left: x(ui.nowMin) }} />
-        ) : null}
-        {/* Selected slot */}
-        {selectedSlot ? (
-          <div className="pointer-events-none absolute inset-y-0 z-[3] w-0.5 bg-neutral-900/50" style={{ left: x(selectedSlot.startMin) }} />
-        ) : null}
-        {/* Canceled markers */}
-        {hasCanceled
-          ? [...canceledGroups.entries()].map(([key, list]) => (
-              <Popover key={key} open={canceledOpen === key} onOpenChange={(o) => setCanceledOpen(o ? key : null)}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="absolute z-[7] max-w-32 truncate rounded-full border border-[#d4a2a2] bg-[#efe3e3] px-2 py-0.5 text-[10px] font-bold text-[#7f1d1d]"
-                    style={{ left: clampX(list[0].startMin) + 3, top: 4 }}
-                    onContextMenu={(e) => {
-                      e.preventDefault()
-                      setCanceledOpen(key)
-                    }}
-                  >
-                    {list.length} Canceled
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="max-h-[420px] w-80 space-y-2 overflow-y-auto p-3">
-                  <div className="text-sm font-semibold">Canceled Sessions ({row.canceled.length})</div>
-                  {row.canceled.map((s) => (
-                    <SessionCard
-                      key={s.id}
-                      session={s}
-                      left={0}
-                      width={0}
-                      top={0}
-                      readOnly={locked}
-                      bounds={{ openMin, closeMin, width }}
-                      segments={row.segments}
-                      rowSessions={row.active}
-                      inPopover
-                    />
-                  ))}
-                </PopoverContent>
-              </Popover>
-            ))
-          : null}
-        {/* Sessions */}
-        {row.active.map((s) => {
-          if (s.endMin <= openMin || s.startMin >= closeMin) return null
-          const lane = row.lanes.get(s.id) ?? 0
-          const left = clampX(s.startMin)
-          return (
-            <SessionCard
-              key={s.id}
-              session={s}
-              left={left}
-              width={Math.max(56, clampX(s.endMin) - left - 4)}
-              top={ROW_PAD_TOP + band + lane * (CARD_H + LANE_GAP)}
-              readOnly={locked}
-              bounds={{ openMin, closeMin, width }}
-              segments={row.segments}
-              rowSessions={row.active}
+          ))}
+          {closedSpans.map(([a, b]) => (
+            <div
+              key={`closed-${a}`}
+              className="pointer-events-none absolute inset-y-0 bg-[repeating-linear-gradient(135deg,#e5e5e5_0,#e5e5e5_2px,transparent_2px,transparent_8px)] dark:bg-[repeating-linear-gradient(135deg,#333_0,#333_2px,transparent_2px,transparent_8px)]"
+              style={{ left: clampX(a), width: Math.max(0, clampX(b) - clampX(a)) }}
+              title="Closed"
             />
-          )
-        })}
-      </div>
+          ))}
+          {/* Clocked time */}
+          {row.clocks.map((c) => {
+            const end = c.open && isToday ? Math.max(c.startMin + 1, ui.nowMin) : c.endMin
+            return (
+              <div
+                key={c.id}
+                className={cn('pointer-events-none absolute inset-y-0 z-[1] border-x-[3px] border-[#88D5A4]', c.open ? 'border-r-dashed bg-[repeating-linear-gradient(45deg,#F0FDF4,#F0FDF4_6px,#fff_6px,#fff_12px)]' : 'bg-[#F8FFF9]')}
+                style={{ left: clampX(c.startMin), width: Math.max(2, clampX(end) - clampX(c.startMin)) }}
+              />
+            )
+          })}
+          {/* Now line */}
+          {isToday && ui.nowMin >= openMin && ui.nowMin <= closeMin ? (
+            <div className="pointer-events-none absolute inset-y-0 z-[2] w-0.5 bg-amber-500" style={{ left: x(ui.nowMin) }} />
+          ) : null}
+          {/* Selected slot */}
+          {selectedSlot ? (
+            <div className="pointer-events-none absolute inset-y-0 z-[3] w-0.5 bg-neutral-900/50" style={{ left: x(selectedSlot.startMin) }} />
+          ) : null}
+          {/* Canceled markers */}
+          {hasCanceled
+            ? [...canceledGroups.entries()].map(([key, list]) => (
+                <Popover key={key} open={canceledOpen === key} onOpenChange={(o) => setCanceledOpen(o ? key : null)}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="absolute z-[7] max-w-32 truncate rounded-full border border-[#d4a2a2] bg-[#efe3e3] px-2 py-0.5 text-[10px] font-bold text-[#7f1d1d]"
+                      style={{ left: clampX(list[0].startMin) + 3, top: 4 }}
+                      onContextMenu={(e) => {
+                        e.preventDefault()
+                        setCanceledOpen(key)
+                      }}
+                    >
+                      {list.length} Canceled
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="max-h-[420px] w-80 space-y-2 overflow-y-auto p-3">
+                    <div className="text-sm font-semibold">Canceled Sessions ({row.canceled.length})</div>
+                    {row.canceled.map((s) => (
+                      <SessionCard
+                        key={s.id}
+                        session={s}
+                        left={0}
+                        width={0}
+                        top={0}
+                        readOnly={locked}
+                        bounds={{ openMin, closeMin, width }}
+                        segments={row.segments}
+                        rowSessions={row.active}
+                        inPopover
+                      />
+                    ))}
+                  </PopoverContent>
+                </Popover>
+              ))
+            : null}
+          {/* Sessions */}
+          {row.active.map((s) => {
+            if (s.endMin <= openMin || s.startMin >= closeMin) return null
+            const lane = row.lanes.get(s.id) ?? 0
+            const left = clampX(s.startMin)
+            return (
+              <SessionCard
+                key={s.id}
+                session={s}
+                left={left}
+                width={Math.max(56, clampX(s.endMin) - left - 4)}
+                top={ROW_PAD_TOP + band + lane * (CARD_H + LANE_GAP)}
+                readOnly={locked}
+                bounds={{ openMin, closeMin, width }}
+                segments={row.segments}
+                rowSessions={row.active}
+              />
+            )
+          })}
+        </div>
+      </ContextMenuFor>
     </div>
   )
 }

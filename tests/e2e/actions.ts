@@ -1,6 +1,6 @@
 import type { Page } from 'playwright-core'
 import { commit } from '../../scripts/lib/firestore-rest'
-import { soonSession } from './fixtures'
+import { conflictFixture, soonSession } from './fixtures'
 import { E2E_BRANCH } from './scenarios'
 
 type Step = (page: Page, base: string) => Promise<void>
@@ -226,6 +226,34 @@ const branchTabIcon: Step = async (page, base) => {
   if (!(await iconHref()).startsWith('data:image/png')) throw new Error('The saved branch icon was not shown at first paint')
 }
 
+/** A session whose tutor became unavailable: the tutor sees it waiting for the admin. */
+const conflictTutorView: Step = async (page, base) => {
+  const f = conflictFixture()
+  await commit(f.writes.map((w) => ({ path: `branches/${E2E_BRANCH}/${w.path}`, data: w.data })))
+  await page.goto(`${base}/${E2E_BRANCH}/tutor/schedule?date=${f.dateKey}`, { waitUntil: 'load' })
+  await page.getByTestId('tutor-conflicts').waitFor({ timeout: 15000 })
+  await page.getByTestId('session-card').filter({ hasText: 'E2E Conflict Check' }).getByTestId('session-conflict').waitFor({ timeout: 8000 })
+  if (process.env.E2E_SHOTS) await page.screenshot({ path: `${process.env.E2E_SHOTS}/conflict-tutor.png` })
+}
+
+/** The admin sees the conflict on Home and the schedule, and resolves it from the card's menu. */
+const conflictAdminResolve: Step = async (page, base) => {
+  const f = conflictFixture()
+  await commit(f.writes.map((w) => ({ path: `branches/${E2E_BRANCH}/${w.path}`, data: w.data })))
+  await page.goto(`${base}/${E2E_BRANCH}/admin/home`, { waitUntil: 'load' })
+  await page.getByTestId('home-attention').getByText('E2E Conflict Check').waitFor({ timeout: 15000 })
+  await page.goto(`${base}/${E2E_BRANCH}/admin/schedule/day/${f.dateKey}`, { waitUntil: 'load' })
+  const card = page.getByTestId('session-card').filter({ hasText: 'E2E Conflict Check' })
+  await card.getByTestId('session-conflict').waitFor({ timeout: 15000 })
+  await page.getByTestId('row-conflicts').filter({ hasText: /to move|in conflict/ }).first().waitFor({ timeout: 8000 })
+  if (process.env.E2E_SHOTS) await page.screenshot({ path: `${process.env.E2E_SHOTS}/conflict-admin.png` })
+  await card.click({ button: 'right' })
+  if (process.env.E2E_SHOTS) await page.screenshot({ path: `${process.env.E2E_SHOTS}/conflict-admin-menu.png` })
+  await page.getByRole('menuitem', { name: /Make Maya available/ }).click()
+  await expectText(page, 'is now available')
+  await card.getByTestId('session-conflict').waitFor({ state: 'detached', timeout: 10000 })
+}
+
 export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'schedule create/status/delete', email: 'goochoi913@gmail.com', run: scheduleCrud },
   { name: 'kiosk clock in/out', email: 'goochoi913@gmail.com', run: kiosk },
@@ -237,5 +265,7 @@ export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'super admin views the app as a tutor', email: 'goochoi913@gmail.com', run: viewAs },
   { name: 'super admin deep links load without a wrong screen', email: 'goochoi913@gmail.com', run: noWrongScreenWhileLoading },
   { name: 'branch pages use the branch tab icon', email: 'owner@e2e.test', run: branchTabIcon },
+  { name: 'tutor sees a session in conflict', email: 'tutor@e2e.test', run: conflictTutorView },
+  { name: 'admin resolves a session in conflict', email: 'owner@e2e.test', run: conflictAdminResolve },
   { name: 'owner adds a person and the invite goes out', email: 'owner@e2e.test', run: inviteNewPerson },
 ]
