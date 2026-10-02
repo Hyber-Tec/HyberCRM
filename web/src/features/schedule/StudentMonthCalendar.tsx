@@ -128,9 +128,10 @@ export function StudentMonthCalendar({
                     title={`${s.tutorName} · ${s.subject || 'No subject'}${s.note ? `\nNote: ${s.note}` : ''}`}
                   >
                     {compact ? (
-                      <span className="w-full truncate">
-                        <span className="font-bold">{s.tutorName.split(' ')[0]}</span> {formatMinutesShort(s.startMin)}
-                      </span>
+                      <>
+                        <span className="w-full truncate font-bold">{s.tutorName.split(' ')[0]}</span>
+                        <span className="w-full truncate tabular-nums">{formatMinutesShort(s.startMin)}</span>
+                      </>
                     ) : (
                       <>
                         <span className="text-[10.5px] font-semibold tabular-nums sm:hidden">{formatMinutesShort(s.startMin)}</span>
