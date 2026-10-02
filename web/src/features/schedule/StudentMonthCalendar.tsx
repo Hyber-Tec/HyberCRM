@@ -10,6 +10,7 @@ import { MonthScroller, type MonthScrollerHandle } from '@/components/app/MonthS
 import { Button } from '@/components/ui/button'
 import { useDayConfigs } from '@/features/data/hooks'
 import { branchCol, useQuery } from '@/lib/firestore'
+import { timeRange } from '@/lib/calendar'
 import { useLoadWindow } from '@/lib/useLoadWindow'
 import { cn } from '@/lib/utils'
 
@@ -87,8 +88,8 @@ export function StudentMonthCalendar({
               role={onPickDay && !closed ? 'button' : undefined}
               onClick={() => !closed && onPickDay?.(d)}
               className={cn(
-                'flex h-full flex-col gap-0.5 p-1',
-                compact ? 'min-h-16' : 'min-h-24',
+                'flex h-full flex-col gap-1',
+                compact ? 'min-h-16 p-1' : 'min-h-24 p-0.5 sm:min-h-28 sm:p-1.5',
                 closed ? 'bg-muted/70' : onPickDay ? 'cursor-pointer hover:bg-muted/40' : '',
                 selectedDate === d && 'bg-accent ring-2 ring-foreground ring-inset',
               )}
@@ -96,7 +97,8 @@ export function StudentMonthCalendar({
               <div className="flex justify-end">
                 <span
                   className={cn(
-                    'flex size-5 items-center justify-center rounded-full text-[11px] tabular-nums',
+                    'flex items-center justify-center rounded-full tabular-nums',
+                    compact ? 'size-5 text-[11px]' : 'size-6 text-xs',
                     d === todayKey && 'bg-foreground font-semibold text-background',
                     closed && d !== todayKey && 'text-muted-foreground',
                   )}
@@ -115,7 +117,9 @@ export function StudentMonthCalendar({
                       onPickSession?.(s)
                     }}
                     className={cn(
-                      'truncate rounded border px-1 text-left text-[10px] leading-tight',
+                      // Each session is a box filling the day; several share the height.
+                      'flex flex-1 flex-col items-center justify-center rounded-md border px-0.5 text-center leading-tight',
+                      compact ? 'py-0.5 text-[10px]' : 'py-1.5 sm:rounded-lg sm:px-1',
                       s.status === 'canceled' && 'opacity-55',
                       past && 'opacity-70',
                       highlightSessionId === s.id && 'outline-1 outline-foreground outline-dashed',
@@ -123,11 +127,21 @@ export function StudentMonthCalendar({
                     style={{ backgroundColor: st.bg, borderColor: st.border, color: st.text, borderLeft: s.note ? '3px solid #335586' : undefined }}
                     title={`${s.tutorName} · ${s.subject || 'No subject'}${s.note ? `\nNote: ${s.note}` : ''}`}
                   >
-                    <span className="font-bold">{s.tutorName.split(' ')[0]}</span> {formatMinutesShort(s.startMin)}
+                    {compact ? (
+                      <span className="w-full truncate">
+                        <span className="font-bold">{s.tutorName.split(' ')[0]}</span> {formatMinutesShort(s.startMin)}
+                      </span>
+                    ) : (
+                      <>
+                        <span className="text-[10.5px] font-semibold tabular-nums sm:hidden">{formatMinutesShort(s.startMin)}</span>
+                        <span className="hidden text-xs font-semibold text-balance tabular-nums sm:block xl:text-[13px]">{timeRange(s.startMin, s.endMin)}</span>
+                        <span className="mt-0.5 hidden w-full truncate text-[11px] font-medium opacity-80 sm:block">{s.tutorName.split(' ')[0]}</span>
+                      </>
+                    )}
                   </button>
                 )
               })}
-              {sessions.length > maxChips ? <div className="text-[9px] text-muted-foreground">+{sessions.length - maxChips} more</div> : null}
+              {sessions.length > maxChips ? <div className="text-center text-[10px] text-muted-foreground sm:text-[11px]">+{sessions.length - maxChips} more</div> : null}
             </div>
           )
         }}

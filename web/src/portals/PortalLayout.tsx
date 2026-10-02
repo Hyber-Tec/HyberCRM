@@ -120,7 +120,7 @@ function PortalSidebar({ portal }: { portal: Portal }) {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1">
               {nav.main.map((item) => (
                 <NavEntry key={item.key} item={item} base={base} />
               ))}
@@ -130,7 +130,7 @@ function PortalSidebar({ portal }: { portal: Portal }) {
         {nav.secondary.length > 0 ? (
           <SidebarGroup className="mt-auto">
             <SidebarGroupContent>
-              <SidebarMenu>
+              <SidebarMenu className="gap-1">
                 {nav.secondary.map((item) => (
                   <NavEntry key={item.key} item={item} base={base} />
                 ))}
@@ -162,6 +162,7 @@ function SidebarBrand({ portal, homeTo }: { portal: Portal; homeTo: string }) {
   const { branch } = useBranch()
   const { state, isMobile, toggleSidebar } = useSidebar()
   const mark = <BrandMark name={branch.name} logoUrl={branch.branding?.logoUrl} accentColor={branch.branding?.accentColor} />
+  const bigMark = <BrandMark name={branch.name} logoUrl={branch.branding?.logoUrl} accentColor={branch.branding?.accentColor} className="size-11 rounded-xl text-sm" />
 
   // Collapsed to icons: the logo opens the sidebar and shows the open icon on hover.
   if (state === 'collapsed' && !isMobile) {
@@ -182,11 +183,11 @@ function SidebarBrand({ portal, homeTo }: { portal: Portal; homeTo: string }) {
     <div className="flex items-center gap-1">
       <SidebarMenu className="min-w-0 flex-1">
         <SidebarMenuItem>
-          <SidebarMenuButton size="lg" asChild>
+          <SidebarMenuButton size="lg" asChild className="h-15 gap-3 px-2">
             <Link to={homeTo}>
-              {mark}
-              <div className="grid flex-1 text-left leading-tight">
-                <span className="truncate text-sm font-semibold">{branch.branding?.sidebarTitle || branch.name}</span>
+              {bigMark}
+              <div className="grid flex-1 gap-0.5 text-left leading-tight">
+                <span className="truncate text-base font-semibold tracking-tight">{branch.branding?.sidebarTitle || branch.name}</span>
                 <span className="truncate text-xs text-muted-foreground">{PORTAL_LABELS[portal]}</span>
               </div>
             </Link>
@@ -240,7 +241,7 @@ function NavEntry({ item, base }: { item: NavItem; base: string }) {
     const badge = badges[item.key] ?? 0
     return (
       <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={badge ? `${item.label} (${badge})` : item.label} isActive={isActivePath(pathname, base, item)}>
+        <SidebarMenuButton asChild tooltip={badge ? `${item.label} (${badge})` : item.label} isActive={isActivePath(pathname, base, item)} className="h-9 gap-2.5 px-2.5 text-[15px] [&_svg]:size-[18px]">
           <NavLink to={`${base}/${item.to}`} onClick={() => setOpenMobile(false)}>
             {Icon ? <Icon /> : null}
             <span>{item.label}</span>
@@ -275,7 +276,7 @@ function NavGroupEntry({ group, base }: { group: NavGroup; base: string }) {
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton tooltip={group.label} isActive={groupActive}>
+            <SidebarMenuButton tooltip={group.label} isActive={groupActive} className="h-9 gap-2.5 px-2.5 text-[15px] [&_svg]:size-[18px]">
               <Icon />
               <span>{group.label}</span>
             </SidebarMenuButton>
@@ -298,17 +299,17 @@ function NavGroupEntry({ group, base }: { group: NavGroup; base: string }) {
     <Collapsible asChild defaultOpen={groupActive} className="group/collapsible">
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
-          <SidebarMenuButton tooltip={group.label} isActive={groupActive && state === 'collapsed'}>
+          <SidebarMenuButton tooltip={group.label} isActive={groupActive && state === 'collapsed'} className="h-9 gap-2.5 px-2.5 text-[15px] [&_svg]:size-[18px]">
             <Icon />
             <span>{group.label}</span>
             <LuChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <SidebarMenuSub>
+          <SidebarMenuSub className="mt-1 ml-[1.15rem] gap-1">
             {children.map((c) => (
               <SidebarMenuSubItem key={c.key}>
-                <SidebarMenuSubButton asChild isActive={isActivePath(pathname, base, c)}>
+                <SidebarMenuSubButton asChild isActive={isActivePath(pathname, base, c)} className="h-8 px-2.5 text-[14.5px] data-[size=md]:text-[14.5px]">
                   <NavLink to={`${base}/${c.to}`} onClick={() => setOpenMobile(false)}>
                     <span>{c.label}</span>
                   </NavLink>

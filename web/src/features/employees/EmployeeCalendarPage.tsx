@@ -3,9 +3,9 @@ import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { COL } from '@shared/paths'
 import { unionMinutes } from '@shared/schedule/lanes'
-import { formatTimeRange } from '@shared/time'
 import type { Session } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
+import { boxRange, timeRange } from '@/lib/calendar'
 import { branchCol, useQuery } from '@/lib/firestore'
 import { type DayCell, HoursCalendar } from './HoursCalendar'
 import { addDays, formatInstantTime } from '@shared/time'
@@ -137,7 +137,7 @@ function ScheduledHours({ staffId }: { staffId: string }) {
     const m = new Map<string, DayCell>()
     for (const [d, list] of byDay) {
       list.sort((a, b) => a.startMin - b.startMin)
-      m.set(d, { minutes: unionMinutes(list), lines: list.map((s) => ({ label: `${formatTimeRange(s.startMin, s.endMin)} ${s.studentName}`, tone: 'scheduled' as const })) })
+      m.set(d, { minutes: unionMinutes(list), lines: list.map((s) => ({ label: timeRange(s.startMin, s.endMin), detail: s.studentName, tone: 'scheduled' as const })) })
     }
     return m
   }, [data])
@@ -170,11 +170,11 @@ function WorkedHours({ staffId, mode }: { staffId: string; mode: 'clock' | 'teac
       if (mode === 'clock') {
         const mins = (p.shift.clockOutAt!.toMillis() - p.shift.clockInAt.toMillis()) / 60000
         cell.minutes += mins
-        cell.lines!.push({ label: `${formatInstantTime(p.shift.clockInAt.toDate(), timezone)} – ${formatInstantTime(p.shift.clockOutAt!.toDate(), timezone)}`, tone: 'clock' })
+        cell.lines!.push({ label: boxRange(formatInstantTime(p.shift.clockInAt.toDate(), timezone), formatInstantTime(p.shift.clockOutAt!.toDate(), timezone)), tone: 'clock' })
       } else {
         for (const seg of p.segments.filter((x) => x.type === mode)) {
           cell.minutes += (seg.endMs - seg.startMs) / 60000
-          cell.lines!.push({ label: `${formatInstantTime(seg.startMs, timezone)} – ${formatInstantTime(seg.endMs, timezone)}`, tone: mode })
+          cell.lines!.push({ label: boxRange(formatInstantTime(seg.startMs, timezone), formatInstantTime(seg.endMs, timezone)), tone: mode })
         }
       }
       if (cell.minutes > 0) m.set(d, cell)

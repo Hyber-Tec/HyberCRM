@@ -14,9 +14,11 @@ export function fmtHours(minutes: number): string {
 export interface DayCell {
   /** Total minutes shown as the day's bubble. */
   minutes: number
-  /** Optional ranges listed under the bubble. */
-  lines?: { label: string; tone: 'clock' | 'teaching' | 'admin' | 'scheduled' }[]
+  /** Optional ranges shown as boxes under the bubble (a time, and who or what). */
+  lines?: { label: string; detail?: string; tone: 'clock' | 'teaching' | 'admin' | 'scheduled' }[]
 }
+
+const LINES_SHOWN = 3
 
 const TONES: Record<NonNullable<DayCell['lines']>[number]['tone'], string> = {
   scheduled: 'border-violet-200 bg-violet-50 text-violet-900 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-200',
@@ -74,22 +76,27 @@ export function HoursCalendar({
             }}
             renderDay={(d) => {
               const c = cells.get(d)
+              const lines = c?.lines ?? []
               return (
-                <div className="flex min-h-24 flex-col gap-1 p-1.5">
-                  <div className="flex justify-end">
+                <div className="flex h-full min-h-28 flex-col gap-1 p-1.5">
+                  <div className="flex items-center justify-between gap-1">
+                    {c && c.minutes > 0 ? (
+                      <span className={cn('rounded-md border px-1.5 py-px text-[13px] font-bold tabular-nums', TONES[tone])}>{fmtHours(c.minutes)}</span>
+                    ) : (
+                      <span />
+                    )}
                     <span className={cn('flex size-6 items-center justify-center rounded-full text-xs tabular-nums', d === today && 'bg-foreground font-semibold text-background')}>
                       {Number(d.slice(8))}
                     </span>
                   </div>
-                  {c && c.minutes > 0 ? (
-                    <span className={cn('mx-auto rounded-md border px-2 py-0.5 text-sm font-bold tabular-nums', TONES[tone])}>{fmtHours(c.minutes)}</span>
-                  ) : null}
-                  {c?.lines?.slice(0, 3).map((l, k) => (
-                    <span key={k} className={cn('truncate rounded border-l-[3px] px-1 text-[10px]', TONES[l.tone])}>
-                      {l.label}
-                    </span>
+                  {/* Each range is a box filling the day; several share the height. */}
+                  {lines.slice(0, LINES_SHOWN).map((l, k) => (
+                    <div key={k} className={cn('flex flex-1 flex-col items-center justify-center rounded-lg border px-1 py-1.5 text-center leading-tight', TONES[l.tone])}>
+                      <span className="text-xs font-semibold text-balance tabular-nums">{l.label}</span>
+                      {l.detail ? <span className="mt-0.5 w-full truncate text-[11px] opacity-75">{l.detail}</span> : null}
+                    </div>
                   ))}
-                  {(c?.lines?.length ?? 0) > 3 ? <span className="text-[10px] text-muted-foreground">+{c!.lines!.length - 3} more</span> : null}
+                  {lines.length > LINES_SHOWN ? <span className="text-center text-[11px] text-muted-foreground">+{lines.length - LINES_SHOWN} more</span> : null}
                 </div>
               )
             }}

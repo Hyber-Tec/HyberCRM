@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Spinner } from '@/components/ui/spinner'
 import { useAvailability, useDayConfigs } from '@/features/data/hooks'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { timeRange } from '@/lib/calendar'
 import { useLoadWindow } from '@/lib/useLoadWindow'
 import { useNow } from '@/lib/useNow'
 import { cn } from '@/lib/utils'
@@ -483,7 +484,7 @@ export function AvailabilityCalendar({ staffId, staffName, mode }: { staffId: st
                 onClick={(e) => onDayClick(d, e.shiftKey)}
                 onDoubleClick={() => !isMobile && openEditor(d)}
                 className={cn(
-                  'relative flex h-24 cursor-default flex-col gap-0.5 p-1 text-left outline-none select-none sm:p-1.5',
+                  'relative flex h-full min-h-24 cursor-default flex-col gap-1 p-0.5 text-left outline-none select-none sm:min-h-28 sm:p-1.5',
                   !hours.isOpen ? 'bg-muted/60 text-muted-foreground' : 'hover:bg-muted/30',
                   needs && 'bg-amber-50/70 dark:bg-amber-950/20',
                   inSelection && 'bg-sky-50 ring-2 ring-sky-500 ring-inset dark:bg-sky-950/30',
@@ -499,6 +500,7 @@ export function AvailabilityCalendar({ staffId, staffName, mode }: { staffId: st
                     {Number(d.slice(8))}
                   </span>
                 </div>
+                {/* Each time is a box filling the day; several share the height. */}
                 {ranges.slice(0, CHIPS_SHOWN).map((r, i) => {
                   const picked = selection?.kind === 'item' && selection.date === d && selection.index === i
                   return (
@@ -514,17 +516,17 @@ export function AvailabilityCalendar({ staffId, staffName, mode }: { staffId: st
                       }}
                       data-testid="availability-range"
                       className={cn(
-                        'truncate rounded-md border border-emerald-200 bg-emerald-50 px-1 py-0.5 text-[10px] font-medium text-emerald-800 tabular-nums sm:text-[11px] dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300',
-                        !isMobile && !isLocked && 'cursor-grab touch-none active:cursor-grabbing',
-                        picked && 'border-sky-600 ring-2 ring-sky-500',
+                        'flex flex-1 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-0.5 py-1.5 text-center text-[10.5px] leading-tight font-semibold text-balance text-emerald-800 tabular-nums sm:rounded-lg sm:px-1.5 sm:text-[13px] xl:text-sm dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300',
+                        !isMobile && !isLocked && 'cursor-grab touch-none hover:border-emerald-300 hover:bg-emerald-100/70 active:cursor-grabbing dark:hover:bg-emerald-950/60',
+                        picked && 'border-sky-600 ring-2 ring-sky-500 hover:border-sky-600',
                       )}
                     >
-                      {formatMinutesShort(r.startMin)}–{formatMinutesShort(r.endMin)}
+                      {timeRange(r.startMin, r.endMin)}
                     </div>
                   )
                 })}
-                {extra > 0 ? <div className="text-[10px] text-muted-foreground">+{extra} more</div> : null}
-                {!hours.isOpen ? <div className="mt-auto text-[10px]">Closed</div> : null}
+                {extra > 0 ? <div className="text-center text-[11px] text-muted-foreground">+{extra} more</div> : null}
+                {!hours.isOpen ? <div className="m-auto text-xs font-medium">Closed</div> : null}
               </div>
             )
           }}
