@@ -129,7 +129,11 @@ function noShowAccounting(batch: WriteBatch, ctx: ScheduleCtx, before: WithId<Se
   return {}
 }
 
+/** Why a logged session's status can't change: its log marked attendance and billed the hours. */
+export const LOGGED_STAYS_PRESENT = 'This session has a submitted log, so it stays Present.'
+
 export async function updateSession(ctx: ScheduleCtx, before: WithId<Session>, patch: SessionPatch) {
+  if (before.logStatus === 'submitted' && patch.status && patch.status !== before.status && patch.status !== 'present') throw new Error(LOGGED_STAYS_PRESENT)
   const next = { ...before, ...patch }
   const timeChanged = next.dateKey !== before.dateKey || next.startMin !== before.startMin || next.endMin !== before.endMin
   const changes: AuditChange[] = []

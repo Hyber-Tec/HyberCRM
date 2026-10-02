@@ -54,7 +54,7 @@ export type MenuEntry =
   | {
       kind: 'radio'
       value: string
-      options: { value: string; label: string; swatch?: { bg: string; border: string } }[]
+      options: { value: string; label: string; swatch?: { bg: string; border: string }; disabled?: boolean }[]
       onChange: (value: string) => void
       separatorBefore?: boolean
     }
@@ -120,7 +120,7 @@ function Entries({ entries, p }: { entries: MenuEntry[]; p: Primitives }) {
           {sep}
           <p.RadioGroup value={e.value} onValueChange={e.onChange}>
             {e.options.map((o) => (
-              <p.RadioItem key={o.value} value={o.value}>
+              <p.RadioItem key={o.value} value={o.value} disabled={o.disabled}>
                 {o.swatch ? <span className="size-2.5 rounded-full border" style={{ backgroundColor: o.swatch.bg, borderColor: o.swatch.border }} /> : null}
                 {o.label}
               </p.RadioItem>

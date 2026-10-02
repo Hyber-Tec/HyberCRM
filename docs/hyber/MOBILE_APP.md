@@ -38,15 +38,15 @@ Universal links / App Links on the Hyber domain; the same paths work on the web.
 
 | Target | Path |
 |---|---|
-| Branch home | `/b/{branchId}/home` |
-| Announcement | `/b/{branchId}/announcements/{id}` |
-| Schedule at a date | `/b/{branchId}/schedule?date=YYYY-MM-DD` (tutor) · `/b/{branchId}/scheduling/schedule/day/YYYY-MM-DD` (admin) |
-| Availability month | `/b/{branchId}/availability?month=YYYY-MM` |
-| Notification inbox | `/b/{branchId}/notifications` |
-| Session log (form) | `/b/{branchId}/sessions/{sessionId}/log` |
-| Session log (read-only) | `/b/{branchId}/sessions/{sessionId}` |
-| Progress report | `/b/{branchId}/progress-reports/{id}` |
-| Student | `/b/{branchId}/students/directory/{id}[/{tab}]` |
+| Branch home | `/{branchId}/{portal}/home` (portal: `admin`, `tutor`, `parent`, `student`) |
+| Announcement | `/{branchId}/{admin\|tutor}/announcements/{id}` |
+| Schedule at a date | `/{branchId}/tutor/schedule?date=YYYY-MM-DD` (tutor) · `/{branchId}/admin/schedule/day/YYYY-MM-DD` (admin) |
+| Availability | `/{branchId}/tutor/availability` |
+| Notification inbox | The bell menu (no page); each item links to its target |
+| Session log (form) | `/{branchId}/session-log/{sessionId}` |
+| Session log (read-only) | `/{branchId}/session-log/{sessionId}/view` |
+| Progress report | `/{branchId}/progress-report/{id}` |
+| Student | `/{branchId}/{admin\|tutor}/students/{id}[/{tab}]` |
 
 Every target screen loads its record by ID and checks permission. If the signed-in user isn't a member of that branch, it shows "No access". Tabs and sub-pages are real routes, so Android back, iOS swipe-back and web reload behave correctly (TE's mobile tabs live in memory only).
 
@@ -97,14 +97,12 @@ Every target screen loads its record by ID and checks permission. If the signed-
   - Offer the desktop day timeline on tablets.
   - Status colors and icons are the shared tokens (BRANCH_SETTINGS "Fixed design tokens").
 
-## 8. Session logs on the phone (decision pending)
+## 8. Session logs on the phone
 
-TE allows session logs only on desktop. The tutor clicks a session and the form opens in a new tab. If the native app allows logging:
-- Use the same steps, fields and validation.
-- Drafts autosave to the server.
-- Submit goes through the same `submitSessionLog` callable, so hours, lifecycle and attendance stay consistent.
-
-The branch setting `sessionLogs.allowOnMobile` (default false) controls it.
+TE allows session logs only on desktop. Hyber's web form works on phones: the tutor taps a session in the phone schedule (which shows TE's check / triangle log indicators) and the six steps open in one column. The native app should do the same:
+- Use the same steps, fields and validation (`shared/src/sessions/logs.ts`).
+- Drafts save to the server as the tutor types (the rules allow only the log's own fields).
+- Submit goes through the same `submitSessionLog` callable, so hours, lifecycle and attendance stay consistent. It refuses before the session starts.
 
 ## 9. Kiosk (a separate device app)
 

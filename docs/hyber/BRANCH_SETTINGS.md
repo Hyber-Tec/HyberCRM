@@ -102,19 +102,17 @@ Student statuses are a **fixed enum** with TE's colors: Signed Up, Enrolled, Pau
 
 | Key | Default (TE) | Source | Notes |
 |---|---|---|---|
-| `sessionLogs.sessionTypes` | School Help, SAT, PSAT, ACT, Skill Building, Diagnostic Review, Homework Support, Other | 07 §3.4 | Changing the type clears the topics |
-| `sessionLogs.topicTaxonomies` | SAT/PSAT (Section → Domain → Skill), ACT (Subject → Category) | 07 §3.4 | Free text for the other types |
-| `sessionLogs.homeworkStatuses` | Completed, Partially Done, Not Done, Not Assigned | 07 §3.4 | |
-| `sessionLogs.ratingDimensions` | Effort, Motivation, Behavior, Focus, Confidence (1–5) | 07 §3.4 | |
-| `sessionLogs.studentFlags` | On Track, Needs Attention, At Risk | 07 §3.4 | |
-| `sessionLogs.requiredFields` | all (type, topic, homework status, materials, attempted ≥ 1, wrong, 4 notes, 5 ratings, flag) | 07 §3.4 | Per-branch subset |
-| `sessionLogs.markPresentOnSubmit` | `true` | 07 §5.10 | |
-| `sessionLogs.allowForStatuses` | all | 07 §10 **(Q15)** | TE allows logging canceled sessions (restores them to Present) |
+| `sessionLogs.sessionTypes` | School Help, SAT, PSAT, ACT, Skill Building, Homework Support, Other | 07 §3.4 | No Diagnostic Review (Q6). SAT, PSAT and ACT use the topic picker (matched by name; Settings says so). Changing the type clears the topics. |
+| `sessionLogs.homeworkStatuses` | Completed, Partially Done, Not Done, Not Assigned | 07 §3.4 | Progress reports count these by name (Settings says so) |
+| `sessionLogs.ratingDimensions` | Effort, Motivation, Behavior, Focus, Confidence (1–5) | 07 §3.4 | Stored by the lower-cased label: renaming one starts a new rating (Settings says so) |
+| `sessionLogs.studentFlags` | On Track, Needs Attention, At Risk | 07 §3.4 | Fixed keys `on_track`, `needs_attention`, `at_risk` |
+| `sessionLogs.allowForStatuses` | Pending, Confirmed, Present | 07 §10 **(Q15)** | Canceled and No Show sessions can't be logged (TE allowed it) |
 | `sessionLogs.tutorsSeeAllLogs` | `true` | 07 §7 **(Q15)** | |
-| `sessionLogs.ai.enabled` | `true` | 07 §8.1 **(Q15)** | Gemini `gemini-2.5-flash`; the deterministic fallback stays |
-| `sessionLogs.ai.polishNotes` | `true` | 07 §6.7 | "Polish Notes" button |
-| `sessionLogs.autosaveSeconds` | 30 | 07 §6.2 | |
-| `sessionLogs.allowOnMobile` | `false` | 10 §12 Q2 | TE: desktop only |
+| `sessionLogs.allowEditAfterSubmit` | `true` | 07 §6 | Tutors may re-submit their own logs; admins always can |
+| `sessionLogs.ai.enabled` | `true` | 07 §8.1 **(Q15)** | AI summary, homework and next-session plan, and the Polish notes button; a deterministic fallback stays |
+| `sessionLogs.autosaveSeconds` | 30 | 07 §6.2 | The longest gap between draft saves; drafts also save ~2 s after typing stops, on Next, and when the tab is hidden or closed |
+
+**Fixed, not settings** (round 3): the SAT/PSAT/ACT topic lists, the required fields (TE's set: type, topic, homework status, materials, attempted ≥ 1, wrong ≤ attempted, the four notes, every rating, the flag), Present on submit, submitting only after the session has started, and the note box heights. Logs work on phones.
 
 ## `progressReports`
 

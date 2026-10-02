@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
-export function StarInput({ value, onChange, disabled }: { value: number; onChange?: (v: number) => void; disabled?: boolean }) {
+export function StarInput({ value, onChange, disabled, label }: { value: number; onChange?: (v: number) => void; disabled?: boolean; label?: string }) {
   return (
     <div className="flex items-center gap-0.5">
       {[1, 2, 3, 4, 5].map((n) => (
@@ -15,7 +15,7 @@ export function StarInput({ value, onChange, disabled }: { value: number; onChan
           key={n}
           type="button"
           disabled={disabled || !onChange}
-          aria-label={`${n} star${n > 1 ? 's' : ''}`}
+          aria-label={label ? `${label} ${n} out of 5` : `${n} star${n > 1 ? 's' : ''}`}
           onClick={() => onChange?.(n)}
           className="transition-transform enabled:hover:scale-110"
         >
@@ -140,6 +140,64 @@ export function TopicPicker({ sessionType, value, onChange, disabled }: { sessio
           </Button>
         </div>
       ) : null}
+    </div>
+  )
+}
+
+/** Red required marker (True Education's `*`). */
+export function RequiredMark() {
+  return (
+    <span className="text-red-600" aria-hidden="true">
+      *
+    </span>
+  )
+}
+
+export function wordCount(text: string): number {
+  const t = text.trim()
+  return t ? t.split(/\s+/).length : 0
+}
+
+/**
+ * One-click choice among a few options (session type, homework status, flag):
+ * radio buttons shown as chips.
+ */
+export function ChipGroup({
+  value,
+  options,
+  onChange,
+  label,
+  disabled,
+  className,
+}: {
+  value: string
+  options: { value: string; label: string; activeClass?: string }[]
+  onChange: (v: string) => void
+  label: string
+  disabled?: boolean
+  className?: string
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className={cn('flex flex-wrap gap-1.5', className)}>
+      {options.map((o) => {
+        const on = o.value === value
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            disabled={disabled}
+            onClick={() => onChange(o.value)}
+            className={cn(
+              'inline-flex h-8 items-center rounded-full border px-3 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-60',
+              on ? (o.activeClass ?? 'border-foreground bg-foreground text-background') : 'bg-background text-foreground hover:bg-muted',
+            )}
+          >
+            {o.label}
+          </button>
+        )
+      })}
     </div>
   )
 }

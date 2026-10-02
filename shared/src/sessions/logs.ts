@@ -19,6 +19,14 @@ export interface LogAi {
   provider: 'ai' | 'gemini' | 'local_fallback'
 }
 
+/** Who submitted a log first, and as which role. */
+export interface LogAuthor {
+  role: 'tutor' | 'admin'
+  email: string
+  name: string
+  at: unknown
+}
+
 /** `branches/{b}/sessionLogs/{sessionId}` (one log per session). */
 export interface SessionLog {
   sessionId: string
@@ -29,6 +37,10 @@ export interface SessionLog {
   studentId: string
   studentName: string
   subject: string
+  /** The session's subject from the list, if it had one (to match earlier logs). */
+  subjectId?: string | null
+  /** The session's admin note when the log was submitted. */
+  sessionNote?: string
   dateKey: DateKey
   startMin: number
   endMin: number
@@ -52,7 +64,16 @@ export interface SessionLog {
   ratings: Record<string, number>
   studentFlag: StudentFlag | ''
   ai: LogAi | null
+  /** Set only when an admin (not the session's tutor) submitted the log first: "entered on behalf of". */
   enteredByAdmin: { email: string; name: string } | null
+  /** The first submit. */
+  enteredBy?: LogAuthor | null
+  /** The latest re-submit (null until the log is edited after submitting). */
+  lastEditedBy?: { email: string; name: string; at: unknown } | null
+  /** Re-submits after the first. */
+  editCount?: number
+  updatedAt?: unknown
+  updatedBy?: string
 }
 
 export type LogContent = Pick<
@@ -122,6 +143,122 @@ export function firstMissing(c: LogContent, dimensions: string[]): string | null
   }
   if (!c.studentFlag) return 'Student Flag'
   return null
+}
+
+/** The message shown when submitting fails validation (True Education's wording). */
+export function submitError(c: LogContent, dimensions: string[]): string | null {
+  const missing = firstMissing(c, dimensions)
+  if (!missing) return null
+  if (missing === 'Questions Wrong' && c.questionsAttempted && c.questionsWrong != null && c.questionsWrong > c.questionsAttempted) {
+    return '“Questions Wrong” can’t be more than Questions Attempted.'
+  }
+  return `“${missing}” is required before submitting.`
+}
+
+/** Which step (1 Session Info … 4 Evaluation) asks for a required field. */
+export function stepOfField(label: string): 1 | 2 | 3 | 4 {
+  if (['Session Type', 'Topic Covered', 'Homework Status'].includes(label)) return 1
+  if (['Material Used', 'Questions Attempted', 'Questions Wrong'].includes(label)) return 2
+  if (['Lesson Activity', 'Learning Insight', 'Next Focus', 'Homework Given'].includes(label)) return 3
+  return 4
+}
+
+/** Every required field still missing, in True Education's order. */
+export function allMissing(c: LogContent, dimensions: string[]): string[] {
+  const out: string[] = []
+  let rest: LogContent = c
+  // firstMissing reports one at a time: fill each gap with a dummy value to find the next.
+  for (let guard = 0; guard < 20; guard++) {
+    const m = firstMissing(rest, dimensions)
+    if (!m) break
+    out.push(m)
+    const fill: Partial<LogContent> = {
+      'Session Type': { sessionType: 'Other' },
+      'Topic Covered': { topics: ['x'], topicCovered: 'x' },
+      'Homework Status': { homeworkStatus: 'x' },
+      'Material Used': { materials: [{ label: 'x', url: '', type: 'text' as const }] },
+      'Questions Attempted': { questionsAttempted: Math.max(1, rest.questionsWrong ?? 1) },
+      'Questions Wrong': { questionsWrong: 0 },
+      'Lesson Activity': { lessonActivity: 'x' },
+      'Learning Insight': { learningInsight: 'x' },
+      'Next Focus': { nextFocus: 'x' },
+      'Homework Given': { homeworkGiven: 'x' },
+      'Student Flag': { studentFlag: 'on_track' as const },
+    }[m] ?? (m.endsWith(' rating') ? { ratings: { ...rest.ratings, [ratingKey(m.slice(0, -' rating'.length))]: 3 } } : {})
+    rest = { ...rest, ...fill }
+  }
+  return out
+}
+
+/** The flag the ratings point to (True Education's thresholds); a suggestion only. */
+export function suggestFlag(ratings: Record<string, number>): StudentFlag | null {
+  const avg = averageRating(ratings)
+  if (avg === null) return null
+  return avg <= 2 ? 'at_risk' : avg < 3.5 ? 'needs_attention' : 'on_track'
+}
+
+export interface LogChange {
+  field: string
+  label: string
+  from: string | number | null
+  to: string | number | null
+}
+
+const NOTE_FIELDS: [keyof LogContent, string][] = [
+  ['lessonActivity', 'Lesson activity'],
+  ['learningInsight', 'Learning insight'],
+  ['nextFocus', 'Next focus'],
+  ['homeworkGiven', 'Homework given'],
+]
+
+/** What an edit changed, for the log's history: short values in full, long notes as "edited". */
+export function diffLogContent(prev: Partial<LogContent> | null, next: LogContent, dimensions: string[]): LogChange[] {
+  if (!prev) return []
+  const out: LogChange[] = []
+  const short = (v: unknown) => (v === undefined || v === null || v === '' ? null : String(v).slice(0, 120))
+  const simple: [keyof LogContent, string][] = [
+    ['sessionType', 'Session type'],
+    ['topicCovered', 'Topic covered'],
+    ['homeworkStatus', 'Homework status'],
+    ['homeworkComments', 'Homework comments'],
+    ['questionsAttempted', 'Questions attempted'],
+    ['questionsWrong', 'Questions wrong'],
+  ]
+  for (const [k, label] of simple) {
+    const a = short(prev[k])
+    const b = short(next[k])
+    if (a !== b) out.push({ field: k, label, from: a, to: b })
+  }
+  const mats = (m: unknown) => ((m as Material[] | undefined) ?? []).map((x) => x.label).join(', ')
+  if (mats(prev.materials) !== mats(next.materials)) out.push({ field: 'materials', label: 'Materials', from: short(mats(prev.materials)), to: short(mats(next.materials)) })
+  for (const [k, label] of NOTE_FIELDS) {
+    if ((prev[k] ?? '') !== next[k]) out.push({ field: k, label, from: null, to: 'edited' })
+  }
+  for (const d of dimensions) {
+    const a = prev.ratings?.[ratingKey(d)] ?? null
+    const b = next.ratings[ratingKey(d)] ?? null
+    if (a !== b) out.push({ field: `ratings.${ratingKey(d)}`, label: `${d} rating`, from: a, to: b })
+  }
+  if ((prev.studentFlag ?? '') !== next.studentFlag) {
+    const lab = (f: unknown) => (f ? (FLAG_LABELS[f as StudentFlag] ?? String(f)) : null)
+    out.push({ field: 'studentFlag', label: 'Student flag', from: lab(prev.studentFlag), to: lab(next.studentFlag) })
+  }
+  return out
+}
+
+/**
+ * Tidies AI or tutor text without losing its shape: line breaks are kept (only
+ * extra spaces and blank lines go) and it ends with a full stop.
+ */
+export function finishText(s: unknown): string {
+  const t = String(s ?? '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((l) => l.replace(/[ \t]+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  return t && !/[.!?]$/.test(t) ? `${t}.` : t
 }
 
 /** Session statuses a log may be written for (owner: not canceled or no-show). */

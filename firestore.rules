@@ -303,8 +303,15 @@ service cloud.firestore {
           || (isTutor(b) && resource.data.tutorId == myStaffId(b))
           || (hasRole(b, 'student') && resource.data.studentId == myStudentId(b))
           || (hasRole(b, 'parent') && resource.data.studentId in myStudentIds(b));
+        // A session with a submitted log stays Present: its log marked attendance and billed the hours.
+        function keepsLoggedPresent() {
+          return resource.data.get('logStatus', 'none') != 'submitted'
+            || request.resource.data.status == resource.data.status
+            || request.resource.data.status == 'present';
+        }
+
         allow create: if isAdmin(b) && dayOpen(request.resource.data);
-        allow update: if isAdmin(b) && dayOpen(resource.data) && dayOpen(request.resource.data);
+        allow update: if isAdmin(b) && dayOpen(resource.data) && dayOpen(request.resource.data) && keepsLoggedPresent();
         // Trashed sessions can be purged even after their day.
         allow delete: if isAdmin(b) && (dayOpen(resource.data) || resource.data.isDeleted == true);
       }
@@ -371,11 +378,18 @@ service cloud.firestore {
       // One log per session (doc ID = session ID). Drafts are written by the
       // tutor or an admin; submitting goes through the submitSessionLog function.
       match /sessionLogs/{sessionId} {
+        // A missing log reads as missing (the form opens before the first draft exists).
         allow read: if isAdmin(b)
-          || (isTutor(b) && (tutorsSeeAllLogs() || resource.data.tutorId == myStaffId(b)));
+          || (isTutor(b) && (tutorsSeeAllLogs() || resource == null || resource.data.tutorId == myStaffId(b)));
+        // Drafts only: submitting runs on the server. Drafts hold the log's own fields and nothing else.
         allow create, update: if request.resource.data.status == 'draft'
           && (resource == null || resource.data.status == 'draft')
           && request.resource.data.sessionId == sessionId
+          && request.resource.data.keys().hasOnly([
+            'sessionId', 'status', 'sessionType', 'topics', 'topicCovered', 'homeworkStatus', 'homeworkComments',
+            'materials', 'questionsAttempted', 'questionsWrong', 'lessonActivity', 'learningInsight', 'nextFocus',
+            'homeworkGiven', 'ratings', 'studentFlag', 'tutorId', 'tutorName', 'studentId', 'studentName', 'subject',
+            'subjectId', 'dateKey', 'startMin', 'endMin', 'updatedAt', 'updatedBy'])
           && (isAdmin(b) || (isTutor(b) && sessionOf(sessionId).tutorId == myStaffId(b)));
         allow delete: if isAdmin(b);
       }

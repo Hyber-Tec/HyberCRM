@@ -12,27 +12,10 @@ import { type ChildProcess, spawn } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright-core'
 import { ACTIONS } from '../tests/e2e/actions'
-import { soonSession } from '../tests/e2e/fixtures'
+import { logSessions, soonSession } from '../tests/e2e/fixtures'
 import { E2E_BRANCH, E2E_MEMBERS, SCENARIOS } from '../tests/e2e/scenarios'
 import { seedBranch } from './lib/seedBranch'
-import { addDays, dayEndInstant, toInstant, todayKey, weekdayOf } from '../shared/src/time'
-
-/** A session for Maya yesterday, confirmed and not logged yet (log submission check). */
-function e2eSession() {
-  const tz = 'America/New_York'
-  const d = addDays(todayKey(tz), -1)
-  const now = new Date()
-  return {
-    path: 'sessions/e2e-log-session',
-    data: {
-      tutorId: 'demo-maya-thompson', tutorName: 'Maya Thompson', studentId: 'demo-student-ava-patel', studentName: 'Ava Patel', studentGrade: '10',
-      subjectId: null, subject: 'Algebra 2', note: '', status: 'confirmed', dateKey: d, weekday: weekdayOf(d), startMin: 960, endMin: 1070,
-      startAt: toInstant(d, 960, tz), endAt: toInstant(d, 1070, tz), dayEndAt: dayEndInstant(d, tz), visualOrder: 0, logStatus: 'none',
-      logSubmittedAt: null, noShowAppliedHours: null, confirmedAt: null, confirmedBy: null, source: 'seed', isDeleted: false, deletedAt: null,
-      deletedBy: null, createdAt: now, createdBy: 'e2e', updatedAt: now, updatedBy: 'e2e',
-    },
-  }
-}
+import { addDays, toInstant, todayKey } from '../shared/src/time'
 
 /** A shift two days ago closed by the automatic clock-out (Home correction check). */
 function e2eAutoShift() {
@@ -76,7 +59,7 @@ async function main() {
     superAdmin: 'goochoi913@gmail.com',
     sample: true,
     members: E2E_MEMBERS,
-    extraDocs: [e2eSession(), e2eAutoShift(), soonSession('confirmed')],
+    extraDocs: [...logSessions(), e2eAutoShift(), soonSession('confirmed')],
     log: () => undefined,
   })
 

@@ -9,6 +9,7 @@ import type { Conflict } from '@shared/schedule/conflicts'
 import { orderTutors } from '@shared/schedule/dayModel'
 import { seatsLeft } from '@shared/schedule/lanes'
 import { SESSION_STATUSES, SESSION_STATUS_LABELS } from '@shared/schedule/status'
+import { canLog } from '@shared/sessions/logs'
 import type { SessionStatus } from '@shared/settings/defaults'
 import { type DateKey, formatDateKey, formatTimeRange } from '@shared/time'
 import type { Availability, Session, Staff, Student, Subject, WithId } from '@shared/types'
@@ -19,14 +20,14 @@ import { DatePicker } from '@/components/app/DatePicker'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { useDayConfigs } from '@/features/data/hooks'
 import { branchCol, useQuery } from '@/lib/firestore'
 import { StudentMonthCalendar } from '../StudentMonthCalendar'
-import type { SessionDraft } from '../api'
+import { LOGGED_STAYS_PRESENT, type SessionDraft } from '../api'
 import { SubjectPicker } from './SubjectPicker'
 
 export type SessionDialogState =
@@ -224,12 +225,13 @@ export function SessionDialog({
                     </SelectTrigger>
                     <SelectContent>
                       {SESSION_STATUSES.map((s) => (
-                        <SelectItem key={s} value={s}>
+                        <SelectItem key={s} value={s} disabled={existing.logStatus === 'submitted' && s !== 'present' && s !== existing.status}>
                           {SESSION_STATUS_LABELS[s]}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {existing.logStatus === 'submitted' ? <FieldDescription>{LOGGED_STAYS_PRESENT}</FieldDescription> : null}
                 </Field>
               ) : null}
               <Field>
@@ -326,8 +328,17 @@ export function SessionDialog({
                 <LuTrash2 /> Delete
               </Button>
             ) : null}
-            {existing ? (
-              <Button variant="outline" onClick={() => onOpenLog(existing)} className={existing.logStatus === 'submitted' ? 'border-green-200 bg-green-50 text-green-700' : undefined}>
+            {existing && (existing.logStatus === 'submitted' || canLog(existing.status, settings.sessionLogs.allowForStatuses)) ? (
+              <Button
+                variant="outline"
+                onClick={() => onOpenLog(existing)}
+                title={
+                  existing.logStatus === 'submitted'
+                    ? 'A log already exists for this session — open it to review or edit'
+                    : 'Add a session log for this session on behalf of the tutor'
+                }
+                className={existing.logStatus === 'submitted' ? 'border-green-200 bg-green-50 text-green-700' : undefined}
+              >
                 <LuFileText /> {existing.logStatus === 'submitted' ? 'View session log' : 'Add session log'}
               </Button>
             ) : null}

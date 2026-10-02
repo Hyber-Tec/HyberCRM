@@ -43,6 +43,9 @@ export function SessionCard({ session, left, width, top, readOnly, bounds, segme
   // Only sessions that can be logged (by branch setting) show the missing-log warning.
   const loggable = (ui.loggableStatuses ?? ['pending', 'confirmed', 'present']).includes(session.status)
   const showLog = logSubmitted || (ended && loggable)
+  // True Education's wording: the tutor is asked to write it; the admin sees it as missing.
+  const logTip =
+    ui.mode === 'tutor' ? (logSubmitted ? 'Session log submitted.' : 'Please write your session log.') : logSubmitted ? 'Session log submitted' : 'Session log missing'
   const canEdit = !readOnly && ui.mode === 'admin'
   const conflicts = ui.conflictsOf(session)
   const inConflict = conflicts.length > 0
@@ -193,8 +196,8 @@ export function SessionCard({ session, left, width, top, readOnly, bounds, segme
       {showLog ? (
         <button
           type="button"
-          aria-label={logSubmitted ? 'Session log submitted' : 'Session ended without a log'}
-          title={logSubmitted ? 'Session log submitted' : 'Session ended — no log yet'}
+          aria-label={ui.mode === 'admin' ? (logSubmitted ? 'Open session log' : 'Open missing session log') : logTip}
+          title={logTip}
           className="absolute right-1 bottom-1"
           onClick={(e) => {
             e.stopPropagation()
@@ -216,7 +219,7 @@ export function SessionCard({ session, left, width, top, readOnly, bounds, segme
   const conflictText = !inConflict ? null : ui.mode === 'tutor' ? tutorConflictText(conflicts) : conflicts.map((c) => c.message).join(' ')
   // The tooltip wraps the right-click menu, which wraps the card.
   const withMenu = (
-    <ContextMenuFor entries={sessionMenu(session, { ui, canEdit, conflicts, logSubmitted })} className="w-64">
+    <ContextMenuFor entries={sessionMenu(session, { ui, canEdit, conflicts, logSubmitted, loggable })} className="w-64">
       {card}
     </ContextMenuFor>
   )
@@ -250,7 +253,13 @@ export function SessionCard({ session, left, width, top, readOnly, bounds, segme
  */
 function sessionMenu(
   s: WithId<Session>,
-  { ui, canEdit, conflicts, logSubmitted }: { ui: ReturnType<typeof useScheduleUi>; canEdit: boolean; conflicts: Conflict[]; logSubmitted: boolean },
+  {
+    ui,
+    canEdit,
+    conflicts,
+    logSubmitted,
+    loggable,
+  }: { ui: ReturnType<typeof useScheduleUi>; canEdit: boolean; conflicts: Conflict[]; logSubmitted: boolean; loggable: boolean },
 ): MenuEntry[] {
   const admin = ui.mode === 'admin'
   const time = formatTimeRange(s.startMin, s.endMin)
@@ -285,14 +294,21 @@ function sessionMenu(
       kind: 'radio',
       value: s.status,
       separatorBefore: true,
-      options: SESSION_STATUSES.map((st) => ({ value: st, label: SESSION_STATUS_LABELS[st], swatch: SESSION_STATUS_STYLE[st] })),
+      // A session with a submitted log stays Present: its log marked attendance and billed the hours.
+      options: SESSION_STATUSES.map((st) => ({
+        value: st,
+        label: SESSION_STATUS_LABELS[st],
+        swatch: SESSION_STATUS_STYLE[st],
+        disabled: logSubmitted && st !== 'present' && st !== s.status,
+      })),
       onChange: (v) => ui.setStatus(s, v as Session['status']),
     },
+    canEdit && logSubmitted && { kind: 'label', label: 'Has a submitted log, so it stays Present.' },
     logSubmitted
       ? { label: 'View session log', icon: LuNotebookPen, onSelect: () => ui.viewLog(s), separatorBefore: true }
-      : { label: admin ? 'Write session log' : 'Open session log', icon: LuNotebookPen, onSelect: () => ui.openLog(s), separatorBefore: true },
+      : loggable && { label: admin ? 'Write session log' : 'Open session log', icon: LuNotebookPen, onSelect: () => ui.openLog(s), separatorBefore: true },
     logSubmitted && (admin || ui.mode === 'tutor') && { label: 'Edit session log', onSelect: () => ui.openLog(s) },
-    admin && { label: canEdit ? 'Edit session…' : 'View session', icon: LuPencil, onSelect: () => ui.editSession(s) },
+    admin && { label: canEdit ? 'Edit session…' : 'View session', icon: LuPencil, onSelect: () => ui.editSession(s), separatorBefore: !logSubmitted && !loggable },
     !inConflict && reassignMenu('Reassign to'),
     canEdit && { label: 'Copy', icon: LuCopy, shortcut: '⌘C', onSelect: () => ui.copySession(s), separatorBefore: true },
     canEdit && { label: 'Duplicate to next week…', onSelect: () => ui.duplicateSession(s) },

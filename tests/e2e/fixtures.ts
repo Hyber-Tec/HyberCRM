@@ -1,4 +1,4 @@
-import { dateKeyOf, dayEndInstant, minutesOf, toInstant, weekdayOf } from '../../shared/src/time'
+import { addDays, dateKeyOf, dayEndInstant, minutesOf, toInstant, todayKey, weekdayOf } from '../../shared/src/time'
 
 const TZ = 'America/New_York'
 // Computed once per run, so the seed and later updates describe the same session.
@@ -51,4 +51,54 @@ export function conflictFixture() {
       },
     ],
   }
+}
+
+/** A confirmed, not yet logged session `dayOffset` days from today (session log checks). */
+function logSession(o: {
+  id: string
+  tutorId: string
+  tutorName: string
+  studentId: string
+  studentName: string
+  grade: string
+  subject: string
+  dayOffset: number
+  startMin: number
+  endMin: number
+}) {
+  const d = addDays(todayKey(TZ), o.dayOffset)
+  const now = new Date()
+  return {
+    path: `sessions/${o.id}`,
+    data: {
+      tutorId: o.tutorId, tutorName: o.tutorName, studentId: o.studentId, studentName: o.studentName, studentGrade: o.grade,
+      subjectId: null, subject: o.subject, note: '', status: 'confirmed', dateKey: d, weekday: weekdayOf(d), startMin: o.startMin, endMin: o.endMin,
+      startAt: toInstant(d, o.startMin, TZ), endAt: toInstant(d, o.endMin, TZ), dayEndAt: dayEndInstant(d, TZ), visualOrder: 0, logStatus: 'none',
+      logSubmittedAt: null, noShowAppliedHours: null, confirmedAt: null, confirmedBy: null, source: 'seed', isDeleted: false, deletedAt: null,
+      deletedBy: null, createdAt: now, createdBy: 'e2e', updatedAt: now, updatedBy: 'e2e',
+    },
+  }
+}
+
+const MAYA = { tutorId: 'demo-maya-thompson', tutorName: 'Maya Thompson' }
+const AVA = { studentId: 'demo-student-ava-patel', studentName: 'Ava Patel', grade: '10' }
+
+/** The session logs the e2e run writes: Maya's yesterday, Daniel's yesterday (an admin logs it for him), and Maya's tomorrow (too early to submit). */
+export function logSessions() {
+  return [
+    logSession({ id: 'e2e-log-session', ...MAYA, ...AVA, subject: 'Algebra 2', dayOffset: -1, startMin: 960, endMin: 1070 }),
+    logSession({
+      id: 'e2e-admin-log-session',
+      tutorId: 'demo-daniel-kim',
+      tutorName: 'Daniel Kim',
+      studentId: 'demo-student-noah-nguyen',
+      studentName: 'Noah Nguyen',
+      grade: '9',
+      subject: 'Geometry',
+      dayOffset: -1,
+      startMin: 900,
+      endMin: 960,
+    }),
+    logSession({ id: 'e2e-future-log-session', ...MAYA, ...AVA, subject: 'Algebra 2', dayOffset: 1, startMin: 960, endMin: 1020 }),
+  ]
 }

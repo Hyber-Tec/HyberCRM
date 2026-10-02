@@ -69,40 +69,102 @@ const kiosk: Step = async (page, base) => {
   step('clocked out')
 }
 
-/** Tutor fills in and submits a session log through the six steps. */
-const sessionLog: Step = async (page, base) => {
-  const step = (n: string) => process.env.E2E_VERBOSE && console.log(`     · ${n}`)
-  await page.goto(`${base}/${E2E_BRANCH}/session-log/e2e-log-session`, { waitUntil: 'load' })
-  await expectText(page, 'From last session', 15000)
-  await page.getByRole('button', { name: 'Session Info' }).click()
-  await page.getByRole('combobox').filter({ hasText: 'Select type…' }).click()
-  await page.getByRole('option', { name: 'School Help' }).click()
-  await page.getByPlaceholder('e.g. Linear equations, comma usage').fill('Quadratic equations')
-  await page.getByRole('combobox').filter({ hasText: 'Select…' }).click()
-  await page.getByRole('option', { name: 'Completed' }).click()
-  step('session info')
-  await page.getByRole('button', { name: 'Materials' }).click()
+/** Fills in every step of the session log form (from whichever step is open). */
+async function fillLog(page: Page, note: string) {
+  const tab = (name: string) => page.getByRole('navigation', { name: 'Steps' }).getByRole('button', { name })
+  await tab('Session Info').click()
+  await page.getByRole('radiogroup', { name: 'Session type' }).getByRole('radio', { name: 'School Help', exact: true }).click()
+  await page.getByPlaceholder('e.g., Linear equations, Comma usage').fill('Quadratic equations')
+  await page.getByRole('radiogroup', { name: 'Homework status' }).getByRole('radio', { name: 'Completed', exact: true }).click()
+  await tab('Materials').click()
   const mat = page.getByPlaceholder('Type a resource name or paste a link, then press Enter…')
   await mat.fill('Workbook chapter 5')
   await mat.press('Enter')
-  const nums = page.locator('input[inputmode="numeric"]')
-  await nums.nth(0).fill('12')
-  await nums.nth(1).fill('3')
-  step('materials')
-  await page.getByRole('button', { name: 'Notes' }).click()
-  const areas = page.locator('textarea')
-  for (let i = 0; i < 4; i++) await areas.nth(i).fill(`Note ${i + 1} about the session`)
-  step('notes')
-  await page.getByRole('button', { name: 'Evaluation' }).click()
-  const fours = page.getByRole('button', { name: '4 stars' })
-  for (let i = 0; i < (await fours.count()); i++) await fours.nth(i).click()
-  await page.getByRole('button', { name: 'On Track' }).click()
-  step('evaluation')
-  await page.getByRole('button', { name: 'Review & Submit' }).click()
+  await page.getByLabel('Questions attempted').fill('12')
+  await page.getByLabel('Questions wrong').fill('3')
+  await tab('Notes').click()
+  for (const label of ['Lesson activity', 'Learning insight', 'Next focus', 'Homework given']) {
+    await page.getByRole('textbox', { name: label, exact: true }).fill(`${label}: ${note}.\nSecond line kept.`)
+  }
+  await tab('Evaluation').click()
+  for (const d of ['Effort', 'Motivation', 'Behavior', 'Focus', 'Confidence']) await page.getByRole('button', { name: `${d} 4 out of 5` }).click()
+  await page.getByRole('radiogroup', { name: 'Student flag' }).getByRole('radio', { name: 'On Track' }).click()
+  await tab('Review & Submit').click()
+}
+
+/** Tutor fills in and submits a session log through the six steps, then reads it. */
+const sessionLog: Step = async (page, base) => {
+  const step = (n: string) => process.env.E2E_VERBOSE && console.log(`     · ${n}`)
+  await page.goto(`${base}/${E2E_BRANCH}/session-log/e2e-log-session`, { waitUntil: 'load' })
+  await expectText(page, 'Session preparation', 15000)
+  await expectText(page, 'From last session')
+  await fillLog(page, 'worked through factoring')
+  await expectText(page, 'Draft saved', 10000)
+  step('filled')
+  if (await page.getByTestId('review-missing').count()) throw new Error('Review still lists missing fields')
   await page.getByRole('button', { name: 'Submit log' }).click()
-  await expectText(page, 'Submitted', 30000)
+  await expectText(page, 'Session log submitted', 30000)
+  const record = page.getByTestId('log-record')
+  await record.waitFor({ timeout: 15000 })
+  await record.getByText('Submitted', { exact: true }).first().waitFor()
   await expectText(page, 'AI overview', 10000)
+  // Line breaks survive.
+  await page.getByText('Second line kept.').first().waitFor()
+  if (await page.getByText('Entered by admin').count()) throw new Error('A tutor’s own log shows “Entered by admin”')
   step('submitted')
+}
+
+/** An admin opens the tutor's submitted log, edits it, and the credit stays with the tutor. */
+const adminEditsLog: Step = async (page, base) => {
+  await page.goto(`${base}/${E2E_BRANCH}/session-log/e2e-log-session`, { waitUntil: 'load' })
+  await page.getByTestId('log-record').waitFor({ timeout: 15000 })
+  await page.getByRole('button', { name: 'Edit log' }).click()
+  await expectText(page, 'submitted log. Submitting again updates it')
+  await page.getByRole('navigation', { name: 'Steps' }).getByRole('button', { name: 'Notes' }).click()
+  await page.getByRole('textbox', { name: 'Lesson activity', exact: true }).fill('Edited by the admin: worked through factoring and graphing.')
+  await page.getByRole('navigation', { name: 'Steps' }).getByRole('button', { name: 'Evaluation' }).click()
+  await page.getByRole('button', { name: 'Effort 5 out of 5' }).click()
+  await page.getByRole('navigation', { name: 'Steps' }).getByRole('button', { name: 'Review & Submit' }).click()
+  await page.getByRole('button', { name: 'Update log' }).click()
+  await expectText(page, 'Session log updated', 30000)
+  const record = page.getByTestId('log-record')
+  await record.getByText('Last edited').waitFor({ timeout: 15000 })
+  if (await record.getByText('Entered by admin').count()) throw new Error('An admin’s edit relabeled the log as admin-entered')
+  await page.getByText('Edited by the admin: worked through factoring').first().waitFor()
+  const history = page.getByTestId('log-history')
+  await history.getByText('Lesson activity').first().waitFor({ timeout: 10000 })
+  await history.getByText(/Effort.*4.*5/).first().waitFor()
+}
+
+/** An admin writes a log for another tutor's session: the form says so, and the log records it. */
+const adminLogsOnBehalf: Step = async (page, base) => {
+  await page.goto(`${base}/${E2E_BRANCH}/session-log/e2e-admin-log-session`, { waitUntil: 'load' })
+  await expectText(page, 'Adding this log on behalf of', 15000)
+  await expectText(page, 'Daniel Kim')
+  await fillLog(page, 'reviewed triangle proofs')
+  await page.getByRole('button', { name: 'Submit log' }).click()
+  await expectText(page, 'Session log submitted', 30000)
+  await page.getByTestId('log-record').getByText('Entered by admin').waitFor({ timeout: 15000 })
+}
+
+/** A tutor opens another tutor's log (tutors may read every log by default): it renders from the log, read-only. */
+const tutorReadsOthersLog: Step = async (page, base) => {
+  await page.goto(`${base}/${E2E_BRANCH}/session-log/e2e-admin-log-session/view`, { waitUntil: 'load' })
+  await page.getByTestId('log-record').waitFor({ timeout: 15000 })
+  await page.getByTestId('log-student').getByText('Noah Nguyen').waitFor()
+  if (await page.getByRole('button', { name: 'Edit log' }).count()) throw new Error('Another tutor’s log offers Edit')
+  if (await page.getByText('History').count()) throw new Error('A tutor sees the log’s history')
+}
+
+/** A log for a session that hasn't started saves as a draft but can't be submitted yet. */
+const futureLogBlocked: Step = async (page, base) => {
+  await page.goto(`${base}/${E2E_BRANCH}/session-log/e2e-future-log-session`, { waitUntil: 'load' })
+  await expectText(page, 'This session starts at', 15000)
+  await fillLog(page, 'planned ahead')
+  await expectText(page, 'Draft saved', 10000)
+  await page.getByRole('button', { name: 'Submit log' }).click()
+  await expectText(page, 'You can submit this log once the session starts at')
+  if (await page.getByTestId('log-record').count()) throw new Error('A log was submitted before its session started')
 }
 
 /** Home → Missing & Needs Attention → fix an automatic clock-out. */
@@ -258,6 +320,10 @@ export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'schedule create/status/delete', email: 'goochoi913@gmail.com', run: scheduleCrud },
   { name: 'kiosk clock in/out', email: 'goochoi913@gmail.com', run: kiosk },
   { name: 'tutor submits a session log', email: 'tutor@e2e.test', run: sessionLog },
+  { name: 'admin edits the tutor’s session log', email: 'owner@e2e.test', run: adminEditsLog },
+  { name: 'admin writes a session log on behalf of a tutor', email: 'owner@e2e.test', run: adminLogsOnBehalf },
+  { name: 'tutor reads another tutor’s session log', email: 'tutor@e2e.test', run: tutorReadsOthersLog },
+  { name: 'tutor can’t submit a log before the session starts', email: 'tutor@e2e.test', run: futureLogBlocked },
   { name: 'home fixes an automatic clock-out', email: 'goochoi913@gmail.com', run: homeClockFix },
   { name: 'admin publishes an announcement', email: 'goochoi913@gmail.com', run: announcementPublish },
   { name: 'tutor reads and comments on it', email: 'tutor@e2e.test', run: announcementTutor },

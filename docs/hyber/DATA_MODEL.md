@@ -123,7 +123,7 @@
 | `lane`, `visualOrder` | number | `slotIdx`, `visualOrder` | Lane at write time (informational; layout is recomputed) and manual stacking order |
 | `noShowAppliedHours`, `noShowAppliedAt` | number, Timestamp | same | Student-hours ledger for No Show |
 | `attendanceMarkedAt`, `attendanceMarkedBy` | Timestamp, `session_log` \| `admin` | same | |
-| `logStatus`, `logSubmittedAt` | `none` \| `draft` \| `submitted`, Timestamp | (separate read of `session_logs`) | Drives the blue check / red triangle |
+| `logStatus`, `logSubmittedAt` | `none` \| `draft` \| `submitted`, Timestamp | (separate read of `session_logs`) | Drives the blue check / red triangle. `draft` is mirrored from the log by `onSessionLogWritten`; `submitted` is set by `submitSessionLog`. A session with a submitted log stays `present` (rules and app). |
 | `confirmedAt`, `confirmedBy` | Timestamp, `auto` \| uid | — | |
 | `source` | `manual` \| `paste` \| `duplicate_week` \| `student_calendar` (older data may say `master`) | — | |
 | soft-delete + audit fields | | same | TE's `blockId` is **dropped** (placement by time) |
@@ -199,13 +199,13 @@ Rules: create-only, with `actorUid == request.auth.uid`; no update or delete by 
 ### `branches/{b}/sessionLogs/{sessionId}` (TE `session_logs`, same ID-equals-session rule)
 TE fields kept (doc 07 §4.1), cleaned up:
 - **Status:** `status: draft|submitted` and `submittedAt` (TE: `isDraft`).
-- **Session snapshot:** `tutorId`, `tutorName`, `studentId`, `studentName`, `subject`, `dateKey`, `startAt`, `endAt`, `usedHours`.
+- **Session snapshot:** `tutorId`, `tutorName`, `studentId`, `studentName`, `subject`, `subjectId` (to match earlier logs of the same subject), `dateKey`, `startMin`, `endMin`, `startAt`, `endAt`, `usedHours` (billed with `students.hourRounding`), `sessionNote` (the session's admin note when submitted).
 - **Content:** `sessionType`, `topics[]` plus `topicCovered` (joined string), `homeworkStatus`, `homeworkComments`, `materials[{label, url, type: text|link}]` (curriculum refs dropped), `questionsAttempted`, `questionsWrong`, `accuracyPercent`, `lessonActivity`, `learningInsight`, `nextFocus`, `homeworkGiven`.
-- **Evaluation:** `ratings{effort, motivation, behavior, focus, confidence}`, `studentFlag: on_track|needs_attention|at_risk`.
+- **Evaluation:** `ratings{effort, motivation, behavior, focus, confidence}` (keyed by the lower-cased dimension label), `studentFlag: on_track|needs_attention|at_risk`.
 - **AI:** `ai{sessionSummary, homeworkAssigned, nextSessionPlan, riskAlert, provider}`.
-- **Attribution:** `enteredByAdmin: {uid, name} | null`, plus the audit fields.
+- **Attribution:** `enteredBy {role: tutor|admin, email, name, at}` (the first submit), `enteredByAdmin {email, name} | null` (set only when that first submit was an admin's who isn't the session's tutor), `lastEditedBy {email, name, at} | null` and `editCount` (re-submits), plus `updatedAt`/`updatedBy`.
 
-Written only through the `submitSessionLog` callable, which is atomic and does the student-hours and lifecycle side effects. Drafts are written directly by the author.
+Submitted only through the `submitSessionLog` callable, which is atomic and does the student-hours and lifecycle side effects; it refuses before the session's start time. Every submit writes an audit entry (`sessionLog.submit` / `sessionLog.edit`, `entityId` = session ID) whose `changes[]` lists what an edit changed. Drafts are written directly by the session's tutor or an admin and may hold only the content and snapshot fields (rules allowlist). When an admin moves, re-times, reassigns or re-subjects a logged session, `onLoggedSessionUpdated` updates the log's snapshot and `usedHours`, corrects the student's hours and writes a `sessionLog.sync` audit entry. There is no delete-log UI.
 
 ### `branches/{b}/progressReports/{reportId}` (TE `student_progress_reports`)
 TE fields: `{studentId, studentName, startDate, endDate, generatedAt, generatedByUid, generatedByName, status, sessionCount, sessionIds[], lastSessionDateKey, metrics{…}, normalizedHours, rawSubjectHours, subjects[], tutors[], topicsCovered[], ai{…}, customName}`, plus `sharedWithParents` (bool, if parent portals show reports, Q6). Immutable snapshot; the doc ID is a plain auto-ID (TE's composed ID had a bug).
@@ -233,8 +233,13 @@ Collection-scope indexes apply to every subcollection with that ID, i.e. to ever
 | `timeEntries` | `staffId ↑, startAt ↑` | Payroll report, tutor payroll, Employee Calendar |
 | `timeEntries` | `status ↑, startAt ↓` | Pending approvals (if self entries need approval) |
 | `clockShifts` | `staffId ↑, clockInAt ↓` | Employee history, Home live clock |
-| `sessionLogs` | `studentId ↑, startAt ↓` | Student history, Prepare step, progress reports |
-| `sessionLogs` | `tutorId ↑, startAt ↓` | Tutor's Session Log page |
+| `sessions` | `logStatus ↑, dateKey ↑` | Home and Session Log "missing" lists |
+| `sessionLogs` | `studentId ↑, dateKey ↓` | Student history, Prepare step, Session Log student filter |
+| `sessionLogs` | `tutorId ↑, dateKey ↓` | Session Log tutor filter and tutor's own logs |
+| `sessionLogs` | `studentId ↑, tutorId ↑, dateKey ↓` | Prepare step for tutors who see only their own logs |
+| `sessionLogs` | `status ↑, dateKey ↓` | Session Log (submitted or drafts) |
+| `sessionLogs` | `studentId ↑, status ↑, dateKey ↓` | Progress reports |
+| `auditLog` | `entityId ↑, at ↓` | A session log's History |
 | `progressReports` | `studentId ↑, generatedAt ↓` | Reports per student |
 | `auditLog` | `category ↑, at ↓` | Audit Log filter |
 | `notifications` | `recipientKey ↑, createdAt ↓` | Inbox |
@@ -259,7 +264,7 @@ Collection-scope indexes apply to every subcollection with that ID, i.e. to ever
 | `auditLog` | ✓ | read (create via app/functions) | — | — | — |
 | `clockShifts`, `clockEvents`, `openShifts` | ✓ | read (changes through callables) | own (read) | — | — |
 | `timeEntries` | ✓ | ✓ unless restricted | own (read; create `pending` self entries if enabled) | — | — |
-| `sessionLogs` | ✓ | ✓ | read (all or own, Q15); write drafts for own sessions; submit through a callable | linked, submitted, parent-visible fields only (Q6) | — |
+| `sessionLogs` | ✓ | ✓ | read (all or own, Q15); write drafts for own sessions; submit through a callable | — (families see progress reports) | — |
 | `progressReports` | ✓ | ✓ | read/create | linked, if shared (Q6) | — |
 | `announcements` (+ reads, comments) | ✓ | ✓ | audience (read; own read receipt; comment if enabled) | audience | audience |
 | `notifications` | ✓ | own | own | own | own |

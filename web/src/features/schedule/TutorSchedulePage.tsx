@@ -1,13 +1,17 @@
 import { query, where } from 'firebase/firestore'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { LuChevronLeft, LuChevronRight, LuFileText, LuTriangleAlert } from 'react-icons/lu'
+import { FaCheckCircle } from 'react-icons/fa'
+import { FaTriangleExclamation } from 'react-icons/fa6'
+import { LuChevronLeft, LuChevronRight, LuTriangleAlert } from 'react-icons/lu'
 import { useNavigate, useSearchParams } from 'react-router'
+import { toast } from 'sonner'
 import { dayHours, effectiveRanges } from '@shared/availability'
 import { COL } from '@shared/paths'
 import { studentLabel } from '@shared/people'
 import { type Conflict, tutorConflictText } from '@shared/schedule/conflicts'
 import { buildDayRows } from '@shared/schedule/dayModel'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_STYLE } from '@shared/schedule/status'
+import { canLog } from '@shared/sessions/logs'
 import { type DateKey, addDays, formatDateKey, formatTimeRange, isDateKey, nowMinutes, todayKey, weekDays } from '@shared/time'
 import type { Availability, Session, Staff, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
@@ -68,7 +72,14 @@ export function TutorSchedulePage() {
   const { data: shifts } = useShifts(from, to, staffId, !!staffId)
   const studentMap = useMemo(() => new Map(students.map((s) => [s.id, s])), [students])
   const sessions = useMemo(() => sessionsRaw.filter((s) => !s.isDeleted), [sessionsRaw])
-  const openLog = (s: WithId<Session>) => window.open(`/${branchId}/session-log/${s.id}`, '_blank', 'noopener')
+  const loggable = (s: WithId<Session>) => canLog(s.status, settings.sessionLogs.allowForStatuses)
+  const openLog = (s: WithId<Session>) => {
+    if (s.logStatus !== 'submitted' && !loggable(s)) {
+      toast.info(`${SESSION_STATUS_LABELS[s.status]} sessions don’t take a session log.`)
+      return
+    }
+    window.open(`/${branchId}/session-log/${s.id}`, '_blank', 'noopener')
+  }
 
   // Sessions that may not happen as booked: shown as waiting for the admin.
   const hoursOf = useCallback((d: DateKey) => dayHours(d, settings, dayConfigs), [settings, dayConfigs])
@@ -170,6 +181,8 @@ export function TutorSchedulePage() {
                 {list.map((s) => {
                   const st = SESSION_STATUS_STYLE[s.status]
                   const why = tutorConflictText(conflictsOf(s))
+                  const ended = s.dateKey < today || (s.dateKey === today && s.endMin <= nowMin)
+                  const logState = s.logStatus === 'submitted' ? 'submitted' : ended && loggable(s) ? 'missing' : null
                   return (
                     <button
                       key={s.id}
@@ -191,7 +204,15 @@ export function TutorSchedulePage() {
                       </div>
                       <div className="flex flex-col items-end gap-1 text-xs" style={{ color: st.text }}>
                         {SESSION_STATUS_LABELS[s.status]}
-                        <LuFileText className={s.logStatus === 'submitted' ? 'text-blue-700' : 'text-neutral-400'} />
+                        {logState === 'submitted' ? (
+                          <span title="Session log submitted." data-testid="log-indicator">
+                            <FaCheckCircle className="size-3.5 text-blue-700" aria-label="Session log submitted." />
+                          </span>
+                        ) : logState === 'missing' ? (
+                          <span title="Please write your session log." data-testid="log-indicator">
+                            <FaTriangleExclamation className="size-3.5 text-red-700" aria-label="Please write your session log." />
+                          </span>
+                        ) : null}
                       </div>
                     </button>
                   )

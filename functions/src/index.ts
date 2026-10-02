@@ -348,7 +348,7 @@ export const onSessionCreated = onDocumentCreated(`${ROOT.branches}/{branchId}/$
   await deliverSessionNotices(branchId, sessionId, notices, `sess-${sessionId}-created`)
 })
 
-export { submitSessionLog, sessionAi } from './sessions'
+export { onLoggedSessionUpdated, onSessionLogWritten, sessionAi, sessionLogContext, submitSessionLog } from './sessions'
 export { onAnnouncementComment, onAnnouncementRead, onAnnouncementWritten } from './announcements'
 export { seedDemoData } from './platform'
 export { onSessionUpdated } from './sessionNotify'

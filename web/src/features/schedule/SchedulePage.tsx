@@ -7,6 +7,7 @@ import type { Conflict } from '@shared/schedule/conflicts'
 import { buildDayRows, orderTutors } from '@shared/schedule/dayModel'
 import { fitsCapacity, seatsLeft } from '@shared/schedule/lanes'
 import { SESSION_STATUS_LABELS } from '@shared/schedule/status'
+import { canLog } from '@shared/sessions/logs'
 import type { SessionStatus } from '@shared/settings/defaults'
 import {
   type DateKey,
@@ -29,7 +30,7 @@ import { useMembers, useStaffList, useStudentList, useSubjects } from '@/feature
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useLoadWindow } from '@/lib/useLoadWindow'
 import { cn } from '@/lib/utils'
-import { type ScheduleCtx, createSession, deleteSession, reorderSessions, updateSession } from './api'
+import { LOGGED_STAYS_PRESENT, type ScheduleCtx, createSession, deleteSession, reorderSessions, updateSession } from './api'
 import { computeConflicts } from './conflicts'
 import { writeAvailability } from '@/features/availability/api'
 import { useNavigate } from 'react-router'
@@ -275,8 +276,14 @@ export function SchedulePage() {
   // ------------------------------------------------------------- actions
   const navigate = useNavigate()
   const openLog = useCallback(
-    (s: WithId<Session>) => window.open(`/${branchId}/session-log/${s.id}`, '_blank', 'noopener'),
-    [branchId],
+    (s: WithId<Session>) => {
+      if (s.logStatus !== 'submitted' && !canLog(s.status, settings.sessionLogs.allowForStatuses)) {
+        toast.info(`${SESSION_STATUS_LABELS[s.status]} sessions don’t take a session log.`)
+        return
+      }
+      window.open(`/${branchId}/session-log/${s.id}`, '_blank', 'noopener')
+    },
+    [branchId, settings.sessionLogs.allowForStatuses],
   )
   const viewLog = useCallback(
     (s: WithId<Session>) => window.open(`/${branchId}/session-log/${s.id}/view`, '_blank', 'noopener'),
@@ -332,6 +339,7 @@ export function SchedulePage() {
     (s: WithId<Session>, status: SessionStatus) => {
       if (status === s.status) return
       if (isLocked(s.dateKey)) return toast.error('Past days can’t be changed.')
+      if (s.logStatus === 'submitted' && status !== 'present') return toast.error(LOGGED_STAYS_PRESENT)
       if (s.status === 'canceled') {
         const others = (data.sessionsByDate.get(s.dateKey) ?? []).filter((x) => x.tutorId === s.tutorId && x.status !== 'canceled')
         if (!fitsCapacity(others, s.startMin, s.endMin, maxLanes, s.id)) return toast.error('It is already full.')

@@ -203,8 +203,8 @@ The first branch is **Demo Academy**: generic name, placeholder logo (an SVG mon
 | `/app` | signed in | Resolver: super admin → `/platform`; one membership → `/b/{id}`; several → chooser; none → "No access yet" |
 | `/platform`, `/platform/branches/new`, `/platform/branches/:id` | super admin | Platform pages |
 | `/b/:branchId/*` | members, super admin | The role's portal. Admin paths mirror TE's (below). |
-| `/b/:branchId/sessions/:sessionId/log` | tutor, admin | Session-log form, opened in a **new tab** from the schedule (loads by ID, unlike TE) |
-| `/b/:branchId/sessions/:sessionId` | staff | Read-only session-log detail |
+| `/:branchId/session-log/:sessionId` | tutor, admin | Session-log form, opened in a **new tab** from the schedule (loads by ID, unlike TE). A submitted log opens read-only with **Edit log**. |
+| `/:branchId/session-log/:sessionId/view` | staff | Read-only session log (renders from the log, so tutors can read other tutors' logs when allowed) |
 | `/b/:branchId/progress-reports/:reportId` | staff (+ parents if shared) | Progress report page (print/PDF) |
 
 Admin portal paths: `home`, `announcements`, `scheduling/schedule/{day|week|month}/…` (TE's URL scheme, e.g. `day/2026-09-30`, `week/2026-W40`, `?mode=master`), `scheduling/audit-log`, `students/directory[/:id[/:tab]]`, `students/calendar?student=`, `employees/directory[/:id]`, `employees/calendar`, `employees/subjects`, `employees/pay-rates`, `employees/payroll`, `employees/time-entries`, `sessions/log`, `sessions/progress-reports`, `account`, `access-control`, `settings`.
