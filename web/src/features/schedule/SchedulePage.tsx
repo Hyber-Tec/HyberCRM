@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { LuPanelRight } from 'react-icons/lu'
+import { LuCalendarCog, LuCalendarDays, LuPlus } from 'react-icons/lu'
 import { toast } from 'sonner'
 import { dayHours, effectiveRanges, rangesContain } from '@shared/availability'
 import { isInactiveStudent } from '@shared/people'
 import type { Conflict } from '@shared/schedule/conflicts'
 import { buildDayRows, orderTutors } from '@shared/schedule/dayModel'
-import { fitsCapacity, seatsLeft } from '@shared/schedule/lanes'
+import { fitsCapacity, seatsLeft, unionMinutes } from '@shared/schedule/lanes'
 import { SESSION_STATUS_LABELS } from '@shared/schedule/status'
 import { canLog } from '@shared/sessions/logs'
-import type { SessionStatus } from '@shared/settings/defaults'
+import type { ScheduleView, SessionStatus } from '@shared/settings/defaults'
 import {
   type DateKey,
   addDays,
@@ -25,7 +25,6 @@ import type { Session, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useMembers, useStaffList, useStudentList, useSubjects } from '@/features/data/hooks'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useLoadWindow } from '@/lib/useLoadWindow'
@@ -49,11 +48,12 @@ import { useScheduleData } from './useScheduleData'
 import { useShifts } from '@/features/timeclock/api'
 import type { ClockInterval } from '@shared/schedule/dayModel'
 import { useScheduleRoute } from './useScheduleRoute'
-import { WeekBar } from './WeekBar'
+import { type RailNumbers, type RailTutor, ScheduleMenu, ScheduleRail, SlimRail, ViewSwitch } from './ScheduleRail'
 import { WeekEventHeader } from './WeekEventHeader'
 
 const CLIP_KEY = 'hyber:schedule-clipboard'
-const ZOOM_KEY = 'hyber:schedule-zoom'
+// The redesign starts everyone at 100% (the old key held True Education's 80%).
+const ZOOM_KEY = 'hyber:schedule-zoom-v2'
 
 interface Clip {
   studentId: string
@@ -118,7 +118,13 @@ export function SchedulePage() {
     })
   }, [])
   const [topMonth, setTopMonth] = useState<DateKey | null>(null)
-  const [zoom, setZoomState] = useState(() => Number(localStorage.getItem(ZOOM_KEY) ?? '0.8') || 0.8)
+  const [zoom, setZoomState] = useState(() => {
+    try {
+      return Number(localStorage.getItem(ZOOM_KEY) ?? '1') || 1
+    } catch {
+      return 1
+    }
+  })
   const setZoom = (z: number) => {
     setZoomState(z)
     try {
@@ -154,7 +160,8 @@ export function SchedulePage() {
     return { from: monthWindow.from, to: monthWindow.to }
   }, [view, date, weekStartsOn, monthWindow.from, monthWindow.to])
 
-  const data = useScheduleData(range.from, range.to, view === 'month' ? null : tutorFilter, { eventsOnly: view === 'month', keepPrevious: view === 'month' })
+  // Every tutor's sessions load (the rail counts them all); the tutor filter only changes the rows shown.
+  const data = useScheduleData(range.from, range.to, null, { eventsOnly: view === 'month', keepPrevious: view === 'month' })
   const { data: shifts } = useShifts(range.from, range.to, null, view !== 'month')
   const clocksByKey = useMemo(() => {
     const m = new Map<string, ClockInterval[]>()
@@ -217,7 +224,8 @@ export function SchedulePage() {
             const a = data.availabilityByKey.get(`${id}|${d}`)
             return a ? { ranges: effectiveRanges(a.ranges, hours), unavailable: a.unavailable, hidden: a.hidden } : null
           },
-          sessions: data.sessionsByDate.get(d) ?? [],
+          // Showing one tutor: only their sessions (others would get rows of their own).
+          sessions: (data.sessionsByDate.get(d) ?? []).filter((s) => !tutorFilter || s.tutorId === tutorFilter),
           clocks: (id) => (clocksByKey.get(`${id}|${d}`) ?? []).map((c) => (c.open ? { ...c, endMin: d === today ? nowMin : 1440 } : c)),
           maxLanes,
           addEmptyLane: true,
@@ -225,7 +233,7 @@ export function SchedulePage() {
         })
         return { dateKey: d, hours, rows, events: data.eventsByDate.get(d) ?? [] }
       }),
-    [days, hoursOf, today, nowMin, visibleTutors, data.availabilityByKey, data.sessionsByDate, data.eventsByDate, maxLanes, staffMap, clocksByKey],
+    [days, hoursOf, today, nowMin, visibleTutors, tutorFilter, data.availabilityByKey, data.sessionsByDate, data.eventsByDate, maxLanes, staffMap, clocksByKey],
   )
 
   const ctx: ScheduleCtx = useMemo(() => ({ branchId, actor, timezone, settings, maxStudentsPerTutor: maxLanes }), [branchId, actor, timezone, settings, maxLanes])
@@ -531,8 +539,8 @@ export function SchedulePage() {
   }, [view, date, route, isClosed, today])
 
   const anyDialog = !!(sessionDialog || eventDialog || dayEdit || trashOpen || dupOpen || orderOpen || bell)
-  const keysRef = useRef({ copy, paste, removeSelected, nav, anyDialog })
-  keysRef.current = { copy, paste, removeSelected, nav, anyDialog }
+  const keysRef = useRef({ copy, paste, removeSelected, nav, anyDialog, hasSelection: !!selection })
+  keysRef.current = { copy, paste, removeSelected, nav, anyDialog, hasSelection: !!selection }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const k = keysRef.current
@@ -548,9 +556,9 @@ export function SchedulePage() {
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         k.removeSelected()
       } else if (e.key === 'Escape') {
-        // True Education: Escape shows or hides the panel (and clears the selection).
-        setSelection(null)
-        setPanelOpen((o) => !o)
+        // Escape clears the selection; with nothing selected it folds or opens the side rail.
+        if (k.hasSelection) setSelection(null)
+        else setPanelOpen((o) => !o)
       } else if (e.key === 'ArrowLeft' && !mod) {
         k.nav.prev()
       } else if (e.key === 'ArrowRight' && !mod) {
@@ -625,48 +633,178 @@ export function SchedulePage() {
       void run(() => deleteEvent(ctx, e), 'Event deleted')
     },
     editDay: (d) => setDayEdit(d),
+    tutorColor: (id) => staffMap.get(id)?.color,
   }
 
-  const panel = (
-    <WeekBar
+  // ------------------------------------------------------------- rail
+  const shownDays = view === 'day' ? [date] : view === 'week' ? weekDays(date, weekStartsOn) : []
+  const railTutors: RailTutor[] = useMemo(() => {
+    const inRange = (d: DateKey) => shownDays.includes(d)
+    return tutors.map((t) => {
+      const own = data.sessions.filter((s) => s.tutorId === t.id && inRange(s.dateKey) && s.status !== 'canceled')
+      const minutes = shownDays.reduce((n, d) => n + unionMinutes(own.filter((s) => s.dateKey === d)), 0)
+      return {
+        id: t.id,
+        name: t.name,
+        color: staffMap.get(t.id)?.color,
+        sessions: own.length,
+        minutes,
+        conflicts: own.filter((s) => (conflicts.get(s.id) ?? []).length > 0).length,
+        clockedIn: (clocksByKey.get(`${t.id}|${today}`) ?? []).some((c) => c.open),
+        available: shownDays.some((d) => {
+          const a = data.availabilityByKey.get(`${t.id}|${d}`)
+          return !!a && !a.unavailable && effectiveRanges(a.ranges, hoursOf(d)).length > 0
+        }),
+      }
+    })
+    // shownDays is derived from view, date and weekStartsOn.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tutors, data.sessions, data.availabilityByKey, view, date, weekStartsOn, staffMap, conflicts, clocksByKey, today, hoursOf])
+  const railNumbers: RailNumbers | null = useMemo(() => {
+    if (view === 'month') return null
+    const list = data.sessions.filter((s) => shownDays.includes(s.dateKey) && s.status !== 'canceled')
+    const ended = (s: WithId<Session>) => s.dateKey < today || (s.dateKey === today && s.endMin <= nowMin)
+    return {
+      label: view === 'day' ? (date === today ? 'Today' : formatDateKey(date, 'weekdayMedium')) : weekDays(date, weekStartsOn).includes(today) ? 'This week' : `Week of ${formatDateKey(shownDays[0], 'monthDay')}`,
+      sessions: list.length,
+      conflicts: list.filter((s) => (conflicts.get(s.id) ?? []).length > 0).length,
+      pending: list.filter((s) => s.status === 'pending' && !ended(s)).length,
+      missingLogs: list.filter((s) => ended(s) && s.logStatus !== 'submitted' && canLog(s.status, settings.sessionLogs.allowForStatuses)).length,
+    }
+    // shownDays is derived from view, date and weekStartsOn.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, date, weekStartsOn, data.sessions, today, nowMin, conflicts, settings.sessionLogs.allowForStatuses])
+
+  const monthShown = view === 'month' && topMonth ? topMonth : date
+  const railTitle =
+    view === 'day'
+      ? { title: formatDateKey(date, 'weekdayLong').split(',')[0], subtitle: formatDateKey(date, 'long') }
+      : view === 'week'
+        ? { title: `Week of ${formatDateKey(weekDays(date, weekStartsOn)[0], 'monthDay')}`, subtitle: `${formatDateKey(weekDays(date, weekStartsOn)[0], 'short')} – ${formatDateKey(weekDays(date, weekStartsOn)[6], 'short')}` }
+        : { title: formatDateKey(monthShown, 'monthYear').split(' ')[0], subtitle: monthShown.slice(0, 4) }
+  const headTitle =
+    view === 'day'
+      ? formatDateKey(date, 'weekdayLong').replace(/, \d{4}$/, '')
+      : view === 'week'
+        ? `${formatDateKey(weekDays(date, weekStartsOn)[0], 'monthDay')} – ${formatDateKey(weekDays(date, weekStartsOn)[6], 'medium')}`
+        : formatDateKey(monthShown, 'monthYear')
+  const onView = (v: ScheduleView) => {
+    if (v === 'day' && view !== 'day') {
+      const inWeek = weekDays(date, weekStartsOn).includes(today)
+      let d = inWeek ? today : date
+      for (let i = 0; i < 7 && isClosed(d); i++) d = addDays(d, 1)
+      route.go({ view: v, date: d })
+    } else route.go({ view: v })
+  }
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const tools = { zoom, onZoom: setZoom, onDuplicate: () => setDupOpen(true), onTrash: () => setTrashOpen(true), onTutorOrder: () => setOrderOpen(true) }
+  const rail = (inSheet: boolean) => (
+    <ScheduleRail
       view={view}
       date={date}
       today={today}
       weekStartsOn={weekStartsOn}
       isClosed={isClosed}
+      title={railTitle.title}
+      subtitle={railTitle.subtitle}
       onView={(v) => {
-        if (v === 'day' && view !== 'day') {
-          const inWeek = weekDays(date, weekStartsOn).includes(today)
-          let d = inWeek ? today : date
-          for (let i = 0; i < 7 && isClosed(d); i++) d = addDays(d, 1)
-          route.go({ view: v, date: d })
-        } else route.go({ view: v })
+        onView(v)
+        setSheetOpen(false)
       }}
-      onDate={(d) => route.go({ date: d })}
+      onDate={(d) => {
+        route.go({ date: d })
+        setSheetOpen(false)
+      }}
       onPrev={nav.prev}
       onNext={nav.next}
       onToday={nav.today}
-      tutors={tutors}
+      tutors={railTutors}
+      showNumbers={view !== 'month'}
       tutorFilter={tutorFilter}
-      onTutorFilter={setTutorFilter}
-      zoom={zoom}
-      onZoom={setZoom}
-      onDuplicate={() => setDupOpen(true)}
-      onTrash={() => setTrashOpen(true)}
-      onTutorOrder={() => setOrderOpen(true)}
+      onTutorFilter={(id) => {
+        setTutorFilter(id)
+        setSheetOpen(false)
+      }}
+      numbers={railNumbers}
       topMonth={view === 'month' ? topMonth : null}
-      onClose={isMobile ? undefined : () => setPanelOpen(false)}
+      onHide={inSheet ? undefined : () => setPanelOpen(false)}
+      onClose={inSheet ? () => setSheetOpen(false) : undefined}
+      {...tools}
     />
   )
+  const filtered = tutorFilter ? staffMap.get(tutorFilter) : null
+  const dayLocked = view === 'day' && isLocked(date)
 
   return (
     <ScheduleUiContext value={ui}>
-      <div className="relative -m-4 h-[calc(100svh-3rem)] min-h-0 sm:-m-6 md:h-svh">
-        <div
-          className={cn('h-full min-w-0 bg-muted/40', view === 'month' ? 'flex flex-col overflow-hidden' : 'overflow-auto')}
-          onMouseDown={(e) => e.target === e.currentTarget && setSelection(null)}
-          data-testid="schedule-area"
-        >
+      <div className="-m-4 flex h-[calc(100svh-3rem)] min-h-0 sm:-m-6 md:h-svh">
+        {!isMobile ? (
+          <div className={cn('shrink-0 border-r bg-muted/40', panelOpen ? 'w-72' : 'w-14')} data-testid="schedule-panel">
+            {panelOpen ? (
+              rail(false)
+            ) : (
+              <SlimRail tutors={railTutors} tutorFilter={tutorFilter} onTutorFilter={setTutorFilter} onShow={() => setPanelOpen(true)} onPrev={nav.prev} onNext={nav.next} />
+            )}
+          </div>
+        ) : null}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex items-center gap-2 border-b bg-background px-3 py-2.5 sm:px-4">
+            {isMobile ? (
+              <Button variant="ghost" size="icon" aria-label="Calendar and tutors" onClick={() => setSheetOpen(true)}>
+                <LuCalendarDays className="size-5" />
+              </Button>
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <h1 className="truncate text-lg font-semibold tracking-tight">
+                  {view === 'day' ? (
+                    <>
+                      <span className="sm:hidden">{formatDateKey(date, 'weekdayMedium')}</span>
+                      <span className="hidden sm:inline">{headTitle}</span>
+                    </>
+                  ) : (
+                    headTitle
+                  )}
+                </h1>
+                {view === 'day' && date === today ? <span className="rounded-full bg-foreground px-2 py-0.5 text-[10px] font-semibold text-background">TODAY</span> : null}
+                {view === 'day' && isClosed(date) ? <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-semibold text-white">CLOSED</span> : null}
+                {dayLocked ? <span className="hidden text-xs text-muted-foreground sm:inline">Past · view only</span> : null}
+              </div>
+              {filtered && view !== 'month' ? (
+                <div className="text-xs text-muted-foreground">
+                  Showing only {filtered.name} ·{' '}
+                  <button type="button" className="font-medium text-foreground underline-offset-2 hover:underline" onClick={() => setTutorFilter(null)}>
+                    Show all
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            {isMobile || !panelOpen ? <ViewSwitch view={view} onView={onView} /> : null}
+            {view === 'day' && !dayLocked ? (
+              <>
+                <Button variant="outline" size="sm" className="hidden rounded-full sm:inline-flex" onClick={() => setDayEdit(date)}>
+                  <LuCalendarCog /> Edit day
+                </Button>
+                {hoursOf(date).isOpen ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="hidden rounded-full lg:inline-flex"
+                    onClick={() =>
+                      setEventDialog({ mode: 'create', dateKey: date, startMin: hoursOf(date).openMin, endMin: Math.min(hoursOf(date).openMin + settings.schedule.events.defaultMinutes, hoursOf(date).closeMin) })
+                    }
+                  >
+                    <LuPlus /> Event
+                  </Button>
+                ) : null}
+              </>
+            ) : view === 'day' ? (
+              <Button variant="outline" size="sm" className="hidden rounded-full sm:inline-flex" onClick={() => setDayEdit(date)}>
+                <LuCalendarCog /> Day details
+              </Button>
+            ) : null}
+            <ScheduleMenu {...tools} />
+          </div>
           {view === 'month' ? (
             <MonthView
               anchor={date}
@@ -679,74 +817,63 @@ export function SchedulePage() {
               onEditEvent={(e) => setEventDialog({ mode: 'edit', event: e })}
               onVisibleRangeChange={monthWindow.onVisibleRangeChange}
               onTopMonthChange={setTopMonth}
-              className={cn('h-full', panelOpen && !isMobile && 'md:pr-[19.5rem]')}
+              className="min-h-0 flex-1"
             />
           ) : (
-            // Room on the right so the floating panel never hides the end of a day.
-            <div className={cn('w-max min-w-full p-3 sm:p-4', panelOpen && !isMobile && 'md:pr-[19.5rem]')} style={{ zoom }}>
+            <>
               {view === 'week' ? (
-                <WeekEventHeader
-                  days={weekDays(date, weekStartsOn)}
-                  today={today}
-                  isClosed={isClosed}
-                  eventsByDate={data.eventsByDate}
-                  onDay={(d) => document.getElementById(`day-${d}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                  onEditEvent={(e) => setEventDialog({ mode: 'edit', event: e })}
-                />
+                <div className="border-b bg-muted/30 px-3 py-2 sm:px-4">
+                  <WeekEventHeader
+                    days={weekDays(date, weekStartsOn)}
+                    today={today}
+                    isClosed={isClosed}
+                    eventsByDate={data.eventsByDate}
+                    onDay={(d) => document.getElementById(`day-${d}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                    onEditEvent={(e) => setEventDialog({ mode: 'edit', event: e })}
+                  />
+                </div>
               ) : null}
-              <div className="flex flex-col gap-4">
-                {sections.map((s) => (
-                  <DaySection key={s.dateKey} sectionId={`day-${s.dateKey}`} dateKey={s.dateKey} hours={s.hours} rows={s.rows} events={s.events} />
-                ))}
-                {sections.length === 0 ? (
-                  <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">
-                    {view === 'day' ? `Closed on ${formatDateKey(date, 'weekdayLong')}.` : 'The center is closed all week.'}
+              <div
+                className={cn('min-h-0 flex-1 overflow-auto', view === 'week' ? 'bg-muted/30' : 'bg-background')}
+                onMouseDown={(e) => e.target === e.currentTarget && setSelection(null)}
+                data-testid="schedule-area"
+              >
+                <div className={cn('w-max min-w-full', view === 'week' && 'p-3 sm:p-4')} style={{ zoom }}>
+                  <div className={cn('flex flex-col', view === 'week' && 'gap-6')}>
+                    {sections.map((s) => (
+                      <DaySection
+                        key={s.dateKey}
+                        sectionId={`day-${s.dateKey}`}
+                        dateKey={s.dateKey}
+                        hours={s.hours}
+                        rows={s.rows}
+                        events={s.events}
+                        showHeader={view === 'week'}
+                        stickyAxis={view === 'day'}
+                      />
+                    ))}
+                    {sections.length === 0 ? (
+                      <div className="m-4 rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">
+                        {view === 'day' ? `Closed on ${formatDateKey(date, 'weekdayLong')}.` : 'The center is closed all week.'}
+                      </div>
+                    ) : null}
                   </div>
-                ) : null}
+                  <div className="h-6" />
+                </div>
               </div>
-            </div>
+            </>
           )}
         </div>
         {isMobile ? (
-          <>
-            <Button variant="outline" size="icon" className="fixed right-4 bottom-20 z-30 rounded-full shadow-md" aria-label="Open schedule panel" onClick={() => setPanelOpen(true)}>
-              <LuPanelRight />
-            </Button>
-            <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
-              <SheetContent side="right" className="w-80 overflow-y-auto p-0">
-                <SheetHeader className="sr-only">
-                  <SheetTitle>Schedule</SheetTitle>
-                </SheetHeader>
-                {panel}
-              </SheetContent>
-            </Sheet>
-          </>
-        ) : (
-          <>
-            {/* True Education's floating panel: over the schedule, opened and closed with the button or Escape. */}
-            <div
-              className={cn(
-                'absolute top-3 right-3 z-30 flex max-h-[calc(100%-1.5rem)] w-72 flex-col overflow-y-auto rounded-2xl border bg-background/95 shadow-xl backdrop-blur transition-[translate,opacity] duration-200 ease-out supports-[backdrop-filter]:bg-background/85',
-                panelOpen ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-[calc(100%+1.5rem)] opacity-0',
-              )}
-              aria-hidden={!panelOpen}
-              inert={!panelOpen}
-              data-testid="schedule-panel"
-            >
-              {panel}
-            </div>
-            {!panelOpen ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" className="absolute top-3 right-3 z-20 rounded-xl bg-background shadow-md" aria-label="Show panel (Esc)" onClick={() => setPanelOpen(true)}>
-                    <LuPanelRight />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="left">Show panel (Esc)</TooltipContent>
-              </Tooltip>
-            ) : null}
-          </>
-        )}
+          <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+            <SheetContent side="left" className="w-[88%] max-w-80 gap-0 overflow-y-auto bg-muted p-0" showCloseButton={false}>
+              <SheetHeader className="sr-only">
+                <SheetTitle>Schedule</SheetTitle>
+              </SheetHeader>
+              {rail(true)}
+            </SheetContent>
+          </Sheet>
+        ) : null}
       </div>
 
       <SessionDialog

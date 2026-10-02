@@ -1,9 +1,19 @@
 import { useRef, useState } from 'react'
-import { FaCheckCircle } from 'react-icons/fa'
-import { FaTriangleExclamation } from 'react-icons/fa6'
-import { IoMdNotificationsOutline } from 'react-icons/io'
-import { LuArrowRightLeft, LuCalendarPlus, LuCopy, LuGraduationCap, LuNotebookPen, LuPencil, LuTrash2, LuTriangleAlert, LuUserRoundCheck } from 'react-icons/lu'
-import { studentLabel } from '@shared/people'
+import {
+  LuArrowRightLeft,
+  LuBell,
+  LuCalendarPlus,
+  LuCircleAlert,
+  LuCircleCheck,
+  LuCopy,
+  LuGraduationCap,
+  LuNotebookPen,
+  LuPencil,
+  LuStickyNote,
+  LuTrash2,
+  LuTriangleAlert,
+  LuUserRoundCheck,
+} from 'react-icons/lu'
 import { type Conflict, tutorConflictText } from '@shared/schedule/conflicts'
 import { fitsCapacity } from '@shared/schedule/lanes'
 import { SESSION_STATUSES, SESSION_STATUS_LABELS, SESSION_STATUS_STYLE } from '@shared/schedule/status'
@@ -12,6 +22,7 @@ import type { AvailabilityRange, Session, WithId } from '@shared/types'
 import { ContextMenuFor, type MenuEntry, menu } from '@/components/app/ItemMenu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { SESSION_CARD_STYLE } from './cardStyle'
 import { useScheduleUi } from './context'
 import { CARD_H } from './geometry'
 import { sessionDrag } from './dragState'
@@ -35,7 +46,6 @@ export function SessionCard({ session, left, width, top, readOnly, bounds, segme
   const ui = useScheduleUi()
   const [preview, setPreview] = useState<{ startMin: number; endMin: number } | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
-  const st = SESSION_STATUS_STYLE[session.status] ?? SESSION_STATUS_STYLE.pending
   const selected = ui.selection?.kind === 'session' && ui.selection.id === session.id
   const bell = ui.mode === 'admin' ? ui.bellFor(session) : []
   const ended = ui.today > session.dateKey || (ui.today === session.dateKey && session.endMin <= ui.nowMin)
@@ -97,6 +107,9 @@ export function SessionCard({ session, left, width, top, readOnly, bounds, segme
     window.addEventListener('pointerup', onUp)
   }
 
+  const soft = SESSION_CARD_STYLE[session.status] ?? SESSION_CARD_STYLE.pending
+  // Short sessions: the name gets the room (no grade chip).
+  const narrow = !inPopover && (cardWidth ?? 0) < 130
   const card = (
     <div
       ref={cardRef}
@@ -141,76 +154,81 @@ export function SessionCard({ session, left, width, top, readOnly, bounds, segme
         if (ui.mode === 'admin') ui.editSession(session)
       }}
       className={cn(
-        'group/card absolute flex flex-col justify-center overflow-hidden rounded-md border px-2 text-left leading-tight shadow-xs select-none',
+        'group/card absolute flex flex-col justify-center overflow-hidden rounded-xl px-2.5 text-left leading-tight select-none',
         canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
-        selected && 'outline-2 outline-offset-2 outline-foreground outline-dashed',
-        session.note && 'border-l-[5px] border-l-[#1650A5]',
-        inConflict && 'border-2 border-dashed',
+        inConflict ? 'ring-2 ring-inset' : 'ring-1 ring-inset',
+        selected ? 'shadow-lg outline-2 outline-offset-2 outline-foreground' : 'shadow-sm',
         inPopover && 'relative w-full',
       )}
-      style={{
-        left: cardLeft,
-        width: cardWidth,
-        top: inPopover ? undefined : top,
-        height: CARD_H,
-        backgroundColor: selected ? undefined : st.bg,
-        borderColor: inConflict ? '#dc2626' : session.note ? undefined : st.border,
-        ...(selected ? { backgroundColor: '#F0F0F0' } : {}),
-        zIndex: preview ? 8 : 5,
-      }}
+      style={
+        {
+          left: cardLeft,
+          width: cardWidth,
+          top: inPopover ? undefined : top,
+          height: CARD_H,
+          backgroundColor: soft.bg,
+          color: soft.text,
+          '--tw-ring-color': inConflict ? '#ef4444' : soft.border,
+          zIndex: preview ? 8 : 5,
+        } as React.CSSProperties
+      }
     >
       {inConflict ? (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(135deg,rgba(220,38,38,0.13)_0,rgba(220,38,38,0.13)_5px,transparent_5px,transparent_11px)]"
+          className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(135deg,rgba(220,38,38,0.12)_0,rgba(220,38,38,0.12)_5px,transparent_5px,transparent_11px)]"
         />
       ) : null}
-      <div className="truncate pr-4 text-[13px] font-extrabold text-black">{studentLabel(session.studentName, session.studentGrade)}</div>
-      <div className="truncate text-xs font-semibold text-neutral-800">{session.subject || 'No subject'}</div>
-      <div className="truncate pr-4 text-[11px] font-semibold text-neutral-700">{formatTimeRange(startMin, endMin)}</div>
-      {inConflict ? (
-        <span
-          data-testid="session-conflict"
-          aria-label="In conflict"
-          className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-red-600 text-white"
-        >
-          <LuTriangleAlert className="size-2.5" />
-        </span>
-      ) : null}
-      {bell.length > 0 ? (
-        <button
-          type="button"
-          aria-label={`${bell.length} notification${bell.length > 1 ? 's' : ''}`}
-          className={cn('absolute top-1 text-neutral-900', inConflict ? 'right-6' : 'right-1')}
-          onClick={(e) => {
-            e.stopPropagation()
-            ui.showBell(session, bell)
-          }}
-        >
-          <IoMdNotificationsOutline className="size-3.5" />
-          <span className="absolute -top-1.5 -right-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-600 px-0.5 text-[9px] font-bold text-white">
-            {bell.length > 9 ? '9+' : bell.length}
+      <div className={cn('relative flex min-w-0 items-center gap-1', bell.length || inConflict ? 'pr-9' : 'pr-1')}>
+        <span className="truncate text-[13px] font-semibold text-zinc-900">{session.studentName}</span>
+        {session.studentGrade && !narrow ? <span className="shrink-0 rounded bg-white/70 px-1 text-[10px] font-semibold text-zinc-600">{session.studentGrade}</span> : null}
+        {session.note ? <LuStickyNote className="size-3 shrink-0 text-blue-700" aria-label="Has a note" /> : null}
+      </div>
+      <div className="relative truncate text-xs font-medium opacity-90">{session.subject || 'No subject'}</div>
+      <div className="relative truncate pr-4 text-[11px] opacity-75 tabular-nums">{formatTimeRange(startMin, endMin).replace(' - ', ' – ')}</div>
+      <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
+        {bell.length > 0 ? (
+          <button
+            type="button"
+            aria-label={`${bell.length} notification${bell.length > 1 ? 's' : ''}`}
+            className="relative flex size-4 items-center justify-center text-zinc-800"
+            onClick={(e) => {
+              e.stopPropagation()
+              ui.showBell(session, bell)
+            }}
+          >
+            <LuBell className="size-3" />
+            <span className="absolute -top-1 -right-1 flex h-3 min-w-3 items-center justify-center rounded-full bg-red-600 px-0.5 text-[8px] font-bold text-white">{bell.length > 9 ? '9+' : bell.length}</span>
+          </button>
+        ) : null}
+        {inConflict ? (
+          <span data-testid="session-conflict" aria-label="In conflict" className="flex size-4 items-center justify-center rounded-full bg-red-600 text-white">
+            <LuTriangleAlert className="size-2.5" />
           </span>
-        </button>
-      ) : null}
+        ) : null}
+      </div>
       {showLog ? (
         <button
           type="button"
           aria-label={ui.mode === 'admin' ? (logSubmitted ? 'Open session log' : 'Open missing session log') : logTip}
           title={logTip}
-          className="absolute right-1 bottom-1"
+          className={cn('absolute right-1.5 bottom-1.5', logSubmitted ? 'text-blue-600' : 'text-red-600')}
           onClick={(e) => {
             e.stopPropagation()
             ui.openLog(session)
           }}
         >
-          {logSubmitted ? <FaCheckCircle className="size-3 text-blue-700" /> : <FaTriangleExclamation className="size-3 text-red-700" />}
+          {logSubmitted ? <LuCircleCheck className="size-3.5" /> : <LuCircleAlert className="size-3.5" />}
         </button>
       ) : null}
       {canEdit && !inPopover ? (
         <>
-          <div className="absolute inset-y-0 left-0 w-2 cursor-ew-resize" onPointerDown={(e) => startResize('start', e)} />
-          <div className="absolute inset-y-0 right-0 w-2 cursor-ew-resize" onPointerDown={(e) => startResize('end', e)} />
+          <div className="absolute inset-y-0 left-0 w-2 cursor-ew-resize" onPointerDown={(e) => startResize('start', e)}>
+            <span className="absolute inset-y-2 left-0 w-1.5 rounded-full group-hover/card:bg-zinc-900/15" />
+          </div>
+          <div className="absolute inset-y-0 right-0 w-2 cursor-ew-resize" onPointerDown={(e) => startResize('end', e)}>
+            <span className="absolute inset-y-2 right-0 w-1.5 rounded-full group-hover/card:bg-zinc-900/15" />
+          </div>
         </>
       ) : null}
     </div>

@@ -37,7 +37,7 @@ Read first: [`docs/hyber/DECISIONS.md`](docs/hyber/DECISIONS.md) (owner answers,
 - **Settings:** defaults in `shared/src/settings/defaults.ts` (TE behavior); a branch stores only overrides; always read through the resolver.
 - **Time:** branch IANA time zone only. Wall clock `dateKey` (`YYYY-MM-DD`) + `startMin`/`endMin`, plus absolute `startAt`/`endAt`. Use `shared/src/time.ts`, never the browser zone.
 - **Audit:** every schedule, availability, people, pay and settings mutation writes an append-only `auditLog` entry in the same batch.
-- **UI:** shadcn/ui components in `web/src/components/ui`, icons from react-icons. The Schedule keeps TE's layout; everything else may improve on TE.
+- **UI:** shadcn/ui components in `web/src/components/ui`, icons from react-icons. The Schedule keeps its structure (tutors as rows, time across, Day / Week / Month) in the side-rail design the owner picked in round 3; everything may improve on TE.
 - **Month calendars (permanent rule):** every monthly calendar, on web and phone, scrolls vertically through months like the iOS Calendar app, built on the shared month scroller. Never static months with ‹ › arrows, including mini calendars and date pickers.
 - **AI naming (permanent rule):** the app never names the AI model or provider in labels, settings, messages or errors; it is always "AI".
 - **Secrets:** never commit API keys, service-account files, tokens, passwords or PINs. The Firebase web config lives in `web/.env.local` (git-ignored).

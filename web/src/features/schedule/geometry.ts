@@ -1,16 +1,16 @@
-/** Timeline geometry (True Education's proportions). */
-export const NAME_COL = 170
-export const PX_PER_MIN = 2.15
+/** Timeline geometry (the redesign's proportions, at 100% zoom). */
+export const NAME_COL = 176
+export const PX_PER_MIN = 1.85
 export const MIN_TIMELINE = 720
-export const CARD_H = 64
-export const LANE_GAP = 8
-export const ROW_PAD_TOP = 12
-export const ROW_PAD_BOTTOM = 12
-export const CANCELED_BAND = 22
-export const ROW_MIN_H = 84
-export const EVENT_H = 40
+export const CARD_H = 52
+export const LANE_GAP = 6
+export const ROW_PAD_TOP = 10
+export const ROW_PAD_BOTTOM = 10
+export const CANCELED_BAND = 24
+export const ROW_MIN_H = 68
+export const EVENT_H = 30
 export const EVENT_GAP = 3
-export const AXIS_H = 36
+export const AXIS_H = 32
 
 export function timelineWidth(openMin: number, closeMin: number): number {
   return Math.max(MIN_TIMELINE, (closeMin - openMin) * PX_PER_MIN)

@@ -20,7 +20,7 @@ export function WeekEventHeader({
   onEditEvent: (e: WithId<EventDoc>) => void
 }) {
   return (
-    <div className="sticky top-0 z-20 mb-4 grid grid-cols-7 overflow-hidden rounded-xl border bg-card shadow-sm">
+    <div className="grid grid-cols-7 overflow-hidden rounded-xl border bg-card shadow-xs">
       {days.map((d) => {
         const events = eventsByDate.get(d) ?? []
         const closed = isClosed(d)

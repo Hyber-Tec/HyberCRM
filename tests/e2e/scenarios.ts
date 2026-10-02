@@ -73,7 +73,7 @@ export const SCENARIOS: Scenario[] = [
       [`${b}/admin/employees/pay-rates`]: ['Daniel Kim'],
       [`${b}/admin/students`]: ['Ava Patel'],
       [`${b}/admin/students/demo-student-ava-patel/info`]: ['Parents and guardians', 'Learning notes'],
-      [`${b}/admin/schedule/week/${TODAY}`]: ['EVENTS', 'All Teachers'],
+      [`${b}/admin/schedule/week/${TODAY}`]: ['EVENTS', 'Sessions · hours', 'THIS WEEK'],
       [`${b}/admin/schedule/month/${TODAY}`]: ['Payment Reminder'],
       [`${b}/admin/settings/audit-log`]: ['Audit Log', 'Everything'],
       [`${b}/admin/employees/payroll`]: ['Recent Payroll Records', '25 per page', 'Teaching'],

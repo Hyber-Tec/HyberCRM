@@ -66,6 +66,8 @@ export interface ScheduleUi {
   deleteEvent: (e: WithId<EventDoc>) => void
   // day
   editDay: (dateKey: DateKey) => void
+  /** A tutor's color, for their avatar on the row (when known). */
+  tutorColor?: (staffId: string) => string | undefined
 }
 
 export const ScheduleUiContext = createContext<ScheduleUi | null>(null)

@@ -116,6 +116,7 @@ export function TutorSchedulePage() {
   if (!staffId) return <p className="text-sm text-muted-foreground">Your employee record isn’t linked yet. Ask an admin.</p>
 
   const ui: ScheduleUi = {
+    tutorColor: () => me?.color,
     mode: 'tutor',
     today,
     nowMin,
@@ -276,9 +277,9 @@ export function TutorSchedulePage() {
         <div className="mb-3 text-sm font-medium text-muted-foreground">
           {view === 'week' ? `${formatDateKey(days[0], 'medium')} – ${formatDateKey(days[6], 'medium')}` : formatDateKey(anchor, 'weekdayLong')}
         </div>
-        <div className="flex flex-col gap-4 overflow-x-auto" style={{ zoom: 0.8 }}>
+        <div className="flex flex-col gap-6 overflow-x-auto pb-2">
           {sections.map((s) => (
-            <DaySection key={s.d} dateKey={s.d} hours={s.hours} rows={s.rows} events={[]} />
+            <DaySection key={s.d} dateKey={s.d} hours={s.hours} rows={s.rows} events={[]} showHeader />
           ))}
           {sections.length === 0 ? (
             <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">No availability or sessions scheduled for this period.</div>
