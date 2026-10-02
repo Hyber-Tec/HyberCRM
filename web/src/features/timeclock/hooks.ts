@@ -14,13 +14,18 @@ export function useCompensationMap(staffIds: string[]) {
 }
 
 /**
- * Live compensation docs for several employees, and whether every one has
- * loaded (an employee without a doc then really has no rates).
+ * Live compensation docs for several employees, whether every one has loaded
+ * (an employee without a doc then really has no rates), and the ones that
+ * couldn't be read (unknown, not missing).
  */
 export function useCompensationState(staffIds: string[]) {
   const { branchId } = useBranch()
   const key = [...staffIds].sort().join(',')
-  const [state, setState] = useState<{ key: string; map: Map<string, Compensation>; loaded: Set<string> }>({ key: '', map: new Map(), loaded: new Set() })
+  const [state, setState] = useState<{ map: Map<string, Compensation>; loaded: Set<string>; failed: Set<string> }>({
+    map: new Map(),
+    loaded: new Set(),
+    failed: new Set(),
+  })
   useEffect(() => {
     const ids = key ? key.split(',') : []
     const unsubs = ids.map((id) =>
@@ -31,16 +36,17 @@ export function useCompensationState(staffIds: string[]) {
             const map = new Map(s.map)
             if (snap.exists()) map.set(id, snap.data() as Compensation)
             else map.delete(id)
-            return { key: s.key, map, loaded: new Set(s.loaded).add(id) }
+            const failed = new Set(s.failed)
+            failed.delete(id)
+            return { map, loaded: new Set(s.loaded).add(id), failed }
           }),
-        () => setState((s) => ({ ...s, loaded: new Set(s.loaded).add(id) })),
+        () => setState((s) => ({ ...s, loaded: new Set(s.loaded).add(id), failed: new Set(s.failed).add(id) })),
       ),
     )
-    setState((s) => ({ key, map: s.map, loaded: new Set([...s.loaded].filter((id) => ids.includes(id))) }))
     return () => unsubs.forEach((u) => u())
   }, [branchId, key])
   const ids = key ? key.split(',') : []
-  return { map: state.map, ready: state.key === key && ids.every((id) => state.loaded.has(id)) }
+  return { map: state.map, failed: state.failed, ready: ids.every((id) => state.loaded.has(id)) }
 }
 
 export interface PayrollState {

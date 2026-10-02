@@ -27,10 +27,17 @@ export function usePayGaps(enabled = true): { gaps: PayGap[]; ready: boolean } {
   const needAdmin = tutorsNeedAdminRate(rules, todayKey(timezone))
   const { data: staff, loading } = useStaffList(on)
   const paid = useMemo(() => (on ? staff.filter((s) => s.status === 'active' && requiredRates(s.role, needAdmin).length > 0) : []), [on, staff, needAdmin])
-  const { map, ready } = useCompensationState(paid.map((s) => s.id))
+  const { map, failed, ready } = useCompensationState(paid.map((s) => s.id))
+  // A pay record that couldn't be read is unknown, not missing.
   const gaps = useMemo(
-    () => (ready ? paid.map((s) => ({ staff: s, missing: missingRates(s.role, map.get(s.id)?.rates, needAdmin) })).filter((g) => g.missing.length > 0) : []),
-    [ready, paid, map, needAdmin],
+    () =>
+      ready
+        ? paid
+            .filter((s) => !failed.has(s.id))
+            .map((s) => ({ staff: s, missing: missingRates(s.role, map.get(s.id)?.rates, needAdmin) }))
+            .filter((g) => g.missing.length > 0)
+        : [],
+    [ready, paid, map, failed, needAdmin],
   )
   return { gaps, ready: on && !loading && ready }
 }
