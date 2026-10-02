@@ -73,6 +73,18 @@ export async function moveSubject(branchId: string, actor: Actor, s: WithId<Subj
   await batch.commit()
 }
 
+/**
+ * Drops a subject into a category at a position (dragging in Edit list): its
+ * category changes when needed and the category's order is rewritten, in one batch.
+ */
+export async function placeSubject(branchId: string, actor: Actor, s: WithId<Subject>, to: { id: string; name: string }, ordered: readonly { id: string }[]) {
+  const batch = writeBatch(db)
+  if (s.categoryId !== to.id) batch.update(branchDocRef(branchId, COL.subjects, s.id), { categoryId: to.id, updatedAt: serverTimestamp(), updatedBy: actor.email })
+  ordered.forEach((item, i) => batch.update(branchDocRef(branchId, COL.subjects, item.id), { order: i }))
+  addAudit(batch, branchId, actor, audit(s.categoryId !== to.id ? `Moved the subject ${s.name} to ${to.name}` : `Reordered the subjects in ${to.name}`, s.id))
+  await batch.commit()
+}
+
 /** Removes the subject and takes it off every tutor's and student's list (sessions keep the name they were booked with). */
 export async function deleteSubject(branchId: string, actor: Actor, s: WithId<Subject>) {
   const [staff, students] = await Promise.all([

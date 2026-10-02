@@ -315,6 +315,23 @@ const inviteNewPerson: Step = async (page, base) => {
   await page.waitForFunction(() => (document.querySelector('[aria-label="Teaching rate for Ivy Invitee"]') as HTMLInputElement | null)?.value === '30', undefined, { timeout: 8000 })
 }
 
+/** Subjects: an admin switches a tutor on for a subject in the side sheet, sees it on the row, and switches it off again. */
+const subjectTutors: Step = async (page, base) => {
+  await page.goto(`${base}/${E2E_BRANCH}/admin/employees/subjects`, { waitUntil: 'load' })
+  const row = page.getByTestId('subject-row').filter({ hasText: 'Algebra 1' }).first()
+  await row.waitFor({ state: 'visible', timeout: 10000 })
+  if (await row.getByText('Hannah Becker').count()) throw new Error('Hannah already teaches Algebra 1')
+  await row.getByRole('button', { name: 'Algebra 1' }).click()
+  const sheet = page.getByTestId('subject-tutors')
+  await sheet.getByRole('switch', { name: /Hannah Becker/ }).click()
+  await page.keyboard.press('Escape')
+  await row.getByText('Hannah Becker').waitFor({ state: 'visible', timeout: 8000 })
+  await row.getByRole('button', { name: /Tutors/ }).click()
+  await sheet.getByRole('switch', { name: /Hannah Becker/ }).click()
+  await page.keyboard.press('Escape')
+  await row.getByText('Hannah Becker').waitFor({ state: 'detached', timeout: 8000 })
+}
+
 /** Deep links opened in a fresh tab never flash an error or "paused" screen while access is checked. */
 const noWrongScreenWhileLoading: Step = async (page, base) => {
   const WRONG = ['Your access is paused', 'No access to', 'not found', 'Not your session', 'Platform access only', 'couldn’t be loaded']
@@ -401,4 +418,5 @@ export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'tutor sees a session in conflict', email: 'tutor@e2e.test', run: conflictTutorView },
   { name: 'admin resolves a session in conflict', email: 'owner@e2e.test', run: conflictAdminResolve },
   { name: 'owner adds a person and the invite goes out', email: 'owner@e2e.test', run: inviteNewPerson },
+  { name: 'admin gives a tutor a subject on Subjects', email: 'admin@e2e.test', run: subjectTutors },
 ]
