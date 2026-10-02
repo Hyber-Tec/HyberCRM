@@ -58,7 +58,8 @@ const adminRoutes: RouteObject[] = [
   },
   { path: 'sessions', element: <Navigate to="log" replace /> },
   { path: 'sessions/log', lazy: page(() => import('@/features/sessions/SessionLogListPage'), 'SessionLogListPage') },
-  { path: 'sessions/progress-reports', lazy: page(() => import('@/features/sessions/ProgressReportsPage'), 'ProgressReportsPage') },
+  { path: 'sessions/progress-reports', lazy: page(() => import('@/features/reports/ProgressReportsPage'), 'ProgressReportsPage') },
+  { path: 'sessions/progress-reports/:reportId', lazy: page(() => import('@/features/reports/ReportEditorPage'), 'ReportEditorPage') },
   { path: 'account', lazy: page(() => import('@/features/access/AccountPage'), 'AccountPage') },
   {
     path: 'access-control',
@@ -77,7 +78,8 @@ const tutorRoutes: RouteObject[] = [
   { path: 'availability', lazy: page(() => import('@/features/availability/TutorAvailabilityPage'), 'TutorAvailabilityPage') },
   { path: 'sessions', element: <Navigate to="log" replace /> },
   { path: 'sessions/log', lazy: page(() => import('@/features/sessions/SessionLogListPage'), 'TutorSessionLogListPage') },
-  { path: 'sessions/progress-reports', lazy: page(() => import('@/features/sessions/ProgressReportsPage'), 'TutorProgressReportsPage') },
+  { path: 'sessions/progress-reports', lazy: page(() => import('@/features/reports/ProgressReportsPage'), 'TutorProgressReportsPage') },
+  { path: 'sessions/progress-reports/:reportId', lazy: page(() => import('@/features/reports/ReportEditorPage'), 'ReportEditorPage') },
   { path: 'students', lazy: page(() => import('@/features/students/StudentDirectoryPage'), 'TutorStudentDirectoryPage') },
   { path: 'students/:studentId/:tab?', lazy: page(() => import('@/features/students/StudentProfilePage'), 'TutorStudentProfilePage') },
   { path: 'payroll', lazy: page(() => import('@/features/timeclock/TutorPayrollPage'), 'TutorPayrollPage') },
@@ -179,7 +181,7 @@ export const router = createBrowserRouter([
       },
       { path: 'session-log/:sessionId', lazy: page(() => import('@/features/sessions/SessionLogPage'), 'SessionLogPage') },
       { path: 'session-log/:sessionId/view', lazy: page(() => import('@/features/sessions/SessionLogPage'), 'SessionLogViewPage') },
-      { path: 'progress-report/:reportId', lazy: page(() => import('@/features/sessions/ProgressReportPage'), 'ProgressReportPage') },
+      { path: 'progress-report/:reportId', lazy: page(() => import('@/features/reports/ReportPage'), 'ProgressReportPage') },
       {
         path: 'kiosk',
         children: [{ index: true, lazy: page(() => import('@/features/timeclock/KioskPage'), 'KioskPage') }],

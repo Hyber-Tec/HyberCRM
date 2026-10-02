@@ -1,8 +1,8 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
-import { defineSecret } from 'firebase-functions/params'
 import { onDocumentUpdated, onDocumentWritten } from 'firebase-functions/v2/firestore'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
 import { COL, ROOT } from '@shared/paths'
+import { aiJson, geminiKey } from './ai'
 import { db } from './app'
 import { billedHours } from '@shared/schedule/hours'
 import {
@@ -21,46 +21,15 @@ import {
 } from '@shared/sessions/logs'
 import { resolveBusinessRules } from '@shared/settings/businessRules'
 import { formatMinutes } from '@shared/time'
-import { type ReportMetrics, type ReportNarrative, localNarrative } from '@shared/sessions/reports'
 import { resolveSettings } from '@shared/settings/resolve'
 import type { Branch } from '@shared/types'
 
-export const geminiKey = defineSecret('GEMINI_API_KEY')
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
-
-// ------------------------------------------------------------------ Gemini
-
-async function gemini<T>(system: string, payload: unknown, schema: Record<string, unknown>): Promise<T | null> {
-  const key = geminiKey.value()
-  if (!key || key === 'unset') return null
-  try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: 'user', parts: [{ text: JSON.stringify(payload) }] }],
-        generationConfig: { temperature: 0.2, responseMimeType: 'application/json', responseSchema: schema },
-      }),
-      signal: AbortSignal.timeout(25_000),
-    })
-    if (!res.ok) {
-      console.warn('Gemini error', res.status, await res.text())
-      return null
-    }
-    const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
-    const text = json.candidates?.[0]?.content?.parts?.[0]?.text
-    return text ? (JSON.parse(text) as T) : null
-  } catch (e) {
-    console.warn('Gemini call failed', e)
-    return null
-  }
-}
+/** The AI call for logs (quick tier); the report functions use their own tier. */
+const gemini = <T>(system: string, payload: unknown, schema: Record<string, unknown>) => aiJson<T>(system, payload, schema)
 
 // Keeps the tutor's paragraphs and lists (only extra spaces go) and ends with a full stop.
 const finish = finishText
 const str = { type: 'STRING' }
-const arr = { type: 'ARRAY', items: { type: 'STRING' } }
 
 /** True Education's AI input for a log: flat fields, flag and ratings by label, no names. */
 function logAiPayload(content: LogContent, subject: string, dimensions: string[]) {
@@ -104,7 +73,7 @@ async function logAi(content: LogContent, subject: string, dimensions: string[])
 
 // ----------------------------------------------------------------- helpers
 
-async function callerFor(branchId: string, auth: { uid: string; token: Record<string, unknown> } | undefined) {
+export async function callerFor(branchId: string, auth: { uid: string; token: Record<string, unknown> } | undefined) {
   if (!auth || typeof auth.token.email !== 'string' || auth.token.email_verified !== true) throw new HttpsError('unauthenticated', 'Sign in first.')
   const email = (auth.token.email as string).toLowerCase()
   const [platform, member] = await Promise.all([
@@ -287,57 +256,6 @@ export const sessionAi = onCall({ secrets: [geminiKey], timeoutSeconds: 60 }, as
     }
   }
 
-  if (mode === 'report') {
-    const metrics = payload.metrics as ReportMetrics
-    const studentName = String(payload.studentName ?? '')
-    const out = await gemini<Omit<ReportNarrative, 'provider'>>(
-      'You are writing sections of a comprehensive, professional student academic progress report. The audience is parents, tutors, and administrators. Each narrative section should be 2–4 sentences: professional, specific, warm, and encouraging where appropriate. Base all observations strictly on the provided data. Do not invent test scores, grades, or facts not present. keyStrengths and areasForImprovement should each have 2–4 bullet-style short sentences. goalsAndActionPlan should have 3–5 specific, actionable items. instructorComments should be a personalized 2–3 sentence note as if written by the tutor. Set riskLevel to exactly one of: On Track, Needs Attention, At Risk. Return structured JSON matching the schema exactly.',
-      payload,
-      {
-        type: 'OBJECT',
-        properties: {
-          riskLevel: str,
-          overallProgress: str,
-          academicProgress: str,
-          classPerformance: str,
-          homeworkAnalysis: str,
-          learningHabitsNarrative: str,
-          instructorComments: str,
-          keyStrengths: arr,
-          areasForImprovement: arr,
-          goalsAndActionPlan: arr,
-        },
-        required: [
-          'riskLevel',
-          'overallProgress',
-          'academicProgress',
-          'classPerformance',
-          'homeworkAnalysis',
-          'learningHabitsNarrative',
-          'instructorComments',
-          'keyStrengths',
-          'areasForImprovement',
-          'goalsAndActionPlan',
-        ],
-      },
-    )
-    if (!out || !out.overallProgress) return localNarrative(metrics, studentName)
-    const list = (a: unknown) => (Array.isArray(a) ? a.map((x) => finish(x)).filter(Boolean).slice(0, 6) : [])
-    const risk = ['On Track', 'Needs Attention', 'At Risk'].includes(out.riskLevel) ? out.riskLevel : metrics.riskLevel
-    return {
-      riskLevel: risk,
-      overallProgress: finish(out.overallProgress),
-      academicProgress: finish(out.academicProgress),
-      classPerformance: finish(out.classPerformance),
-      homeworkAnalysis: finish(out.homeworkAnalysis),
-      learningHabitsNarrative: finish(out.learningHabitsNarrative),
-      instructorComments: finish(out.instructorComments),
-      keyStrengths: list(out.keyStrengths),
-      areasForImprovement: list(out.areasForImprovement),
-      goalsAndActionPlan: list(out.goalsAndActionPlan),
-      provider: 'ai',
-    } satisfies ReportNarrative
-  }
   throw new HttpsError('invalid-argument', 'Unknown mode.')
 })
 

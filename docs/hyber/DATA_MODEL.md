@@ -207,8 +207,17 @@ TE fields kept (doc 07 §4.1), cleaned up:
 
 Submitted only through the `submitSessionLog` callable, which is atomic and does the student-hours and lifecycle side effects; it refuses before the session's start time. Every submit writes an audit entry (`sessionLog.submit` / `sessionLog.edit`, `entityId` = session ID) whose `changes[]` lists what an edit changed. Drafts are written directly by the session's tutor or an admin and may hold only the content and snapshot fields (rules allowlist). When an admin moves, re-times, reassigns or re-subjects a logged session, `onLoggedSessionUpdated` updates the log's snapshot and `usedHours`, corrects the student's hours and writes a `sessionLog.sync` audit entry. There is no delete-log UI.
 
-### `branches/{b}/progressReports/{reportId}` (TE `student_progress_reports`)
-TE fields: `{studentId, studentName, startDate, endDate, generatedAt, generatedByUid, generatedByName, status, sessionCount, sessionIds[], lastSessionDateKey, metrics{…}, normalizedHours, rawSubjectHours, subjects[], tutors[], topicsCovered[], ai{…}, customName}`, plus `sharedWithParents` (bool, if parent portals show reports, Q6). Immutable snapshot; the doc ID is a plain auto-ID (TE's composed ID had a bug).
+### `branches/{b}/progressReports/{reportId}` (TE `student_progress_reports`, schema version 2)
+A snapshot built by `generateProgressReport` (types in `shared/src/reports/types.ts`):
+- **State:** `schemaVersion: 2`, `status: draft|shared`, `sharedWithParents` (mirrors `shared`; family queries and rules read it), `sharedAt`, `sharedBy {email, name}`, `notify {status: sent|not_configured|failed|skipped, at, recipients[], error}`, `firstViewedAt` (set by `onReportViewed`).
+- **Who and when:** `studentId`, `studentName`, `student {name, firstName, lastName, grade, school}`, `period {from, to, preset, label}` plus `startDate`/`endDate`, `sessionCount`, `generatedAt`, `generatedBy {email, name, role, staffId}`, `updatedAt`, `updatedBy`, `customName`.
+- **Built from:** `source {sessionIds[], logCount, fingerprint}` (staleness and duplicate checks) and `snapshot {ratingDimensions[], accentColor, branchName, logoUrl, contact, aiDisclosure}` (later Settings or branding changes never alter a report).
+- **Figures:** `facts` (attendance, hours by subject, consistency, homework with halves, engagement then → now, practice accuracy, skills covered, resources, tutors, subjects, what's next, conference, previous report and deltas), `series.sessions[]` (one compact point per scheduled session for the charts) and `progress {level: on_track|needs_attention|at_risk|null, drivers[], rule}`. Computed in `shared/src/reports/facts.ts` and `status.ts`; never written by AI.
+- **Words:** `narrative {overview, academicProgress, practice, engagement, homework, strengths[], focusAreas[], goals[{goal, measure}], previousGoals[{goal, status, note}], homeSupport[], tutorNote}`, `narrativeOriginal` (the last AI or template version, for Restore) and `narrativeMeta {source: ai|template, generatedAt, sections{key: {source: ai|template|staff, editedBy, needsReview, reasons[]}}}`.
+- **Switches:** `options {showStatus, showPractice, showResources, showConference}`.
+- **`views/{emailKey}`:** a family member's write-once view receipt `{viewedAt, role}`.
+
+Created, refreshed and shared only by functions (`generateProgressReport`, `regenerateReportSection`, `shareProgressReport`); staff edit a draft's `narrative`, `narrativeMeta`, `options` and `customName` (admins may rename a shared report). Every change writes a `report.*` audit entry.
 
 ## 7. Communication
 
@@ -241,6 +250,10 @@ Collection-scope indexes apply to every subcollection with that ID, i.e. to ever
 | `sessionLogs` | `studentId ↑, status ↑, dateKey ↓` | Progress reports |
 | `auditLog` | `entityId ↑, at ↓` | A session log's History |
 | `progressReports` | `studentId ↑, generatedAt ↓` | Reports per student |
+| `progressReports` | `studentId ↑, sharedWithParents ↑, generatedAt ↓` | Family portal |
+| `progressReports` | `sharedWithParents ↑, generatedAt ↓` | Tutors' list (shared reports) |
+| `progressReports` | `generatedBy.staffId ↑, generatedAt ↓` | Tutors' list (their drafts) |
+| `progressReports` | `status ↑, generatedAt ↓` and `studentId ↑, status ↑, generatedAt ↓` | Previous shared report, duplicate drafts |
 | `auditLog` | `category ↑, at ↓` | Audit Log filter |
 | `notifications` | `recipientKey ↑, createdAt ↓` | Inbox |
 | `members` (field override, **collection group**) | `emailLower` | "Which branches am I in?" on sign-in |
@@ -265,6 +278,6 @@ Collection-scope indexes apply to every subcollection with that ID, i.e. to ever
 | `clockShifts`, `clockEvents`, `openShifts` | ✓ | read (changes through callables) | own (read) | — | — |
 | `timeEntries` | ✓ | ✓ unless restricted | own (read; create `pending` self entries if enabled) | — | — |
 | `sessionLogs` | ✓ | ✓ | read (all or own, Q15); write drafts for own sessions; submit through a callable | — (families see progress reports) | — |
-| `progressReports` | ✓ | ✓ | read/create | linked, if shared (Q6) | — |
+| `progressReports` | ✓ (share: admins only) | ✓ | read shared reports and their own drafts; create drafts if allowed; edit their own drafts | linked, if shared (Q6) | own, if shared |
 | `announcements` (+ reads, comments) | ✓ | ✓ | audience (read; own read receipt; comment if enabled) | audience | audience |
 | `notifications` | ✓ | own | own | own | own |

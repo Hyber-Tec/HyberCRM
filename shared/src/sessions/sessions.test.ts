@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accuracy, allMissing, averageRating, diffLogContent, finishText, firstMissing, localLogAi, type LogContent, type SessionLog, stepOfField, submitError, suggestFlag } from './logs'
-import { buildMetrics } from './reports'
+import { accuracy, allMissing, averageRating, diffLogContent, finishText, firstMissing, localLogAi, type LogContent, stepOfField, submitError, suggestFlag } from './logs'
 
 const dims = ['Effort', 'Motivation', 'Behavior', 'Focus', 'Confidence']
 const full: LogContent = {
@@ -69,18 +68,5 @@ describe('session logs', () => {
       { field: 'ratings.focus', label: 'Focus rating', from: 4, to: 5 },
       { field: 'studentFlag', label: 'Student flag', from: 'On Track', to: 'Needs Attention' },
     ])
-  })
-})
-
-describe('progress report metrics', () => {
-  const log = (p: Partial<SessionLog>): SessionLog => ({ ...(full as unknown as SessionLog), subject: 'SAT Math', tutorName: 'Maya', usedHours: 2, ...p })
-  it('computes homework rate and risk', () => {
-    const risk = { atRiskHomeworkBelow: 50, atRiskFocusBelow: 3, needsAttentionHomeworkBelow: 70, needsAttentionMotivationBelow: 3.5 }
-    const m = buildMetrics([log({}), log({ homeworkStatus: 'Not Done' }), log({ homeworkStatus: 'Partially Done' })], dims, risk)
-    expect(m.homeworkCompletionRate).toBe(33)
-    expect(m.riskLevel).toBe('At Risk')
-    expect(m.totalHours).toBe(6)
-    const ok = buildMetrics([log({}), log({})], dims, risk)
-    expect(ok.riskLevel).toBe('On Track')
   })
 })

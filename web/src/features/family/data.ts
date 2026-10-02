@@ -4,7 +4,7 @@ import { COL } from '@shared/paths'
 import type { DateKey } from '@shared/time'
 import type { Session, Student, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
-import type { ProgressReport } from '@/features/sessions/reportModel'
+import type { AnyReport as ProgressReport } from '@/features/reports/model'
 import { branchCol, branchDocRef } from '@/lib/firestore'
 
 /** Parents see their linked children; students see themselves (also while a Super Admin previews them). */
@@ -106,6 +106,7 @@ export function useSharedReports(ids: string[]) {
     [branchId, ids],
   )
   const res = useMergedQueries<ProgressReport>(queries, `family-reports-${branchId}-${ids.join(',')}`)
-  const data = useMemo(() => res.data.slice().sort((a, b) => (b.generatedAt?.toMillis() ?? 0) - (a.generatedAt?.toMillis() ?? 0)), [res.data])
+  const at = (t: unknown) => (t as { toMillis?: () => number } | null)?.toMillis?.() ?? 0
+  const data = useMemo(() => res.data.slice().sort((a, b) => at(b.sharedAt ?? b.generatedAt) - at(a.sharedAt ?? a.generatedAt)), [res.data])
   return { data, loading: res.loading }
 }

@@ -81,13 +81,29 @@ export interface BranchSettings {
   }
   progressReports: {
     ai: { enabled: boolean }
+    /** The progress status rule (True Education's thresholds; never decided by AI). */
     risk: {
       atRiskHomeworkBelow: number
       atRiskFocusBelow: number
       needsAttentionHomeworkBelow: number
       needsAttentionMotivationBelow: number
+      /** `share`: flagged sessions count when they're `flagShare`% of the period or the last two; `any`: one is enough (TE). */
+      flagRule: 'share' | 'any'
+      flagShare: number
+      /** Attendance below this percent (0 = off). */
+      atRiskAttendanceBelow: number
+      needsAttentionAttendanceBelow: number
+      /** Which ratings the rule reads (lower-cased dimension labels). */
+      focusKey: string
+      motivationKey: string
     }
-    maxTopics: number
+    tutorsCanCreate: boolean
+    defaultPeriod: 'since_last' | 'last_month' | 'last_30' | 'last_90'
+    emailFamiliesOnShare: boolean
+    /** Footer line "Written with the help of AI and reviewed by our team." */
+    aiDisclosure: boolean
+    /** Sections shown by default (each report can switch them). */
+    sections: { status: boolean; practice: boolean; resources: boolean; conference: boolean }
   }
   /** The pay model itself is a branch rule (`businessRules`); owners and admins are always paid one rate. */
   payroll: {
@@ -198,8 +214,18 @@ export const DEFAULT_SETTINGS: BranchSettings = {
       atRiskFocusBelow: 3,
       needsAttentionHomeworkBelow: 70,
       needsAttentionMotivationBelow: 3.5,
+      flagRule: 'share',
+      flagShare: 25,
+      atRiskAttendanceBelow: 0,
+      needsAttentionAttendanceBelow: 0,
+      focusKey: 'focus',
+      motivationKey: 'motivation',
     },
-    maxTopics: 30,
+    tutorsCanCreate: true,
+    defaultPeriod: 'since_last',
+    emailFamiliesOnShare: true,
+    aiDisclosure: true,
+    sections: { status: true, practice: true, resources: true, conference: true },
   },
   payroll: {
     teachingSessionStatuses: ['present'],

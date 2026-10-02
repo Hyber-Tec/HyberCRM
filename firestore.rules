@@ -394,12 +394,43 @@ service cloud.firestore {
         allow delete: if isAdmin(b);
       }
 
+      // Reports are made and shared by functions (generateProgressReport, shareProgressReport).
+      // Staff edit a draft's written sections, switches and name; families read shared reports.
       match /progressReports/{reportId} {
-        allow read: if isStaff(b)
-          || (hasRole(b, 'parent') && resource.data.studentId in myStudentIds(b) && resource.data.sharedWithParents == true)
-          || (hasRole(b, 'student') && resource.data.studentId == myStudentId(b) && resource.data.sharedWithParents == true);
-        allow create: if isStaff(b);
-        allow update, delete: if isAdmin(b);
+        function shared() {
+          return resource.data.sharedWithParents == true;
+        }
+        function ownDraft() {
+          return isTutor(b) && resource.data.get('generatedBy', {}).get('staffId', '') == myStaffId(b);
+        }
+        allow read: if isAdmin(b)
+          || (isTutor(b) && (shared() || ownDraft()))
+          || (hasRole(b, 'parent') && resource.data.studentId in myStudentIds(b) && shared())
+          || (hasRole(b, 'student') && resource.data.studentId == myStudentId(b) && shared());
+        allow create: if false;
+        allow update: if (
+            resource.data.get('status', 'shared') == 'draft'
+            && (isAdmin(b) || ownDraft())
+            && changed().hasOnly(['narrative', 'narrativeMeta', 'options', 'customName', 'updatedAt', 'updatedBy'])
+            && request.resource.data.updatedAt == request.time
+          ) || (
+            isAdmin(b) && changed().hasOnly(['customName', 'updatedAt', 'updatedBy'])
+          );
+        allow delete: if isAdmin(b);
+
+        // A family member's first opening of a shared report (write-once).
+        match /views/{viewerKey} {
+          function report() {
+            return get(/databases/$(database)/documents/branches/$(b)/progressReports/$(reportId)).data;
+          }
+          allow read: if isStaff(b);
+          allow create: if viewerKey == emailKey()
+            && request.resource.data.viewedAt == request.time
+            && report().sharedWithParents == true
+            && ((hasRole(b, 'parent') && report().studentId in myStudentIds(b))
+              || (hasRole(b, 'student') && report().studentId == myStudentId(b)));
+          allow update, delete: if false;
+        }
       }
 
       // ------------------------------------------------------ communication

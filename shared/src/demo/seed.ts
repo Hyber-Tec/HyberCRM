@@ -6,7 +6,9 @@ import { COL, DOC, availabilityDocId } from '../paths'
 import { DEFAULT_SETTINGS } from '../settings/defaults'
 import { businessRoundedHours } from '../schedule/hours'
 import { localLogAi, type LogContent, type SessionLog } from '../sessions/logs'
-import { buildMetrics, localNarrative } from '../sessions/reports'
+import { composeReport } from '../reports/compose'
+import { avaHistory } from './history'
+import { type FactsSession, presetPeriod } from '../reports/facts'
 import { ACT_TOPICS, SAT_PSAT_TOPICS } from '../sessions/topics'
 import { addDays, dayEndInstant, toInstant, weekdayOf } from '../time'
 import type { StaffRole, StudentStatus } from '../types'
@@ -34,6 +36,9 @@ export interface SeedOptions {
   /** The branch's students-per-tutor rule; sample sessions never overlap more than this (default 3). */
   maxStudentsPerTutor?: number
 }
+
+/** Demo Academy's contact details (report footers, emails). */
+export const DEMO_CONTACT = { phone: '(404) 555-0123', email: 'hello@demoacademy.com', website: 'demoacademy.com', address: '' }
 
 /** Demo Academy runs True Education's rules: Teaching + Admin pay, 3 students at once, conferences every 25 hours. */
 export const DEMO_BUSINESS_RULES: BusinessRules = {
@@ -360,6 +365,26 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
       void subjectByIdName
     }
   }
+  // Ava Patel's own history (her progress reports show every section): her generated past sessions make way for it.
+  const AVA = 'demo-student-ava-patel'
+  const ava = avaHistory({ base, today: opts.today, timezone: opts.timezone, now, createdBy, subjectId: (n) => subjectIdByName.get(n) ?? null })
+  for (let i = docs.length - 1; i >= 0; i--) {
+    const d = docs[i]
+    if (d.path.includes(`/${COL.sessions}/`) && d.data.studentId === AVA && (d.data.dateKey as string) < opts.today) docs.splice(i, 1)
+  }
+  docs.push(...ava.sessions)
+  {
+    const stat = stats.get(AVA) ?? { hours: 0, first: null, last: null, next: null }
+    stat.hours = 0
+    for (const d of ava.sessions) {
+      if (d.data.status !== 'present' && d.data.status !== 'no_show') continue
+      stat.hours += businessRoundedHours((d.data.endMin as number) - (d.data.startMin as number))
+      const dk = d.data.dateKey as string
+      stat.first = !stat.first || dk < stat.first ? dk : stat.first
+      stat.last = !stat.last || dk > stat.last ? dk : stat.last
+    }
+    stats.set(AVA, stat)
+  }
   for (const d of docs) {
     if (!d.path.includes(`/${COL.students}/`) || d.path.includes('/private/')) continue
     const id = d.path.split('/').pop()!
@@ -390,7 +415,7 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
   const focusNext = ['Timed practice on the weakest topic', 'Review mistakes and start the next unit', 'Mixed review before the upcoming test', 'Word problems and showing full work']
   const homeworkGiven = ['Practice set 3 (20 questions)', 'Finish the worksheet and review the notes', 'Two timed sections and an error log', 'Textbook problems 1–25 (odd)']
   for (const d of [...docs]) {
-    if (!d.path.includes(`/${COL.sessions}/`) || d.data.logStatus !== 'submitted') continue
+    if (!d.path.includes(`/${COL.sessions}/`) || d.data.logStatus !== 'submitted' || d.path.includes('/demo-ava-h-')) continue
     const sd = d.data
     const subj = String(sd.subject)
     const sessionType = /PSAT/.test(subj) ? 'PSAT' : /SAT/.test(subj) ? 'SAT' : /ACT/.test(subj) ? 'ACT' : lp(['School Help', 'Skill Building', 'Homework Support'])
@@ -454,37 +479,89 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
     })
   }
 
-  // A progress report shared with each of a few families (parent portal) ------
+  docs.push(...ava.logs)
+
+  // Progress reports: Ava's last two months (the newer one compares with the
+  // older), another family's shared report, and one draft --------------------
   const logsByStudent = new Map<string, SessionLog[]>()
   for (const d of docs) {
     if (!d.path.includes(`/${COL.sessionLogs}/`)) continue
     const log = d.data as unknown as SessionLog
     logsByStudent.set(log.studentId, [...(logsByStudent.get(log.studentId) ?? []), log])
   }
-  const reportStudents = [...logsByStudent.entries()]
-    .sort((a, b) => Number(b[0] === 'demo-student-ava-patel') - Number(a[0] === 'demo-student-ava-patel') || b[1].length - a[1].length)
-    .slice(0, 3)
-  for (const [studentId, list] of reportStudents) {
-    const logs = list.slice().sort((a, b) => b.dateKey.localeCompare(a.dateKey))
-    const metrics = buildMetrics(logs, DEFAULT_SETTINGS.sessionLogs.ratingDimensions, DEFAULT_SETTINGS.progressReports.risk)
-    docs.push({
-      path: `${base}/${COL.progressReports}/demo-r-${studentId.replace('demo-student-', '')}`,
-      data: {
-        studentId,
-        studentName: logs[0].studentName,
-        startDate: logs[logs.length - 1].dateKey,
-        endDate: logs[0].dateKey,
-        generatedAt: now,
-        generatedBy: createdBy,
-        generatedByName: 'Grace Liu',
-        sessionCount: logs.length,
-        sessionIds: logs.map((l) => l.sessionId),
-        lastSessionDateKey: logs[0].dateKey,
-        metrics,
-        narrative: localNarrative(metrics, logs[0].studentName),
-        customName: null,
-        sharedWithParents: true,
+  const others = [...logsByStudent.entries()]
+    .filter(([id]) => id !== AVA)
+    .sort((a, b) => b[1].length - a[1].length)
+    .slice(0, 2)
+  const grace = { email: opts.createdBy, name: 'Grace Liu', role: 'admin', staffId: demoStaffId('Grace', 'Liu') }
+  const lastMonth = presetPeriod('last_month', opts.today)
+  const monthBefore = presetPeriod('last_month', addDays(lastMonth.from, 1))
+  const plans: { studentId: string; period: { from: string; to: string; preset: 'last_month' | 'last_30' }; shared: boolean; id: string }[] = [
+    { studentId: AVA, period: { ...monthBefore, preset: 'last_month' }, shared: true, id: 'demo-r-ava-patel-prev' },
+    { studentId: AVA, period: { ...lastMonth, preset: 'last_month' }, shared: true, id: 'demo-r-ava-patel' },
+    ...others.map(([studentId], i) => ({ studentId, period: { ...presetPeriod('last_30', opts.today), preset: 'last_30' as const }, shared: i === 0, id: `demo-r-${studentId.replace('demo-student-', '')}` })),
+  ]
+  const made = new Map<string, ReturnType<typeof composeReport>>()
+  for (const plan of plans) {
+    const { studentId } = plan
+    const list = logsByStudent.get(studentId) ?? []
+    if (!list.some((l) => l.dateKey >= plan.period.from && l.dateKey <= plan.period.to)) continue
+    const student = docs.find((d) => d.path === `${base}/${COL.students}/${studentId}`)!.data
+    const own = docs.filter((d) => d.path.includes(`/${COL.sessions}/`) && d.data.studentId === studentId)
+    const sessions: FactsSession[] = own.map((d) => ({
+      id: d.path.split('/').pop()!,
+      dateKey: String(d.data.dateKey),
+      startMin: Number(d.data.startMin),
+      endMin: Number(d.data.endMin),
+      endAtMs: (d.data.endAt as Date).getTime(),
+      status: d.data.status as FactsSession['status'],
+      logStatus: String(d.data.logStatus),
+      subject: String(d.data.subject),
+      tutorName: String(d.data.tutorName),
+    }))
+    const previous = plan.id === 'demo-r-ava-patel' && made.get('demo-r-ava-patel-prev') ? { id: 'demo-r-ava-patel-prev', doc: made.get('demo-r-ava-patel-prev')! } : null
+    // The older report was made the day after its month ended.
+    const asOf = plan.id.endsWith('-prev') ? addDays(plan.period.to, 1) : opts.today
+    const doc = composeReport({
+      branch: { name: 'Demo Academy', logoUrl: null, accentColor: null, contact: DEMO_CONTACT },
+      settings: DEFAULT_SETTINGS,
+      conference: { enabled: DEMO_BUSINESS_RULES.conferences.enabled, everyHours: DEMO_BUSINESS_RULES.conferences.everyHours },
+      student: {
+        id: studentId,
+        name: String(student.name),
+        firstName: String(student.firstName),
+        lastName: String(student.lastName),
+        grade: String(student.grade),
+        school: String(student.school),
+        totalSessionHours: Number(student.totalSessionHours ?? 0),
+        conferenceBaselineHours: 0,
       },
+      period: plan.period,
+      sessions,
+      logs: list,
+      upcoming: own
+        .filter((d) => String(d.data.dateKey) >= asOf && d.data.status !== 'canceled')
+        .map((d) => ({ dateKey: String(d.data.dateKey), startMin: Number(d.data.startMin), subject: String(d.data.subject), tutorName: String(d.data.tutorName) })),
+      previous,
+      today: asOf,
+      nowMs: asOf === opts.today ? now.getTime() : Date.parse(`${asOf}T15:00:00Z`),
+      generatedBy: grace,
+    })
+    made.set(plan.id, doc)
+    const at = plan.id.endsWith('-prev') ? new Date(Date.parse(`${addDays(plan.period.to, 1)}T15:00:00Z`)) : now
+    docs.push({
+      path: `${base}/${COL.progressReports}/${plan.id}`,
+      data: {
+        ...doc,
+        status: plan.shared ? 'shared' : 'draft',
+        sharedWithParents: plan.shared,
+        sharedAt: plan.shared ? at : null,
+        sharedBy: plan.shared ? { email: grace.email, name: grace.name } : null,
+        firstViewedAt: plan.id.endsWith('-prev') ? at : null,
+        narrativeMeta: { ...doc.narrativeMeta, generatedAt: at },
+        generatedAt: at,
+        updatedAt: at,
+      } as unknown as Record<string, unknown>,
     })
   }
 

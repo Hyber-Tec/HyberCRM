@@ -114,8 +114,8 @@ export const SCENARIOS: Scenario[] = [
     paths: ['/app', `${b}/parent/progress-reports`, `${b}/progress-report/demo-r-ava-patel`],
     expect: {
       '/app': ['Upcoming sessions', 'Ava Patel'],
-      [`${b}/parent/progress-reports`]: ['Progress report ·', 'Open'],
-      [`${b}/progress-report/demo-r-ava-patel`]: ['Student Progress Report', 'Ava Patel'],
+      [`${b}/parent/progress-reports`]: ['progress report', 'Shared', 'Open'],
+      [`${b}/progress-report/demo-r-ava-patel`]: ['Ava Patel', 'at a glance', 'Strengths', 'Attendance and time', 'What we worked on', 'Learning habits', 'Goals for', 'Download PDF'],
     },
   },
   {

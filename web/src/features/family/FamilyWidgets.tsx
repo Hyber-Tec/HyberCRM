@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react'
-import { LuCalendarClock, LuChartLine, LuExternalLink, LuMail, LuMapPin, LuPhone } from 'react-icons/lu'
+import { useNavigate } from 'react-router'
+import { LuCalendarClock, LuChartLine, LuChevronRight, LuExternalLink, LuMail, LuMapPin, LuPhone } from 'react-icons/lu'
 import type { SessionStatus } from '@shared/settings/defaults'
 import { type DateKey, addDays, formatDateKey, formatInstant, formatTimeRange, todayKey } from '@shared/time'
 import type { Session, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
-import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { type ProgressReport, reportTitle } from '@/features/sessions/reportModel'
+import { type AnyReport, reportName } from '@/features/reports/model'
 import { cn } from '@/lib/utils'
 
 /** Session statuses in family-friendly words. */
@@ -155,26 +155,43 @@ export function ContactCard({ title = 'Questions or changes?' }: { title?: strin
   )
 }
 
-/** Shared progress reports; each opens the printable report in a new tab. */
-export function ReportList({ reports, showStudent }: { reports: WithId<ProgressReport>[]; showStudent?: boolean }) {
+/** Shared progress reports, newest first; "New" until someone in the family opens it. */
+export function ReportList({ reports, showStudent }: { reports: WithId<AnyReport>[]; showStudent?: boolean }) {
   const { branchId, timezone } = useBranch()
+  const navigate = useNavigate()
+  const when = (t: unknown) => ((t as { toDate?: () => Date } | null)?.toDate ? formatInstant((t as { toDate: () => Date }).toDate(), timezone, { dateStyle: 'medium' }) : null)
   return (
     <Card className="gap-0 overflow-hidden py-0" data-testid="family-reports">
-      {reports.map((r) => (
-        <div key={r.id} className="flex items-center gap-4 border-b px-4 py-3 last:border-b-0">
-          <LuChartLine className="size-5 shrink-0 text-muted-foreground" />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium">{r.customName || (showStudent ? reportTitle(r) : `Progress report · ${formatDateKey(r.startDate, 'medium')} – ${formatDateKey(r.endDate, 'medium')}`)}</div>
-            <div className="truncate text-xs text-muted-foreground">
-              {r.sessionCount} {r.sessionCount === 1 ? 'session' : 'sessions'}
-              {r.generatedAt ? ` · prepared ${formatInstant(r.generatedAt.toDate(), timezone, { dateStyle: 'medium' })}` : ''}
+      {reports.map((r) => {
+        const shared = when(r.sharedAt) ?? when(r.generatedAt)
+        const fresh = r.schemaVersion === 2 && !r.firstViewedAt
+        return (
+          <button
+            key={r.id}
+            type="button"
+            onClick={() => navigate(`/${branchId}/progress-report/${r.id}`)}
+            className="flex w-full items-center gap-4 border-b px-4 py-3 text-left last:border-b-0 hover:bg-muted/50"
+          >
+            <LuChartLine className="size-5 shrink-0 text-muted-foreground" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="truncate text-sm font-medium">
+                  {showStudent ? `${r.studentName} · ` : ''}
+                  {reportName(r).replace(/^./, (c) => c.toUpperCase())}
+                </span>
+                {fresh ? <span className="shrink-0 rounded-full bg-sky-100 px-1.5 text-[10px] leading-4 font-semibold text-sky-800 dark:bg-sky-900 dark:text-sky-100">New</span> : null}
+              </div>
+              <div className="truncate text-xs text-muted-foreground">
+                {shared ? `Shared ${shared}` : 'Shared'}
+                {r.sessionCount ? ` · ${r.sessionCount} ${r.sessionCount === 1 ? 'session' : 'sessions'}` : ''}
+              </div>
             </div>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => window.open(`/${branchId}/progress-report/${r.id}`, '_blank', 'noopener')}>
-            Open <LuExternalLink />
-          </Button>
-        </div>
-      ))}
+            <span className="inline-flex items-center gap-1 text-sm font-medium">
+              Open <LuChevronRight className="size-4" />
+            </span>
+          </button>
+        )
+      })}
     </Card>
   )
 }

@@ -349,6 +349,7 @@ export const onSessionCreated = onDocumentCreated(`${ROOT.branches}/{branchId}/$
 })
 
 export { onLoggedSessionUpdated, onSessionLogWritten, sessionAi, sessionLogContext, submitSessionLog } from './sessions'
+export { generateProgressReport, onReportViewed, regenerateReportSection, shareProgressReport } from './reports'
 export { onAnnouncementComment, onAnnouncementRead, onAnnouncementWritten } from './announcements'
 export { seedDemoData } from './platform'
 export { onSessionUpdated } from './sessionNotify'

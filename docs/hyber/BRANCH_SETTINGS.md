@@ -116,13 +116,20 @@ Student statuses are a **fixed enum** with TE's colors: Signed Up, Enrolled, Pau
 
 ## `progressReports`
 
-| Key | Default (TE) | Source |
-|---|---|---|
-| `progressReports.risk.atRisk` | homework completion < 50 % or average focus < 3 (or any "At Risk" flag) | 07 §5.15, 11 §3.9 |
-| `progressReports.risk.needsAttention` | completion < 70 % or average motivation < 3.5 (or any "Needs Attention" flag) | same |
-| `progressReports.strengthThreshold` | rating ≥ 4, completion ≥ 70 % | same |
-| `progressReports.ai.enabled` | `true` | same |
-| `progressReports.maxTopics` | 30 | 07 §4.2 |
+Settings → Progress reports (round 3). The status rule is calculated, never decided by AI.
+
+| Key | Default | Source | Notes |
+|---|---|---|---|
+| `progressReports.ai.enabled` | `true` | 07 §8 | AI drafts the written sections; figures and status are always calculated |
+| `progressReports.aiDisclosure` | `true` | round 3 | Footer "Written with the help of AI and reviewed by our team." on AI-drafted reports |
+| `progressReports.tutorsCanCreate` | `true` | round 3 | Tutors also need `sessionLogs.tutorsSeeAllLogs`; only admins share |
+| `progressReports.defaultPeriod` | `since_last` | round 3 | `since_last`, `last_month`, `last_30`, `last_90` |
+| `progressReports.emailFamiliesOnShare` | `true` | round 3 | The email holds only a sign-in link |
+| `progressReports.sections.{status, practice, resources, conference}` | all `true` | round 3 | Defaults for each report's switches |
+| `progressReports.risk.atRiskHomeworkBelow` / `needsAttentionHomeworkBelow` | 50 / 70 % | 07 §5.15, 11 §3.9 | TE values |
+| `progressReports.risk.atRiskFocusBelow` / `needsAttentionMotivationBelow` | 3 / 3.5 | same | Read from `focusKey` / `motivationKey` (`focus`, `motivation`) |
+| `progressReports.risk.flagRule`, `flagShare` | `share`, 25 % | round 3 | Tutor flags count when they're 25 % of the sessions or the last two; `any` = TE (one flag is enough) |
+| `progressReports.risk.atRiskAttendanceBelow` / `needsAttentionAttendanceBelow` | 0 (off) | round 3 | Attendance thresholds, off by default |
 
 ## `payroll`
 

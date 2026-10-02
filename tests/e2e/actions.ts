@@ -167,6 +167,58 @@ const futureLogBlocked: Step = async (page, base) => {
   if (await page.getByTestId('log-record').count()) throw new Error('A log was submitted before its session started')
 }
 
+/** An admin drafts Ava's report from the last 30 days, edits the overview and shares it with the family. */
+const reportCreateShare: Step = async (page, base) => {
+  await page.goto(`${base}/${E2E_BRANCH}/admin/sessions/progress-reports`, { waitUntil: 'load' })
+  await page.getByRole('button', { name: 'New report' }).first().click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('combobox').filter({ hasText: 'Choose a student' }).click()
+  await page.keyboard.type('Ava Patel')
+  await page.getByRole('option', { name: /Ava Patel/ }).first().click()
+  await dialog.getByLabel('Period').click()
+  await page.getByRole('option', { name: 'Last 30 days' }).click()
+  await dialog.getByTestId('new-report-preview').getByText(/sessions? ·/).waitFor({ timeout: 15000 })
+  await dialog.getByRole('button', { name: 'Create draft' }).click()
+  await page.waitForURL(/\/admin\/sessions\/progress-reports\/[A-Za-z0-9]+$/, { timeout: 60000 })
+  await page.getByTestId('report-state').getByText('Draft').waitFor({ timeout: 15000 })
+  await page.getByTestId('report-student').getByText('Ava Patel').waitFor()
+  await page.getByRole('button', { name: 'Edit', exact: true }).click()
+  await page.locator('textarea[data-section="overview"]').fill('E2E overview: Ava had a strong month of practice.')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await expectText(page, 'Report saved')
+  await page.getByRole('button', { name: 'Share with family' }).click()
+  await page.getByRole('dialog').getByText('parent@e2e.test').waitFor({ timeout: 10000 })
+  await page.getByRole('dialog').getByRole('button', { name: 'Share', exact: true }).click()
+  await expectText(page, 'Shared', 20000)
+  await page.getByTestId('report-state').getByText(/Shared/).waitFor({ timeout: 15000 })
+}
+
+/** The parent sees the new report, opens it (it prints on three pages), and it no longer shows as new. */
+const reportParentView: Step = async (page, base) => {
+  await page.goto(`${base}/${E2E_BRANCH}/parent/progress-reports`, { waitUntil: 'load' })
+  const list = page.getByTestId('family-reports').getByRole('button').filter({ hasText: 'New' }).first()
+  await list.waitFor({ timeout: 15000 })
+  // The newest shared report is first; its name is the period label.
+  const name = (await list.locator('span.truncate').first().innerText()).trim()
+  await list.click()
+  await expectText(page, 'E2E overview: Ava had a strong month of practice.', 15000)
+  if (await page.getByRole('button', { name: 'Edit' }).count()) throw new Error('A parent sees the Edit button')
+  await page.emulateMedia({ media: 'print' })
+  await page.waitForTimeout(500)
+  const heights = await page.evaluate(() => [...document.querySelectorAll('.report-page')].map((e) => Math.round(e.getBoundingClientRect().height)))
+  if (heights.length !== 3 || heights.some((h) => h > 970)) throw new Error(`Printed pages don’t fit Letter sheets: ${heights.join(', ')}`)
+  await page.emulateMedia({ media: 'screen' })
+  // The first view is recorded (a function marks it), so this report isn't "New" any more.
+  for (let i = 0; i < 10; i++) {
+    await page.goto(`${base}/${E2E_BRANCH}/parent/progress-reports`, { waitUntil: 'load' })
+    await page.getByTestId('family-reports').waitFor({ timeout: 15000 })
+    await page.waitForTimeout(1000)
+    const row = page.getByTestId('family-reports').getByRole('button').filter({ hasText: name }).first()
+    if (!(await row.getByText('New', { exact: true }).count())) return
+  }
+  throw new Error('The report still shows as New after the parent opened it')
+}
+
 /** Home → Needs you → automatic clock-outs → fix Daniel's. */
 const homeClockFix: Step = async (page, base) => {
   await page.goto(`${base}/${E2E_BRANCH}/admin/home`, { waitUntil: 'load' })
@@ -326,6 +378,8 @@ export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'admin writes a session log on behalf of a tutor', email: 'owner@e2e.test', run: adminLogsOnBehalf },
   { name: 'tutor reads another tutor’s session log', email: 'tutor@e2e.test', run: tutorReadsOthersLog },
   { name: 'tutor can’t submit a log before the session starts', email: 'tutor@e2e.test', run: futureLogBlocked },
+  { name: 'admin creates and shares a progress report', email: 'owner@e2e.test', run: reportCreateShare },
+  { name: 'parent opens the shared progress report', email: 'parent@e2e.test', run: reportParentView },
   { name: 'home fixes an automatic clock-out', email: 'goochoi913@gmail.com', run: homeClockFix },
   { name: 'admin publishes an announcement', email: 'goochoi913@gmail.com', run: announcementPublish },
   { name: 'tutor reads and comments on it', email: 'tutor@e2e.test', run: announcementTutor },
