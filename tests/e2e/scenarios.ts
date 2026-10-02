@@ -61,7 +61,7 @@ export const SCENARIOS: Scenario[] = [
       '/app': ['Every tutoring center on Hyber', 'Demo Academy'],
       '/platform': ['Demo Academy'],
       [`/platform/branches/${E2E_BRANCH}`]: ['Business rules', 'Teaching + Admin', 'from the start', 'Students per tutor at once', 'New owners get an email'],
-      [`${b}/admin/settings`]: ['Business rules', 'Chosen by HyberTec', 'Every 25 tutoring hours'],
+      [`${b}/admin/settings`]: ['Business rules', 'Set when your branch was created', 'Every 25 tutoring hours'],
       [`${b}/admin/home`]: ['Admin Portal', 'Today’s sessions', 'Needs you', 'In the building', 'parent conferences due'],
       [`${b}/admin/announcements`]: ['Welcome to the new Demo Academy portal', 'Read: '],
       [`${b}/admin/announcements/demo-a-welcome`]: ['Looks great', 'Comments'],

@@ -350,7 +350,7 @@ function Wizard({ id, editing, initial }: { id: string; editing: boolean; initia
               description={
                 editing
                   ? 'Off by default. Turn on only to re-notify the audience about this update.'
-                  : 'Adds it to their notifications. Phones get a push once the Hyber app is installed.'
+                  : 'Adds it to their notifications. Phones get a push once the phone app is installed.'
               }
               checked={draft.notify}
               onChange={(notify) => set({ notify })}

@@ -85,7 +85,7 @@ export async function resumeAutoStatus(branchId: string, actor: Actor, student: 
     category: 'people',
     entityType: 'student',
     entityId: student.id,
-    summary: `Let Hyber manage ${student.name}’s status again`,
+    summary: `Set ${student.name}’s status to update automatically again`,
     studentId: student.id,
     studentName: student.name,
   })

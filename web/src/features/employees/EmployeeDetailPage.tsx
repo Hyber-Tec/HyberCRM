@@ -322,7 +322,7 @@ function AccessCard({ member }: { member: (Member & { id: string }) | null }) {
     <Card>
       <CardHeader>
         <CardTitle>Sign-in</CardTitle>
-        <CardDescription>How this employee signs in to Hyber.</CardDescription>
+        <CardDescription>How this employee signs in.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2 text-sm">
         {member ? (

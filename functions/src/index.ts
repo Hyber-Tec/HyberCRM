@@ -52,7 +52,7 @@ function audit(branchId: string, entry: Record<string, unknown>) {
     at: FieldValue.serverTimestamp(),
     actorUid: 'system',
     actorEmail: 'system',
-    actorName: 'Hyber',
+    actorName: 'System',
     actorRole: 'system',
     context: '',
     dateKey: null,

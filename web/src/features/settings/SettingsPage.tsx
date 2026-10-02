@@ -45,7 +45,7 @@ export function SettingsPage() {
   const setActive = (key: string) => navigate(`/${branchId}/admin/settings/${key}`)
   return (
     <div>
-      <PageHeader title="Settings" description="Your branch profile, branding and day-to-day settings. Defaults follow the standard Hyber setup." />
+      <PageHeader title="Settings" description="Your branch profile, branding and day-to-day settings. Anything you don’t change keeps the standard setup." />
       <div className="flex flex-col gap-6 lg:flex-row">
         <nav className="lg:sticky lg:top-4 lg:w-52 lg:shrink-0 lg:self-start">
           <div className="lg:hidden">
@@ -142,7 +142,7 @@ function BusinessRulesCard() {
     <Card>
       <CardHeader>
         <CardTitle>Business rules</CardTitle>
-        <CardDescription>Chosen by HyberTec when your branch was set up. To change them, contact HyberTec.</CardDescription>
+        <CardDescription>Set when your branch was created. To change them, contact support.</CardDescription>
       </CardHeader>
       <CardContent>
         <dl className="divide-y rounded-lg border text-sm">

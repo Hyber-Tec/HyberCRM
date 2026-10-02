@@ -272,7 +272,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
     key: 'notifications',
     title: 'Notifications',
-    description: 'Push notifications arrive with the phone app; Hyber already records them.',
+    description: 'Push notifications arrive with the phone app; the app already records them.',
     fields: [
       { kind: 'number', path: 'notifications.sessionChangeWindowHours', label: 'Notify tutors of changes within', min: 1, max: 168, suffix: 'hours' },
       { kind: 'number', path: 'notifications.retentionDays', label: 'Keep notifications for', min: 1, max: 365, suffix: 'days' },

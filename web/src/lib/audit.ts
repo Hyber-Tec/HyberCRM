@@ -48,6 +48,12 @@ export function auditData(actor: Actor, input: AuditInput) {
   }
 }
 
+/** Who did it, as staff see it: automatic actions show as "System" (older entries were signed by the product). */
+export function actorLabel(e: { actorName?: string | null; actorEmail?: string | null; actorRole?: string | null }): string {
+  if (e.actorRole === 'system' || e.actorEmail === 'system') return 'System'
+  return e.actorName || e.actorEmail || 'Someone'
+}
+
 /** Adds an append-only audit entry to a batch or transaction. */
 export function addAudit(writer: WriteBatch | Transaction, branchId: string, actor: Actor, input: AuditInput) {
   const ref = doc(branchCol(branchId, 'auditLog'))

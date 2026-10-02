@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { COL } from '@shared/paths'
 import type { AuditEntry } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
+import { actorLabel } from '@/lib/audit'
 import { branchCol } from '@/lib/firestore'
 
 const TITLES: Record<string, string> = {
@@ -42,7 +43,8 @@ export function ActivityToasts() {
           const at = e.at?.toMillis?.() ?? Date.now()
           if (at < mountedAt.current || e.actorEmail === actor.email) continue
           toast(TITLES[e.action] ?? 'Schedule update', {
-            description: `${e.summary}${e.context ? ` — ${e.context}` : ''} · by ${e.actorName}`,
+            // Automatic changes already say so ("…automatically"); people are named.
+            description: `${e.summary}${e.context ? ` — ${e.context}` : ''}${e.actorRole === 'system' || e.actorEmail === 'system' ? '' : ` · by ${actorLabel(e)}`}`,
             duration: 5 * 60 * 1000,
             closeButton: true,
           })

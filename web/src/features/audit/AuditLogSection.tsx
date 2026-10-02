@@ -5,6 +5,7 @@ import { COL } from '@shared/paths'
 import { formatInstant } from '@shared/time'
 import type { AuditCategory, AuditEntry } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
+import { actorLabel } from '@/lib/audit'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -106,7 +107,7 @@ export function AuditLogSection() {
               ) : null}
             </div>
             <div className="flex shrink-0 items-start gap-2 text-xs sm:w-56 sm:justify-end">
-              <span className="truncate text-muted-foreground">{e.actorName}</span>
+              <span className="truncate text-muted-foreground">{actorLabel(e)}</span>
               <Badge variant="outline">{ROLE_LABEL[e.actorRole] ?? e.actorRole}</Badge>
             </div>
           </div>

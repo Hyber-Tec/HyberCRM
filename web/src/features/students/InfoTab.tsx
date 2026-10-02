@@ -117,12 +117,12 @@ export function InfoTab({ student, readOnly }: { student: WithId<Student>; readO
                       className="font-medium text-foreground underline underline-offset-2"
                       onClick={() =>
                         void resumeAutoStatus(branchId, actor, student).then(
-                          () => toast.success('Hyber will manage this status again'),
+                          () => toast.success('The status updates automatically again'),
                           (e) => toast.error((e as Error).message),
                         )
                       }
                     >
-                      Let Hyber manage it again
+                      Update it automatically again
                     </button>
                   </FieldDescription>
                 ) : null}

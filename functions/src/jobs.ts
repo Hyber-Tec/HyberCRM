@@ -56,7 +56,7 @@ export const studentLifecycleDaily = onSchedule({ schedule: '0 8 * * *', timeZon
           at: FieldValue.serverTimestamp(),
           actorUid: 'system',
           actorEmail: 'system',
-          actorName: 'Hyber',
+          actorName: 'System',
           actorRole: 'system',
           action: 'student.status_auto',
           category: 'people',
