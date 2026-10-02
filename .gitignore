@@ -24,3 +24,6 @@ HyberCRM_*.md
 .vscode/*
 !.vscode/extensions.json
 .claude/*.local.json
+
+# Design options (local mockups)
+design/

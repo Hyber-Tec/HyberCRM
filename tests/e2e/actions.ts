@@ -190,6 +190,30 @@ const inviteNewPerson: Step = async (page, base) => {
   await row.getByText(/Invited/).last().waitFor({ state: 'visible', timeout: 15000 })
 }
 
+/** Deep links opened in a fresh tab never flash an error or "paused" screen while access is checked. */
+const noWrongScreenWhileLoading: Step = async (page, base) => {
+  const WRONG = ['Your access is paused', 'No access to', 'not found', 'Not your session', 'Platform access only', 'couldn’t be loaded']
+  await page.addInitScript((wrong) => {
+    const seen: string[] = []
+    ;(window as unknown as { __wrongSeen: string[] }).__wrongSeen = seen
+    new MutationObserver(() => {
+      const text = document.body?.innerText ?? ''
+      for (const w of wrong) if (text.includes(w) && !seen.includes(w)) seen.push(w)
+    }).observe(document, { subtree: true, childList: true, characterData: true })
+  }, WRONG)
+  for (const path of [
+    `/${E2E_BRANCH}/session-log/e2e-log-session`,
+    `/${E2E_BRANCH}/admin/sessions/progress-reports`,
+    `/${E2E_BRANCH}/admin/employees/payroll`,
+    `/${E2E_BRANCH}/admin/home`,
+  ]) {
+    await page.goto(`${base}${path}`, { waitUntil: 'load' })
+    await page.waitForTimeout(2500)
+    const seen = await page.evaluate(() => (window as unknown as { __wrongSeen: string[] }).__wrongSeen)
+    if (seen.length) throw new Error(`${path} showed "${seen.join('", "')}" while loading`)
+  }
+}
+
 export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'schedule create/status/delete', email: 'goochoi913@gmail.com', run: scheduleCrud },
   { name: 'kiosk clock in/out', email: 'goochoi913@gmail.com', run: kiosk },
@@ -199,5 +223,6 @@ export const ACTIONS: { name: string; email: string; run: Step }[] = [
   { name: 'tutor reads and comments on it', email: 'tutor@e2e.test', run: announcementTutor },
   { name: 'session changes reach the tutor', email: 'tutor@e2e.test', run: sessionNotifications },
   { name: 'super admin views the app as a tutor', email: 'goochoi913@gmail.com', run: viewAs },
+  { name: 'super admin deep links load without a wrong screen', email: 'goochoi913@gmail.com', run: noWrongScreenWhileLoading },
   { name: 'owner adds a person and the invite goes out', email: 'owner@e2e.test', run: inviteNewPerson },
 ]

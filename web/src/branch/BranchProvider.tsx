@@ -67,7 +67,7 @@ function loadViewAs(branchId: string): ViewAs | null {
 
 export function BranchProvider({ children }: { children: ReactNode }) {
   const { branchId = '' } = useParams()
-  const { user, email, isSuperAdmin } = useAuth()
+  const { user, email, isSuperAdmin, ready } = useAuth()
 
   const branchState = useDoc<Branch>(branchId ? doc(db, ROOT.branches, branchId) : null)
   const memberState = useDoc<Member>(branchId && email ? doc(db, ROOT.branches, branchId, COL.members, email) : null)
@@ -88,10 +88,10 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     [branchId],
   )
 
-  // `paused`: a member whose access was turned off (no role to show).
-  const { value, paused } = useMemo<{ value: BranchContextValue | null; paused: boolean }>(() => {
+  // `blocked`: no role to show here. `paused`: the member's access was turned off; `none`: not a member.
+  const { value, blocked } = useMemo<{ value: BranchContextValue | null; blocked: 'paused' | 'none' | null }>(() => {
     const branch = branchState.data
-    if (!branch || !user || !email) return { value: null, paused: false }
+    if (!branch || !user || !email) return { value: null, blocked: null }
     const member = memberState.data && memberState.data.status === 'active' ? memberState.data : null
     const ownRole = member?.role ?? null
     // A super admin always has admin powers; the bar shows when they aren't an owner or admin here.
@@ -126,7 +126,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       viewAs,
       setViewAs,
     }
-    return { value: ctx, paused: role === null }
+    return { value: ctx, blocked: role !== null ? null : memberState.data ? 'paused' : 'none' }
   }, [branchState.data, memberState.data, user, email, isSuperAdmin, branchId, viewAs, setViewAs])
 
   // Branch accent color as a CSS variable for brand marks.
@@ -140,12 +140,14 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     }
   }, [accent])
 
-  if (branchState.loading || memberState.loading) return <FullPageSpinner />
+  // Until the account check (Super Admin, memberships) is done, nothing here is known: never guess.
+  if (!ready || branchState.loading || memberState.loading) return <FullPageSpinner />
   if (!value) {
     if (branchState.error?.code === 'permission-denied' || !branchState.data) return <NoBranchAccess branchId={branchId} />
     return <FullPageMessage title="This center couldn’t be loaded" description="Check your connection and try again." actions={[{ label: 'Go to my centers', to: '/app' }]} />
   }
-  if (paused) {
+  if (blocked === 'none') return <NoBranchAccess branchId={branchId} />
+  if (blocked === 'paused') {
     return (
       <FullPageMessage
         title="Your access is paused"

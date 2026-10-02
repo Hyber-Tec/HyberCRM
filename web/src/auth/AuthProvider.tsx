@@ -64,6 +64,7 @@ async function loadAccess(user: User) {
       const profile = profileSnap?.exists() ? (profileSnap.data() as BranchPublicProfile) : null
 
       // Link the Google account to the member doc on first sign-in, then refresh occasionally.
+      // Nothing waits for these writes: access is known once the reads are done.
       const lastLogin = member.lastLoginAt?.toMillis?.() ?? 0
       if (member.uid !== user.uid || Date.now() - lastLogin > RELINK_AFTER_MS) {
         const patch: Record<string, unknown> = {
@@ -73,7 +74,7 @@ async function loadAccess(user: User) {
           lastLoginAt: serverTimestamp(),
         }
         if (!member.firstLoginAt) patch.firstLoginAt = serverTimestamp()
-        await updateDoc(snap.ref, patch).catch((e) => console.warn('Could not link member', branchId, e))
+        void updateDoc(snap.ref, patch).catch((e) => console.warn('Could not link member', branchId, e))
       }
       return { branchId, member, profile }
     }),
@@ -82,7 +83,7 @@ async function loadAccess(user: User) {
   memberships.sort((a, b) => (a.profile?.name ?? a.branchId).localeCompare(b.profile?.name ?? b.branchId))
 
   // Global profile (one per Google account).
-  await setDoc(
+  void setDoc(
     doc(db, ROOT.users, user.uid),
     {
       uid: user.uid,
