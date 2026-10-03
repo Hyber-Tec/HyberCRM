@@ -9,7 +9,7 @@
  * Run through scripts/e2e.sh, which starts the emulators.
  */
 import { type ChildProcess, spawn } from 'node:child_process'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { chromium } from 'playwright-core'
 import { ACTIONS } from '../tests/e2e/actions'
 import { logSessions, soonSession } from '../tests/e2e/fixtures'
@@ -51,7 +51,20 @@ async function waitForServer(url: string, timeoutMs = 30000) {
   throw new Error(`Server ${url} did not start`)
 }
 
+/** The emulator gets today's firestore.rules (a long-running emulator can hold older ones). */
+async function loadRules() {
+  const host = process.env.FIRESTORE_EMULATOR_HOST
+  if (!host) throw new Error('FIRESTORE_EMULATOR_HOST is not set: run through scripts/e2e.sh')
+  const res = await fetch(`http://${host}/emulator/v1/projects/hyber-crm:securityRules`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rules: { files: [{ name: 'firestore.rules', content: readFileSync('firestore.rules', 'utf8') }] } }),
+  })
+  if (!res.ok) throw new Error(`Could not load the rules into the emulator (${res.status})`)
+}
+
 async function main() {
+  await loadRules()
   await seedBranch({
     branchId: E2E_BRANCH,
     name: 'Demo Academy',

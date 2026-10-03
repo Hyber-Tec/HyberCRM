@@ -198,7 +198,8 @@ The first branch is **Demo Academy**: generic name, placeholder logo (an SVG mon
 
 | Path | Who | What |
 |---|---|---|
-| `/` | public | Placeholder landing page (Hyber CRM, one paragraph, **Sign in with Google**) |
+| `/` | public | The landing page (its own pre-rendered page, `web/index.html`; DECISIONS §7) |
+| `/demo` | public | The live demo: the app on sample data in the browser (DECISIONS §7) |
 | `/login` | public | Google sign-in |
 | `/app` | signed in | Resolver: super admin → `/platform`; one membership → `/b/{id}`; several → chooser; none → "No access yet" |
 | `/platform`, `/platform/branches/new`, `/platform/branches/:id` | super admin | Platform pages |

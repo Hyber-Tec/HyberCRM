@@ -4,8 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "node scripts/dev.mjs",
+    "dev:app": "vite",
+    "dev:demo": "vite -c vite.demo.config.ts",
+    "build": "tsc -b && vite build && vite build -c vite.demo.config.ts && node scripts/prerender.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "typecheck": "tsc -b"
@@ -23,6 +25,7 @@
     "date-fns": "^4.4.0",
     "dompurify": "^3.4.16",
     "firebase": "^12.19.0",
+    "motion": "^14.0.0",
     "qrcode": "^1.5.4",
     "radix-ui": "^1.6.7",
     "react": "^19.2.8",

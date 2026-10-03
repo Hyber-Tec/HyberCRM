@@ -21,6 +21,11 @@ export interface StatusRules {
 export const FAMILY_LEVEL_LABELS = { on_track: 'On track', needs_attention: 'Needs attention', at_risk: 'Needs extra support' } as const
 export const STAFF_LEVEL_LABELS = { on_track: 'On Track', needs_attention: 'Needs Attention', at_risk: 'At Risk' } as const
 
+/** A progress level in words: families get the softer wording. */
+export function levelLabel(level: keyof typeof FAMILY_LEVEL_LABELS, audience: 'family' | 'staff'): string {
+  return (audience === 'family' ? FAMILY_LEVEL_LABELS : STAFF_LEVEL_LABELS)[level]
+}
+
 /**
  * The report's progress status: True Education's thresholds on homework and two
  * ratings, plus session flags, decided here and never by AI. Fewer than two

@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 
 const LINKS = [
   { to: '/platform', label: 'Branches', end: true },
+  { to: '/platform/inquiries', label: 'Inquiries', end: false },
   { to: '/platform/admins', label: 'Platform admins', end: false },
 ]
 

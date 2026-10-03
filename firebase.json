@@ -17,8 +17,19 @@
     ],
     "rewrites": [
       {
+        "source": "/api/inquiry",
+        "function": {
+          "functionId": "submitInquiry",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/demo/**",
+        "destination": "/demo.html"
+      },
+      {
         "source": "**",
-        "destination": "/index.html"
+        "destination": "/app.html"
       }
     ],
     "headers": [
@@ -28,6 +39,15 @@
           {
             "key": "Cache-Control",
             "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
+        "source": "/landing/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=86400"
           }
         ]
       },

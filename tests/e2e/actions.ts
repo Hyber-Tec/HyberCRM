@@ -398,7 +398,37 @@ const conflictAdminResolve: Step = async (page, base) => {
   await card.getByTestId('session-conflict').waitFor({ state: 'detached', timeout: 10000 })
 }
 
+/** The landing page renders, and someone signed in is offered the app instead of "Sign in". */
+const landingPage: Step = async (page, base) => {
+  await page.goto(`${base}/`, { waitUntil: 'load' })
+  await expectText(page, 'The CRM built for')
+  await expectText(page, 'Priced for')
+  await expectText(page, 'Questions, answered')
+  await page.getByRole('link', { name: 'Open the app' }).first().waitFor({ timeout: 8000 })
+  await page.getByRole('form', { name: 'Contact us' }).waitFor()
+}
+
+/** A center asks for a quote on the landing page (the function in the emulator); the Super Admin handles it. */
+const inquiryInbox: Step = async (page, base) => {
+  const name = `E2E Center ${Date.now()}`
+  const res = await fetch('http://127.0.0.1:5001/hyber-crm/us-central1/submitInquiry', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email: 'quote@center.test', center: 'E2E Tutoring', phone: '', students: '50–150', locations: '1', message: 'Hello from e2e', website: '', ms: 9000 }),
+  })
+  if (!res.ok) throw new Error(`submitInquiry answered ${res.status}: ${await res.text()}`)
+  await page.goto(`${base}/platform/inquiries`, { waitUntil: 'load' })
+  const card = page.getByTestId('inquiry').filter({ hasText: name })
+  await card.waitFor({ timeout: 10000 })
+  await card.getByRole('button', { name: 'Mark handled' }).click()
+  await card.waitFor({ state: 'detached', timeout: 8000 })
+  await page.getByRole('button', { name: /^All/ }).click()
+  await page.getByTestId('inquiry').filter({ hasText: name }).getByText('Handled').waitFor({ timeout: 8000 })
+}
+
 export const ACTIONS: { name: string; email: string; run: Step }[] = [
+  { name: 'landing page renders for a signed-in visitor', email: 'owner@e2e.test', run: landingPage },
+  { name: 'a center asks for a quote and the Super Admin handles it', email: 'goochoi913@gmail.com', run: inquiryInbox },
   { name: 'schedule create/status/delete', email: 'goochoi913@gmail.com', run: scheduleCrud },
   { name: 'kiosk clock in/out', email: 'goochoi913@gmail.com', run: kiosk },
   { name: 'tutor submits a session log', email: 'tutor@e2e.test', run: sessionLog },

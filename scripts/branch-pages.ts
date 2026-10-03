@@ -19,8 +19,9 @@ import { listDocuments } from './lib/firestore-rest'
 const DIST = new URL('../web/dist/', import.meta.url).pathname
 const START = '<!-- meta -->'
 const END = '<!-- /meta -->'
-const template = readFileSync(`${DIST}index.html`, 'utf8')
-if (!template.includes(START) || !template.includes(END)) throw new Error('web/dist/index.html has no <!-- meta --> block')
+// The app's page (the landing page is index.html).
+const template = readFileSync(`${DIST}app.html`, 'utf8')
+if (!template.includes(START) || !template.includes(END)) throw new Error('web/dist/app.html has no <!-- meta --> block')
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 

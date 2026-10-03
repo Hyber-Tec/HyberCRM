@@ -3,14 +3,14 @@ import { dayStartInstant } from '../availability'
 import { STAFF_COLORS } from '../colors'
 import { type BusinessRules, PAY_MODEL_SINCE_START } from '../settings/businessRules'
 import { COL, DOC, availabilityDocId } from '../paths'
-import { DEFAULT_SETTINGS } from '../settings/defaults'
+import { DEFAULT_SETTINGS, type WeekHours } from '../settings/defaults'
 import { businessRoundedHours } from '../schedule/hours'
 import { localLogAi, type LogContent, type SessionLog } from '../sessions/logs'
 import { composeReport } from '../reports/compose'
 import { avaHistory } from './history'
 import { type FactsSession, presetPeriod } from '../reports/facts'
 import { ACT_TOPICS, SAT_PSAT_TOPICS } from '../sessions/topics'
-import { addDays, dayEndInstant, toInstant, weekdayOf } from '../time'
+import { addDays, dayEndInstant, minutesOf, toInstant, weekdayOf } from '../time'
 import type { StaffRole, StudentStatus } from '../types'
 
 /**
@@ -35,6 +35,11 @@ export interface SeedOptions {
   now?: Date
   /** The branch's students-per-tutor rule; sample sessions never overlap more than this (default 3). */
   maxStudentsPerTutor?: number
+  /** The center's name and contact details as they appear in reports and posts (default Demo Academy). */
+  branchName?: string
+  contact?: typeof DEMO_CONTACT
+  /** Opening hours (default: the standard week). Weekend days get whole-day availability. */
+  week?: WeekHours
 }
 
 /** Demo Academy's contact details (report footers, emails). */
@@ -88,11 +93,14 @@ const DEMO_STAFF: DemoStaff[] = [
 const STUDENT_FIRST = [
   'Ava', 'Noah', 'Mia', 'Liam', 'Zoe', 'Owen', 'Chloe', 'Leo', 'Ella', 'Mason', 'Aria', 'Caleb', 'Nora', 'Isaac',
   'Lily', 'Henry', 'Ruby', 'Jack', 'Stella', 'Wyatt', 'Hazel', 'Julian', 'Ivy', 'Miles', 'Layla', 'Eli', 'Clara', 'Theo',
+  'Olivia', 'James', 'Charlotte', 'Logan', 'Harper', 'Elijah', 'Evelyn', 'Aiden', 'Abigail', 'Samuel', 'Scarlett', 'Jayden',
+  'Aaliyah', 'Gabriel', 'Naomi', 'Adrian', 'Leah', 'Ryan', 'Sadie', 'Nathan',
 ]
 const STUDENT_LAST = [
   'Patel', 'Nguyen', 'Garcia', 'Johnson', 'Lee', 'Martinez', 'Chen', 'Wilson', 'Davis', 'Lopez', 'Park', 'Clark',
   'Lewis', 'Walker', 'Young', 'Hall', 'Allen', 'Wright', 'Scott', 'Green', 'Baker', 'Adams', 'Nelson', 'Hill',
-  'Rivera', 'Campbell', 'Mitchell', 'Roberts',
+  'Rivera', 'Campbell', 'Mitchell', 'Roberts', 'Shah', 'Torres', 'Reyes', 'Ward', 'Foster', 'Bennett', 'Hughes', 'Price',
+  'Sanders', 'Ross', 'Powell', 'Long', 'Patterson', 'Jenkins', 'Perry', 'Russell', 'Sullivan', 'Bell', 'Coleman', 'Murphy',
 ]
 const SCHOOLS = ['Northfield High School', 'Lakeside Middle School', 'Riverside Academy', 'Westbrook High School', 'Oak Hill Prep']
 const PARENT_FIRST = ['Jennifer', 'Michael', 'Sarah', 'David', 'Laura', 'James', 'Emily', 'Robert', 'Anna', 'Kevin']
@@ -106,6 +114,7 @@ export function demoStaffId(first: string, last: string) {
 
 export function buildDemoData(opts: SeedOptions): SeedDoc[] {
   const { branchId, createdBy } = opts
+  const branchName = opts.branchName ?? 'Demo Academy'
   const now = opts.now ?? new Date()
   const rand = rng(20260930)
   const pick = <T,>(arr: readonly T[]) => arr[Math.floor(rand() * arr.length)]
@@ -178,8 +187,9 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
     const id = `demo-student-${slug(`${first} ${last}`)}`
     const name = `${first} ${last}`
     const grade = String(6 + Math.floor(rand() * 7))
-    const status: StudentStatus = i < 22 ? 'enrolled' : i < 25 ? 'signed_up' : 'paused'
-    if (status === 'enrolled' && i % 5 === 1) priorHours.set(id, 22 + (i % 3) * 2)
+    // The first 22 and everyone after the original 28 are enrolled; three recent sign-ups and three paused in between.
+    const status: StudentStatus = i < 22 || i >= 28 ? 'enrolled' : i < 25 ? 'signed_up' : 'paused'
+    if (status === 'enrolled' && i < 28 && i % 5 === 1) priorHours.set(id, 22 + (i % 3) * 2)
     const subjects = [pick(subjectNames), pick(subjectNames)].filter((v, idx, arr) => arr.indexOf(v) === idx)
     const parentFirst = pick(PARENT_FIRST)
     docs.push({
@@ -230,7 +240,7 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
   })
 
   // Availability: 2 weeks back to 6 weeks ahead, on open days ---------------
-  const week = DEFAULT_SETTINGS.schedule.defaultWeek
+  const week = opts.week ?? DEFAULT_SETTINGS.schedule.defaultWeek
   const patterns: { startMin: number; endMin: number }[][] = [
     [{ startMin: 840, endMin: 1260 }],
     [{ startMin: 900, endMin: 1200 }],
@@ -253,7 +263,7 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
       const r = dayRand()
       if (r < 0.18) continue // day off
       const ranges =
-        wd === 'saturday'
+        wd === 'saturday' || wd === 'sunday'
           ? r < 0.6
             ? []
             : [{ startMin: hours.openMin, endMin: hours.closeMin }]
@@ -288,6 +298,8 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
   const sessRand = rng(4242)
   const availDocs = docs.filter((d) => d.path.includes(`/${COL.availability}/`))
   const lengths = [110, 110, 110, 80, 50]
+  const booked = new Map<string, [number, number][]>()
+  const nowMin = minutesOf(now, opts.timezone)
   for (const a of availDocs) {
     const staffId = a.data.staffId as string
     const dateKey = a.data.dateKey as string
@@ -295,7 +307,7 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
     if (offset > 21) continue
     const st = DEMO_STAFF.find((x) => demoStaffId(x.first, x.last) === staffId)!
     const ranges = a.data.ranges as { startMin: number; endMin: number }[]
-    const count = Math.floor(sessRand() * 4)
+    const count = 2 + Math.floor(sessRand() * 5)
     const laneEnds = Array.from({ length: Math.max(1, opts.maxStudentsPerTutor ?? 3) }, () => 0)
     for (let n = 0; n < count; n++) {
       const r = ranges[Math.floor(sessRand() * ranges.length)]
@@ -306,15 +318,26 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
       const endMin = startMin + len
       const lane = laneEnds.findIndex((e) => e <= startMin)
       if (lane === -1) continue
+      // A student is never booked twice at the same time.
+      let student: (typeof studentList)[number] | null = null
+      for (let tries = 0; tries < 8 && !student; tries++) {
+        const candidate = studentList[Math.floor(sessRand() * studentList.length)]
+        const spans = booked.get(`${dateKey}|${candidate.id}`) ?? []
+        if (spans.every(([a, b]) => endMin <= a || startMin >= b)) student = candidate
+      }
+      if (!student) continue
       laneEnds[lane] = endMin
-      const student = studentList[Math.floor(sessRand() * studentList.length)]
+      booked.set(`${dateKey}|${student.id}`, [...(booked.get(`${dateKey}|${student.id}`) ?? []), [startMin, endMin]])
       const subjectName = st.subjects[Math.floor(sessRand() * st.subjects.length)] ?? 'Homework Help'
       const roll = sessRand()
+      // Today's sessions that are over count as past.
+      const ended = offset < 0 || (offset === 0 && endMin + 15 <= nowMin)
       let status: string
       let logStatus = 'none'
-      if (offset < 0) {
+      if (ended) {
         status = roll < 0.08 ? 'no_show' : roll < 0.12 ? 'canceled' : 'present'
-        if (status === 'present') logStatus = roll < 0.85 ? 'submitted' : 'none'
+        // Tutors log on the day; only the last few days still miss a log or two (today's, a few more).
+        if (status === 'present') logStatus = offset < -3 || roll < (offset === 0 ? 0.9 : 0.97) ? 'submitted' : 'none'
         if (status === 'present' && logStatus === 'none') status = 'confirmed'
       } else if (offset <= 1) status = roll < 0.06 ? 'canceled' : 'confirmed'
       else status = roll < 0.05 ? 'canceled' : 'pending'
@@ -355,12 +378,12 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
         },
       })
       const stat = stats.get(student.id) ?? { hours: 0, first: null, last: null, next: null }
-      if (offset < 0 && (status === 'present' || status === 'no_show' || logStatus === 'submitted')) {
+      if (ended && (status === 'present' || status === 'no_show' || logStatus === 'submitted')) {
         stat.hours += businessRoundedHours(len)
         stat.first = !stat.first || dateKey < stat.first ? dateKey : stat.first
         stat.last = !stat.last || dateKey > stat.last ? dateKey : stat.last
       }
-      if (offset >= 0 && status !== 'canceled') stat.next = !stat.next || dateKey < stat.next ? dateKey : stat.next
+      if (!ended && status !== 'canceled') stat.next = !stat.next || dateKey < stat.next ? dateKey : stat.next
       stats.set(student.id, stat)
       void subjectByIdName
     }
@@ -523,7 +546,7 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
     // The older report was made the day after its month ended.
     const asOf = plan.id.endsWith('-prev') ? addDays(plan.period.to, 1) : opts.today
     const doc = composeReport({
-      branch: { name: 'Demo Academy', logoUrl: null, accentColor: null, contact: DEMO_CONTACT },
+      branch: { name: branchName, logoUrl: null, accentColor: null, contact: opts.contact ?? DEMO_CONTACT },
       settings: DEFAULT_SETTINGS,
       conference: { enabled: DEMO_BUSINESS_RULES.conferences.enabled, everyHours: DEMO_BUSINESS_RULES.conferences.everyHours },
       student: {
@@ -645,7 +668,7 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
       },
     })
   post('demo-a-welcome', 12, {
-    title: 'Welcome to the new Demo Academy portal',
+    title: `Welcome to the new ${branchName} portal`,
     contentHtml:
       '<p>Hi everyone! This is where schedule changes, policies and news will be posted from now on.</p><ul><li>Check <strong>Schedule</strong> for your sessions.</li><li>Keep your <strong>Availability</strong> up to date at least two weeks ahead.</li><li>Submit each <strong>session log</strong> on the day of the session.</li></ul><p>Questions? Leave a comment below.</p>',
     contentText:

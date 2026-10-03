@@ -4,6 +4,8 @@ export const RESERVED_BRANCH_IDS: ReadonlySet<string> = new Set([
   'student', 'kiosk', 'api', 'assets', 'static', 'public', 'no-access', 'select', 'branches', 'b',
   'www', 'help', 'docs', 'support', 'settings', 'account', 'auth', 'hyber', 'hyber-crm', 'index',
   'manifest', 'service-worker', 'sw', 'robots', 'favicon', 'icons', 'images', 'brand',
+  // The website's own pages (the landing page lives at `/`).
+  'demo', 'landing', 'sitemap', 'og', 'pricing', 'features', 'contact', 'about', 'blog', 'privacy', 'terms',
 ])
 
 export function slugify(input: string): string {

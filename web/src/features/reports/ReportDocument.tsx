@@ -21,11 +21,11 @@ import {
   LuTarget,
   LuTrendingUp,
 } from 'react-icons/lu'
+import { levelLabel } from '@shared/reports/status'
 import type { NarrativeKey, ProgressReportDoc, ReportNarrative, SectionMeta } from '@shared/reports/types'
 import { type DateKey, addDays, endOfMonth, formatDateKey, formatInstant, formatMinutes, startOfMonth } from '@shared/time'
 import { cn } from '@/lib/utils'
 import { AccuracyChart, CumulativeHours, Dumbbell, HomeworkBar, HoursDonut, INK, STATUS_COLORS, SessionStrip, Sparkline } from './charts'
-import { levelLabel } from './model'
 
 export const DEFAULT_ACCENT = '#1e3a8a'
 

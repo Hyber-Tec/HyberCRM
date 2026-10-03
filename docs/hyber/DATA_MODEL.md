@@ -6,7 +6,7 @@
 
 | Topic | Rule |
 |---|---|
-| Tenancy | All branch data lives under `branches/{branchId}/…`. Root collections hold platform data only: `platformAdmins`, `users`, `branches`. |
+| Tenancy | All branch data lives under `branches/{branchId}/…`. Root collections hold platform data only: `platformAdmins`, `users`, `branches`, and `inquiries` (landing-page requests, DECISIONS §7). |
 | Names | Collections: camelCase plural (`timeEntries`). Fields: camelCase. Enums: lowercase snake strings (`no_show`); display labels live in the UI and settings. |
 | IDs | Firestore auto-IDs, except where a deterministic key enforces a rule. Examples: `availability/{staffId}_{dateKey}` (one per tutor per day), `members/{emailLower}`, `sessionLogs/{sessionId}` (one log per session), `dayConfigs/{dateKey}`. |
 | References | Always by ID (`tutorId`, `studentId`, `staffId`, `subjectId`, `categoryId`). Names are stored only as display snapshots (`tutorName`, `studentName`), never used for joins (TE joined logs and subjects by name). |
@@ -33,6 +33,19 @@
 | `uiPrefs` | map | Per-person UI preferences, e.g. `{scheduleZoom, scheduleDrawerOpen, scheduleDefaultView}` (TE: `settings/admin_scheduling_ui` + localStorage) |
 
 `users/{uid}/devices/{deviceId}`: push tokens. Fields: `{token, platform: web|ios|android, userAgent, createdAt, lastSeenAt}`. Deleted on logout (TE never removed them).
+
+### `inquiries/{autoId}`: "Talk to us" requests from the landing page
+Written only by the `submitInquiry` function; the Super Admin reads them (Platform → Inquiries) and may change only the handled fields.
+
+| Field | Type | Notes |
+|---|---|---|
+| `name`, `email`, `center`, `phone`, `students`, `locations`, `message` | string | Checked by `shared/src/inquiry.ts`; `students`/`locations` are one of the form's ranges or empty |
+| `status` | `new` \| `handled` | |
+| `createdAt` | Timestamp | |
+| `from` | string | Hash of the sender's address (spotting repeats), never the address |
+| `userAgent` | string | |
+| `notify` | map | The email to HyberTec: `{status: sent|not_configured|failed, at, error}` |
+| `handledAt`, `handledBy` | Timestamp, string | Set when the Super Admin marks it handled |
 
 ### `branches/{branchId}`: the branch
 `branchId` is an immutable slug, e.g. `demo-academy`.

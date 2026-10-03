@@ -106,6 +106,14 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
 
+    // "Talk to us" requests from the landing page: written only by the
+    // submitInquiry function; the Super Admin reads them and marks them handled.
+    match /inquiries/{id} {
+      allow read, delete: if isSuperAdmin();
+      allow update: if isSuperAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'handledAt', 'handledBy']);
+    }
+
     // "Which branches am I in?" — collection-group query on my own email.
     match /{path=**}/members/{memberId} {
       allow read: if signedIn() && resource.data.email == emailKey();

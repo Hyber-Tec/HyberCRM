@@ -3,6 +3,8 @@ export const ROOT = {
   platformAdmins: 'platformAdmins',
   branches: 'branches',
   users: 'users',
+  /** "Talk to us" requests from the landing page (Super Admin only; DECISIONS §3). */
+  inquiries: 'inquiries',
 } as const
 
 export const COL = {

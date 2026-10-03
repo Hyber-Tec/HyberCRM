@@ -235,3 +235,31 @@ describe('audit log', () => {
     await assertFails(getDoc(doc(user('tutor@a.test'), `branches/${A}/auditLog/e1`)))
   })
 })
+
+describe('inquiries from the landing page', () => {
+  const inquiry = { name: 'Jordan Lee', email: 'jordan@center.test', center: 'Northside', phone: '', students: '50–150', locations: '1', message: '', status: 'new' }
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'inquiries/q1'), inquiry)
+    })
+  })
+
+  it('only the Super Admin reads them', async () => {
+    await assertSucceeds(getDoc(doc(user('super@hyber.test'), 'inquiries/q1')))
+    await assertFails(getDoc(doc(user('owner@a.test'), 'inquiries/q1')))
+    await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'inquiries/q1')))
+  })
+
+  it('nobody writes them from the browser (the function does)', async () => {
+    await assertFails(setDoc(doc(env.unauthenticatedContext().firestore(), 'inquiries/q2'), inquiry))
+    await assertFails(setDoc(doc(user('super@hyber.test'), 'inquiries/q2'), inquiry))
+  })
+
+  it('the Super Admin marks them handled, and changes nothing else', async () => {
+    const db = user('super@hyber.test')
+    await assertSucceeds(updateDoc(doc(db, 'inquiries/q1'), { status: 'handled', handledAt: serverTimestamp(), handledBy: 'super@hyber.test' }))
+    await assertFails(updateDoc(doc(db, 'inquiries/q1'), { email: 'other@center.test' }))
+    await assertFails(updateDoc(doc(user('owner@a.test'), 'inquiries/q1'), { status: 'handled' }))
+  })
+})

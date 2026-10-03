@@ -120,6 +120,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       onAuthStateChanged(auth, (u) => {
         setUser(u)
         setStatus(u ? 'signedIn' : 'signedOut')
+        // The landing page (no Firebase there) offers "Open the app" to people signed in on this device.
+        try {
+          localStorage.setItem('hyber:signedIn', u ? '1' : '0')
+        } catch {
+          /* private mode */
+        }
         setAccess(null)
         if (u) void refreshFor(u)
       }),

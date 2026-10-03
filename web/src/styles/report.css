@@ -1,0 +1,54 @@
+/* Progress reports (Round 3, design C): white Letter pages on a warm canvas. The
+   paper stays light in dark mode, like printed paper. */
+@layer components {
+  .report-canvas {
+    background: #efeee9;
+  }
+  .report-page {
+    @apply mx-auto w-full max-w-[816px] bg-white sm:rounded-sm;
+    color: #0b0b0b;
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.06),
+      0 8px 30px rgb(0 0 0 / 0.08);
+  }
+  .report-watermark {
+    display: none;
+  }
+}
+
+@media print {
+  @page {
+    size: letter;
+    margin: 0.4in 0.45in 0.5in;
+  }
+  .report-canvas {
+    background: #fff !important;
+  }
+  .report-page {
+    max-width: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    break-after: page;
+  }
+  .report-page:last-of-type {
+    break-after: auto;
+  }
+  .report-doc,
+  .report-doc * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .report-watermark {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    font-size: 140px;
+    font-weight: 700;
+    color: rgb(0 0 0 / 0.06);
+    transform: rotate(-28deg);
+    pointer-events: none;
+    z-index: 50;
+  }
+}

@@ -1,5 +1,4 @@
 import { httpsCallable } from 'firebase/functions'
-import { FAMILY_LEVEL_LABELS, STAFF_LEVEL_LABELS } from '@shared/reports/status'
 import type { NarrativeKey, ProgressLevel, ProgressReportDoc, ReportPreset } from '@shared/reports/types'
 import { formatDateKey } from '@shared/time'
 import { functions } from '@/lib/firebase'
@@ -41,7 +40,7 @@ export const LEVEL_STYLE: Record<ProgressLevel, { chip: string; dot: string }> =
   at_risk: { chip: 'bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-900', dot: '#d03b3b' },
 }
 
-export const levelLabel = (level: ProgressLevel, audience: 'family' | 'staff') => (audience === 'family' ? FAMILY_LEVEL_LABELS : STAFF_LEVEL_LABELS)[level]
+export { levelLabel } from '@shared/reports/status'
 
 export const PRESET_LABELS: Record<ReportPreset, string> = {
   since_last: 'Since the last report',
