@@ -184,7 +184,8 @@ export function DaySection({ dateKey, hours, rows, events, showHeader = false, s
           <div className="sticky left-0 z-10 shrink-0 border-r bg-card" style={{ width: NAME_COL }} />
           <div className="relative" style={{ width }}>
             {hourMarks
-              .filter((m) => nowX === null || Math.abs(x(m) - nowX) > 34)
+              // Hour labels give way to the "now" pill (half its widest, "12:40 PM", plus half a label).
+              .filter((m) => nowX === null || Math.abs(x(m) - nowX) > 50)
               .map((m) => (
                 <span
                   key={m}
