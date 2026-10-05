@@ -13,6 +13,8 @@ Start with [Where things stand](#where-things-stand-checked-on-2026-10-05) and [
 - **Firebase**: the iPhone app (`1:196610922641:ios:c12cba96e87d19d1ba0730`) and the Android app (`1:196610922641:android:35ef79293b6f357aba0730`) are registered in the hyber-crm project, the Android one with the standard debug key's SHA-1 and SHA-256, so Google sign-in works in builds made on this Mac. Their files are in `mobile/firebase/` (`npm run phone:setup` downloads them again).
 - **The app's identity**: Hyber CRM, `com.hybertec.hybercrm`, version 1.0.0 (`mobile/release.json` holds the version and the number of the last build uploaded). It declares only standard encryption, so App Store Connect asks no export question.
 - **App Store Connect** (2026-10-05): the API key and its `appstore.json` are in `mobile/.publish/` (the key matches its Key ID; the folder is not in git), the app record exists (Hyber CRM, `com.hybertec.hybercrm`, SKU `hybercrm`), and the first build, **1.0.0 (build 2)**, is uploaded.
+- **TestFlight for you** (2026-10-05): the internal group `HyberTec` (automatic distribution on) has you in it, and your iPhone runs 1.0.0 (2) from TestFlight. That build works until 2027-01-03; any newer upload starts its own 90 days.
+- **Push notifications on iPhone** (2026-10-05): HyberTec's APNs key is in Firebase, and Firebase's test send to your iPhone went through. It is a **Topic Specific** key for `com.hybertec.hybercrm`, because the team already had the two Team Scoped keys Apple allows ([below](#push-notifications-on-iphone-the-apns-key)).
 - **In the app, what the stores look for**: Profile → Settings → **Delete my account** (it asks for the password, or Google, then the server function `deleteMyAccount` deletes the account: Apple's guideline 5.1.1(v), Google's account deletion policy), a **Privacy policy** link and the **Version** line, in the same Settings.
 - **The commands**: `npm run publish:iphone`, `npm run publish:android`, `npm run publish:screenshots`; and every text the stores ask for, in [docs/store/](store/).
 - **The privacy policy**: `web/public/privacy.html`, online at https://hybercrm.com/privacy.
@@ -20,12 +22,11 @@ Start with [Where things stand](#where-things-stand-checked-on-2026-10-05) and [
 - **Delete my account** is on every screen an account can be stuck on, not only in Profile → Settings: No access yet, Waiting for approval, Confirm your email, the center chooser, a paused account and "coming to the app" (an invited parent or student never reaches Profile). Apple tests deletion with an account it creates itself, which no center has added.
 
 **Left for you, in this order** (each is explained further down):
-1. **The push key for iPhones** (APNs), from HyberTec's Apple account into Firebase: [below](#push-notifications-on-iphone-the-apns-key), 10 minutes. Until then iPhones get no push notifications (Android does).
-2. **Decide the sign-in question** (Sign in with Apple, guideline 4.8): [below](#sign-in-with-apple-guideline-48-the-honest-picture). The recommendation is to submit as it is and claim the exception; it costs nothing to try.
-3. **Start the Google Play account now** ([part 4](#part-4-google-play-public), step 1): it costs $25 and Google's checks of HyberTec LLC can take days to weeks, so it should run while you do the Apple steps.
-4. **TestFlight**: once Apple has processed the build, you as a tester ([part 2](#part-2-testflight), step 5), then tutors at a center (step 6).
-5. **Screenshots**: `npm run publish:screenshots` ([part 3](#part-3-the-app-store-public), step 2).
-6. **The App Store submission** ([part 3](#part-3-the-app-store-public)), then **Google Play** ([part 4](#part-4-google-play-public)).
+1. **Decide the sign-in question** (Sign in with Apple, guideline 4.8): [below](#sign-in-with-apple-guideline-48-the-honest-picture). The recommendation is to submit as it is and claim the exception; it costs nothing to try.
+2. **Start the Google Play account now** ([part 4](#part-4-google-play-public), step 1): it costs $25 and Google's checks of HyberTec LLC can take days to weeks, so it should run while you do the Apple steps.
+3. **TestFlight for tutors at a center** ([part 2](#part-2-testflight), step 6), when you want them to try it.
+4. **Screenshots**: `npm run publish:screenshots` ([part 3](#part-3-the-app-store-public), step 2).
+5. **The App Store submission** ([part 3](#part-3-the-app-store-public)), then **Google Play** ([part 4](#part-4-google-play-public)).
 
 ## What Apple and Google will check
 
@@ -110,7 +111,7 @@ Nothing costs money per release.
 
 Do this once the TestFlight build is the one you want to ship.
 
-1. **Prerequisites:** [Where things stand](#where-things-stand-checked-on-2026-10-05), items 1 to 5.
+1. **Prerequisites:** [Where things stand](#where-things-stand-checked-on-2026-10-05), items 1 to 4.
 2. **Screenshots:** in Terminal, `npm run publish:screenshots` (20–30 minutes; `-- --iphone` or `-- --android` for one store; see [docs/store/listing.md](store/listing.md), "Screenshots"). It starts the practice copy, makes a simulator and an emulator of its own ("Hyber CRM Screenshots", an iPhone Pro Max, and "HyberCRM_Screenshots", a Pixel 9), installs a store-style build on each, signs in as Demo Academy's demo tutor, opens the five tabs (Today, Schedule, Availability, News, Profile) and saves the pictures into `mobile/.publish/screenshots/ios/` (1320 × 2868, the 6.9-inch size App Store Connect requires) and `mobile/.publish/screenshots/android/` (with the 512 × 512 icon and 1024 × 500 feature graphic Google requires). Look at each: made-up names only, the right screens.
 3. **The version page:** App Store Connect → Hyber CRM → **1.0 Prepare for Submission**:
    - **Screenshots:** drag the five files in under **iPhone 6.9" Display**, in order. (The app is iPhone-only, so no iPad set.)
@@ -184,10 +185,10 @@ Do this once the TestFlight build is the one you want to ship.
 Firebase sends the app's notifications to iPhones through Apple's push service (APNs), with a key from HyberTec's Apple account. Without it, iPhones get none (the in-app inbox still shows everything); Android needs nothing. 10 minutes, once.
 
 1. Sign in at https://developer.apple.com/account (the Apple ID on HyberTec LLC's team; switch to **HyberTec LLC** at the top if the account shows another team) → **Certificates, Identifiers & Profiles** → **Keys** → the blue **+**.
-2. **Key Name:** `Hyber CRM push`. Tick **Apple Push Notifications service (APNs)**. If Apple asks which environment, choose **Sandbox & Production**; if it asks for a key restriction, **Team Scoped (All Topics)**. **Continue → Register**.
+2. **Key Name:** `Hyber CRM push`. Tick **Apple Push Notifications service (APNs)** → **Configure**: **Environment** Sandbox & Production, **Key Restriction** Team Scoped (All Topics) → **Save** → **Continue → Register**. If Apple answers that the team has "reached the maximum allowed number of team scoped Keys" (it allows two), choose **Topic Specific** and tick `com.hybertec.hybercrm` instead: HyberTec's key is one of these (2026-10-05). Don't revoke a key to make room unless you know nothing uses it: its app's notifications stop at once.
 3. **Download** the `.p8` file (Apple offers it once only) and note the **Key ID** shown on the page. HyberTec's **Team ID** is `YSK7CHH56P`.
 4. Firebase console → project **hyber-crm** → ⚙ **Project settings** → **Cloud Messaging** → **Apple app configuration** → the iOS app (`com.hybertec.hybercrm`) → **APNs Authentication Key** → **Upload**: the `.p8` file, the Key ID and the Team ID → **Upload**. If Firebase shows separate Development and Production places for it, upload the same key to both.
-5. Keep the `.p8` with the other keys (a password manager). The same key also serves any other app of HyberTec's.
+5. Keep the `.p8` with the other keys (a password manager). A Team Scoped key serves every app of HyberTec's; a Topic Specific one, like HyberTec's, serves only the apps ticked for it, so another app needs a key of its own.
 
 Then test it: `npm run iphone`, sign in, allow notifications, and send a test as below.
 
