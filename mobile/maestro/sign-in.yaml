@@ -1,0 +1,47 @@
+# Signs in with an email and a password (the practice copy's demo tutor by default).
+#   maestro test -e EMAIL=tutor@demo.hybercrm.com -e PASSWORD=… maestro/sign-in.yaml
+appId: com.hybertec.hybercrm
+---
+- launchApp
+# Development builds: Expo's developer menu may open over the app on a new install.
+- runFlow:
+    when:
+      visible: "Toggle performance monitor"
+    commands:
+      - swipe:
+          start: 50%, 55%
+          end: 50%, 98%
+          duration: 300
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+- runFlow:
+    when:
+      visible:
+        id: "sign-up"
+    commands:
+      - tapOn: "Sign in"
+- extendedWaitUntil:
+    visible:
+      id: "sign-in"
+    timeout: 60000
+- tapOn:
+    id: "email"
+- inputText: ${EMAIL}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+# The keyboard's Go key submits the form (no tap that the moving layout could misplace).
+- pressKey: Enter
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+# Today: its tab on iPhone; on Android Maestro can't see a tab's id, so the screen's own.
+- extendedWaitUntil:
+    visible:
+      id: "tab-today|today-screen"
+    timeout: 60000

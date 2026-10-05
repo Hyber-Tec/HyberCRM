@@ -1,0 +1,15 @@
+# A step the flows run (not a test of its own): goes back one screen, with the header's back button on an iPhone and
+# the system's back on Android.
+appId: com.hybertec.hybercrm
+---
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          id: "BackButton"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back

@@ -1,0 +1,119 @@
+# The tutor's Profile tab and its pages, against the practice copy, signed in as the demo tutor (sign-in.yaml first):
+#   maestro test maestro/profile.yaml
+# It changes only the practice copy's demo data (an address, a subject switched on and off again, a notification
+# switch off and on again), never the password or the account. steps/back.yaml goes back a page.
+appId: com.hybertec.hybercrm
+---
+- launchApp
+# A different address each run, so leaving the field always saves something.
+- evalScript: ${output.unit = String(Date.now() % 1000)}
+- runFlow:
+    file: steps/tab.yaml
+    env:
+      TAB: profile
+      LABEL: Profile
+- extendedWaitUntil:
+    visible:
+      id: "profile-account"
+    timeout: 60000
+- assertVisible: "Tutor · .*"
+
+# Account details: the address saves when the field is left.
+- tapOn:
+    id: "profile-account"
+- extendedWaitUntil:
+    visible:
+      id: "account-address"
+    timeout: 20000
+- assertVisible: "Teaching rate"
+- tapOn:
+    id: "account-address"
+- eraseText: 60
+- inputText: "12 Oak Street, Unit ${output.unit}"
+# Return finishes the field, which saves it.
+- pressKey: Enter
+- extendedWaitUntil:
+    visible: ".*[Ss]aved.*"
+    timeout: 15000
+- runFlow: steps/back.yaml
+
+# My subjects: a category's switches save at once.
+- tapOn:
+    id: "profile-subjects"
+- extendedWaitUntil:
+    visible:
+      id: "category-math"
+    timeout: 20000
+- tapOn:
+    id: "category-math"
+- extendedWaitUntil:
+    visible:
+      id: "subject-geometry"
+    timeout: 20000
+- tapOn:
+    id: "subject-geometry"
+- tapOn:
+    id: "subject-geometry"
+- runFlow: steps/back.yaml
+- runFlow: steps/back.yaml
+
+# Payroll history: totals for the current pay period, and another period from the list.
+- tapOn:
+    id: "profile-payroll"
+- extendedWaitUntil:
+    visible:
+      id: "payroll-total-total"
+    timeout: 20000
+- tapOn:
+    id: "period-picker"
+- tapOn: "Custom range…"
+- assertVisible:
+    id: "range-from"
+- runFlow: steps/back.yaml
+
+# Notifications: a switch saved at once (turned back on).
+- tapOn:
+    id: "profile-notifications"
+- extendedWaitUntil:
+    visible:
+      id: "pref-sessionChanged"
+    timeout: 20000
+- tapOn:
+    id: "pref-sessionChanged"
+- tapOn:
+    id: "pref-sessionChanged"
+- runFlow: steps/back.yaml
+
+# Settings: appearance, version, the password page and the delete page (nothing is changed there).
+- tapOn:
+    id: "profile-settings"
+- extendedWaitUntil:
+    visible:
+      id: "settings-version"
+    timeout: 20000
+- tapOn: "Dark"
+- tapOn: "System"
+- tapOn:
+    id: "settings-password"
+- extendedWaitUntil:
+    visible:
+      id: "password-save"
+    timeout: 10000
+- runFlow: steps/back.yaml
+- tapOn:
+    id: "settings-delete-account"
+- extendedWaitUntil:
+    visible:
+      id: "delete-account-confirm"
+    timeout: 10000
+- assertVisible: "This can’t be undone."
+- runFlow: steps/back.yaml
+- runFlow: steps/back.yaml
+
+# Signing out asks first (kept signed in here).
+- tapOn:
+    id: "profile-sign-out"
+- assertVisible: "Sign out?"
+- tapOn: "Cancel"
+- assertVisible:
+    id: "profile-account"

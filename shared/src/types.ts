@@ -397,5 +397,6 @@ export interface AuditEntry {
   tutorId: string | null
   tutorName: string | null
   changes: AuditChange[]
-  via: 'web' | 'function' | 'kiosk'
+  /** Where the change was made: the website, the phone app, a Cloud Function or the kiosk. */
+  via: 'web' | 'app' | 'function' | 'kiosk'
 }

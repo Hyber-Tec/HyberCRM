@@ -1,0 +1,72 @@
+# The notifications inbox against the practice copy, signed in as the demo tutor (sign-in.yaml first), with at least
+# one announcement and one session item in Maya's inbox (post an announcement with "Notify", or add, move or change a
+# session of hers within 24 hours). Opens the inbox the way the bell on Today does (its route), opens an announcement
+# from it, swipes a session item away, marks the rest read and pulls the inbox closed.
+#   maestro test maestro/inbox.yaml
+appId: com.hybertec.hybercrm
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "today-screen"
+    timeout: 90000
+- openLink: "hybercrm:///notifications"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible:
+      id: "inbox-screen"
+    timeout: 30000
+- assertVisible: "Notifications"
+# An announcement item closes the inbox and opens the post. (Each row reads out as one line: kind, time, title, text.)
+- tapOn: ".*New announcement.*"
+- extendedWaitUntil:
+    visible:
+      id: "post-screen"
+    timeout: 30000
+- assertNotVisible:
+    id: "inbox-screen"
+# Back to the inbox: delete a session item by swiping it away.
+- openLink: "hybercrm:///notifications"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible:
+      id: "inbox-screen"
+    timeout: 30000
+# A swipe leaves Delete showing (a longer one, past half the row, deletes at once). Any session item will do: each
+# row reads out as its kind first ("Time Changed, 3:05 PM. …").
+- swipe:
+    from: "(Unread\\. )?(New Session|Session Canceled|Session Restored|Session Removed|Time Changed|Date Changed|You Were Assigned|Session Reassigned|No Show|Subject Changed), .*"
+    direction: LEFT
+    duration: 400
+- tapOn: "Delete"
+- extendedWaitUntil:
+    notVisible: "Delete"
+    timeout: 15000
+# Everything left is marked read (the button shows only while something is unread), and the inbox closes (pulled
+# down, as any sheet; its X does the same).
+- runFlow:
+    when:
+      visible:
+        id: "inbox-mark-all"
+    commands:
+      - tapOn:
+          id: "inbox-mark-all"
+      - extendedWaitUntil:
+          visible: "All caught up"
+          timeout: 15000
+- swipe:
+    start: 50%, 12%
+    end: 50%, 92%
+    duration: 400
+- extendedWaitUntil:
+    notVisible:
+      id: "inbox-screen"
+    timeout: 15000

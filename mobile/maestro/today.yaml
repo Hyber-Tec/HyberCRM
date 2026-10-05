@@ -1,0 +1,89 @@
+# The Today tab: greeting and date, the bell, the next session (its sheet), today's sessions, to do and the week.
+# Run after sign-in.yaml (the practice copy's demo tutor):
+#   maestro test maestro/today.yaml
+appId: com.hybertec.hybercrm
+---
+- launchApp:
+    stopApp: false
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+# A session left open from before closes first.
+- runFlow:
+    when:
+      visible:
+        id: "session-sheet"
+    commands:
+      - tapOn:
+          id: "session-close"
+- runFlow:
+    file: steps/tab.yaml
+    env:
+      TAB: today
+      LABEL: Today
+- extendedWaitUntil:
+    visible:
+      id: "today-screen"
+    timeout: 30000
+# The tab may have been left scrolled down.
+- scrollUntilVisible:
+    element:
+      id: "today-greeting"
+    direction: UP
+- assertVisible:
+    id: "today-greeting"
+- assertVisible:
+    id: "today-date"
+- assertVisible:
+    id: "today-bell"
+# Live data: wait for the lists (skeletons first).
+- extendedWaitUntil:
+    visible:
+      id: "today-todo"
+    timeout: 45000
+# The next session, when there is one, opens as a sheet and closes again.
+- runFlow:
+    when:
+      visible:
+        id: "today-next"
+    commands:
+      - tapOn:
+          id: "today-next"
+      - extendedWaitUntil:
+          visible:
+            id: "session-sheet"
+          timeout: 20000
+      - assertVisible:
+          id: "session-when"
+      - tapOn:
+          id: "session-close"
+      - extendedWaitUntil:
+          visible:
+            id: "today-screen"
+          timeout: 10000
+# To the end of the page, so the week card sits clear of the floating tab bar.
+- swipe:
+    start: 50%, 75%
+    end: 50%, 20%
+    duration: 400
+- swipe:
+    start: 50%, 75%
+    end: 50%, 20%
+    duration: 400
+- waitForAnimationToEnd
+- assertVisible:
+    id: "today-week"
+# The week opens the schedule.
+- tapOn:
+    id: "today-week"
+- extendedWaitUntil:
+    visible:
+      id: "schedule-screen"
+    timeout: 20000
+- runFlow:
+    file: steps/tab.yaml
+    env:
+      TAB: today
+      LABEL: Today

@@ -1,0 +1,109 @@
+# The Schedule tab: the week strip, another week and back, a session's sheet, the day timeline and swiping weeks.
+# Run after sign-in.yaml (the practice copy's demo tutor, whose weeks always have sessions):
+#   maestro test maestro/schedule.yaml
+appId: com.hybertec.hybercrm
+---
+- launchApp:
+    stopApp: false
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+# A session left open from before closes first.
+- runFlow:
+    when:
+      visible:
+        id: "session-sheet"
+    commands:
+      - tapOn:
+          id: "session-close"
+- runFlow:
+    file: steps/tab.yaml
+    env:
+      TAB: schedule
+      LABEL: Schedule
+- extendedWaitUntil:
+    visible:
+      id: "schedule-screen"
+    timeout: 30000
+- waitForAnimationToEnd
+- assertVisible:
+    id: "schedule-week-caption"
+    text: "This week"
+- assertVisible:
+    id: "schedule-week-label"
+# Next week: the "Today" pill appears; it brings back this week.
+- tapOn:
+    id: "schedule-next"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "schedule-week-caption"
+    text: "Next week"
+- assertVisible:
+    id: "schedule-today"
+- tapOn:
+    id: "schedule-today"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "schedule-week-caption"
+    text: "This week"
+- assertNotVisible:
+    id: "schedule-today"
+# Next week has sessions booked: open one (its sheet) and close it.
+- tapOn:
+    id: "schedule-next"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "session-card-.*"
+    timeout: 30000
+- tapOn:
+    id: "session-card-.*"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "session-sheet"
+    timeout: 20000
+- assertVisible:
+    id: "session-when"
+- assertVisible:
+    id: "session-student"
+- tapOn:
+    id: "session-close"
+# The day timeline, then back to the week.
+- tapOn: "Day"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "schedule-timeline|schedule-timeline-closed"
+    timeout: 20000
+- tapOn: "Week"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "session-card-.*"
+    timeout: 20000
+# Swiping sideways changes the week, as True Education's phone schedule did.
+- swipe:
+    start: 15%, 45%
+    end: 85%, 45%
+    duration: 300
+- waitForAnimationToEnd
+- assertVisible:
+    id: "schedule-week-caption"
+    text: "This week"
+- swipe:
+    start: 85%, 45%
+    end: 15%, 45%
+    duration: 300
+- waitForAnimationToEnd
+- assertVisible:
+    id: "schedule-week-caption"
+    text: "Next week"
+- tapOn:
+    id: "schedule-today"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "schedule-week-caption"
+    text: "This week"

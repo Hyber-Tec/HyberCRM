@@ -1,0 +1,48 @@
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Firebase's files for the real project (npm run phone:setup downloads them): never committed
+/firebase/GoogleService-Info.plist
+# The Firebase file for this Mac's iPhone builds signed by a personal Apple team (scripts/phone.mjs).
+/firebase/GoogleService-Info.*.plist
+/firebase/google-services.json
+
+# Publishing: the App Store Connect key, the Play upload key and its passwords, the Play service account, the screenshots (scripts/publish.mjs)
+/.publish/
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android

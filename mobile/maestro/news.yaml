@@ -1,0 +1,78 @@
+# The News tab against the practice copy, signed in as the demo tutor (sign-in.yaml first): the list with its
+# filters, a post with its rich text and comments (writes one and deletes it again), and back to the list.
+#   maestro test maestro/news.yaml
+appId: com.hybertec.hybercrm
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "today-screen"
+    timeout: 90000
+- runFlow:
+    file: steps/tab.yaml
+    env:
+      TAB: news
+      LABEL: News
+- extendedWaitUntil:
+    visible:
+      id: "news-screen"
+    timeout: 30000
+# Each card reads out as one line (title, category, date, author), so cards are found by their IDs.
+- extendedWaitUntil:
+    visible:
+      id: "post-demo-a-welcome"
+    timeout: 30000
+# Filters: unread only, then a category, then everything again.
+- tapOn:
+    id: "news-filter-unread"
+- tapOn:
+    id: "news-filter-general"
+- assertVisible:
+    id: "post-demo-a-closure"
+- tapOn:
+    id: "news-filter-all"
+# The pinned welcome post, which takes comments.
+- tapOn:
+    id: "post-demo-a-welcome"
+- extendedWaitUntil:
+    visible:
+      id: "post-screen"
+    timeout: 30000
+- assertVisible:
+    id: "post-title"
+- assertVisible: "Grace Liu"
+- assertVisible: "Pinned"
+- scrollUntilVisible:
+    element:
+      id: "comment-input"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "comment-input"
+- inputText: "Thanks! Practice comment from the app."
+- tapOn:
+    id: "comment-send"
+# A comment reads out as one line (who, role, when, text).
+- extendedWaitUntil:
+    visible: ".*Practice comment from the app.*"
+    timeout: 20000
+# My own comment can be deleted (long press, or its trash button).
+- longPressOn: ".*Practice comment from the app.*"
+- extendedWaitUntil:
+    visible:
+      id: "delete-comment-dialog"
+    timeout: 10000
+- tapOn:
+    id: "delete-comment-confirm"
+- extendedWaitUntil:
+    notVisible: ".*Practice comment from the app.*"
+    timeout: 20000
+# Back to the list.
+- swipe:
+    start: 2%, 50%
+    end: 80%, 50%
+    duration: 300
+- extendedWaitUntil:
+    visible:
+      id: "news-screen"
+    timeout: 20000

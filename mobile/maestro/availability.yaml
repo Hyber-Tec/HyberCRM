@@ -1,0 +1,142 @@
+# The tutor's Availability tab, against the practice copy, signed in as the demo tutor (sign-in.yaml first):
+#   maestro test maestro/availability.yaml
+# Days are picked relative to today: one inside the 7-day lock window (read-only), and two five and six weeks out,
+# past the demo's booked sessions, so saving there never leaves a session uncovered.
+appId: com.hybertec.hybercrm
+---
+- launchApp
+- evalScript: |
+    ${
+      const key = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      const weekday = (from) => { const d = new Date(); d.setDate(d.getDate() + from); while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1); return d; };
+      output.locked = key(weekday(2));
+      const later = weekday(35);
+      output.later = key(later);
+      const next = new Date(later); next.setDate(next.getDate() + 7);
+      output.nextWeek = key(next);
+    }
+- runFlow:
+    file: steps/tab.yaml
+    env:
+      TAB: availability
+      LABEL: Availability
+- extendedWaitUntil:
+    visible:
+      id: "availability-set-through"
+    timeout: 60000
+- assertVisible: "Set your availability at least .*"
+
+# A day inside the lock window opens read-only, in the website's words.
+- tapOn:
+    id: "day-${output.locked}"
+- extendedWaitUntil:
+    visible:
+      id: "availability-locked"
+    timeout: 20000
+- assertNotVisible:
+    id: "availability-save"
+- tapOn:
+    id: "availability-close"
+
+# A day weeks ahead: mark it not available (its doc is removed)...
+- scrollUntilVisible:
+    element:
+      id: "day-${output.later}"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "day-${output.later}"
+- extendedWaitUntil:
+    visible:
+      id: "availability-save"
+    timeout: 20000
+- tapOn: "Not available this day"
+- assertVisible: "No availability on this day."
+- tapOn:
+    id: "availability-save"
+- extendedWaitUntil:
+    visible:
+      id: "day-${output.later}"
+      text: ".*no availability.*"
+    timeout: 20000
+
+# ...then give it the day's opening hours again and repeat them for one week.
+- tapOn:
+    id: "day-${output.later}"
+- extendedWaitUntil:
+    visible:
+      id: "availability-save"
+    timeout: 20000
+- assertVisible:
+    id: "start"
+- tapOn:
+    id: "availability-repeat-weeks-1"
+- assertVisible: "For 1 week, through .*"
+- tapOn:
+    id: "availability-save"
+- extendedWaitUntil:
+    visible: "Availability saved"
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: "day-${output.later}"
+      text: ".*PM.*"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "day-${output.nextWeek}"
+      text: ".*PM.*"
+    direction: DOWN
+    timeout: 20000
+
+# Changes with a swipe of the wheels, then closing without saving asks first.
+- tapOn:
+    id: "day-${output.later}"
+- extendedWaitUntil:
+    visible:
+      id: "end"
+    timeout: 20000
+- swipe:
+    from:
+      id: "end"
+    direction: DOWN
+    duration: 400
+- tapOn:
+    id: "availability-close"
+- runFlow:
+    when:
+      visible: "Discard changes?"
+    commands:
+      - tapOn: "Discard"
+
+# The header: back to this month, and the ⋯ menu's Copy last week (closed without copying)...
+- tapOn: "Go to today"
+- tapOn: "More"
+- tapOn: "Copy last week…"
+- extendedWaitUntil:
+    visible:
+      id: "copy-week-confirm"
+    timeout: 10000
+- tapOn: "Cancel"
+- assertNotVisible:
+    id: "copy-week-confirm"
+
+# ...and Repeat weekly: pick a day with times, and its sheet opens with the repeat set (closed without saving).
+- tapOn: "More"
+- tapOn: "Repeat weekly…"
+- extendedWaitUntil:
+    visible:
+      id: "repeat-pick"
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: "pick-${output.later}"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "pick-${output.later}"
+- extendedWaitUntil:
+    visible: "For 4 weeks, through .*"
+    timeout: 20000
+- tapOn:
+    id: "availability-close"

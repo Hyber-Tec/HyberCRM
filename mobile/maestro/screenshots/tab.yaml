@@ -1,0 +1,19 @@
+# Opens one tab of the tutor app, for the stores' screenshots (npm run publish:screenshots, scripts/phone.mjs): TAB is
+# today, schedule, availability, news or profile, and LABEL its name on the tab bar. Starts from the signed-in app.
+#   maestro test -e TAB=schedule -e LABEL=Schedule maestro/screenshots/tab.yaml
+appId: com.hybertec.hybercrm
+---
+# An iPhone asks once whether the app may send notifications: allowed, so the question isn't in a picture. (Android's
+# permission is granted beforehand by the command.)
+- runFlow:
+    when:
+      visible: ".*Would Like to Send You Notifications.*"
+    commands:
+      - tapOn: "Allow"
+- runFlow:
+    file: ../steps/tab.yaml
+    env:
+      TAB: ${TAB}
+      LABEL: ${LABEL}
+- waitForAnimationToEnd:
+    timeout: 5000

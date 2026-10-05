@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <script>
+      // https://hybercrm.com is the only address: the Hosting site's own domains forward to it (as on the landing page).
+      if (location.hostname === 'hybercrm.web.app' || location.hostname === 'hybercrm.firebaseapp.com')
+        location.replace('https://hybercrm.com' + location.pathname + location.search + location.hash);
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Hyber CRM privacy policy</title>
+    <meta name="description" content="What Hyber CRM, HyberTec LLC's software for tutoring centers, collects on its website and in its phone app, why, who can see it, how long it is kept, and how to delete your account." />
+    <link rel="canonical" href="https://hybercrm.com/privacy" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#050507" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png?v=2" />
+    <!-- Static and self-contained: published as it is from web/public. Its text is docs/store/privacy-policy.md: change both together. -->
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #ffffff;
+        --fg: #0a0a0a;
+        --muted: #737373;
+        --line: #e5e5e5;
+        --panel: #fafafa;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #050507;
+          --fg: #fafafa;
+          --muted: #a3a3a3;
+          --line: #232329;
+          --panel: #0d0d11;
+        }
+      }
+      * { box-sizing: border-box; }
+      html { background: var(--bg); -webkit-text-size-adjust: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 16px/1.65 'Geist Variable', Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      header, main, footer { max-width: 44rem; margin: 0 auto; padding-left: 1.25rem; padding-right: 1.25rem; }
+      header { padding-top: 1.75rem; padding-bottom: 0.5rem; }
+      .brand { display: inline-flex; align-items: center; gap: 0.6rem; color: var(--fg); text-decoration: none; font-weight: 600; letter-spacing: -0.01em; }
+      .brand svg { width: 28px; height: 28px; }
+      main { padding-top: 1.5rem; padding-bottom: 3rem; }
+      h1 { font-size: 2rem; line-height: 1.15; letter-spacing: -0.025em; font-weight: 650; margin: 0 0 0.35rem; }
+      h2 { font-size: 1.15rem; line-height: 1.3; letter-spacing: -0.01em; font-weight: 600; margin: 2.25rem 0 0.5rem; scroll-margin-top: 1.5rem; }
+      p, li { margin: 0.55rem 0; }
+      ul { padding-left: 1.25rem; }
+      strong { font-weight: 600; }
+      .meta { color: var(--muted); font-size: 0.925rem; margin-bottom: 1.75rem; }
+      .lead { font-size: 1.05rem; }
+      .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 0.75rem; padding: 0.25rem 1.1rem; }
+      a { color: inherit; text-decoration: underline; text-decoration-color: var(--muted); text-underline-offset: 3px; }
+      a:hover { text-decoration-color: currentColor; }
+      footer { border-top: 1px solid var(--line); padding-top: 1.25rem; padding-bottom: 2.5rem; color: var(--muted); font-size: 0.875rem; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/" aria-label="Hyber CRM home">
+        <svg viewBox="0 -10 801 801" aria-hidden="true"><path fill="currentColor" d="M52.2786 198.82C36.521 225.588 24.7387 254.104 15.8018 283.764C10.0993 302.689 5.90483 322.066 3.28092 341.646C1.29328 356.478 -0.127665 371.532 0.00909021 386.47C0.220744 409.591 2.35113 432.631 6.64742 455.458C10.9163 478.14 16.3895 500.378 24.8102 521.95C35.1934 548.549 47.4264 574.097 62.9688 598.111C82.8031 628.757 106.561 656.053 133.93 679.968C164.619 706.783 198.776 728.497 236.064 745.263C257.182 754.759 278.913 762.413 301.247 768.206C316.014 772.036 331.04 775.021 346.216 776.994C365.442 779.493 384.751 780.904 404.136 781C411.19 781.035 415.903 776.082 415.966 769.181C416.026 762.547 416.057 755.912 415.994 749.278C415.921 741.668 413.1 738.524 405.539 738.974C391.685 739.798 378.056 737.391 364.379 736.269C351.323 735.198 338.342 732.745 325.443 729.826C311.52 726.676 297.781 722.972 284.395 718.254C258.412 709.096 233.865 696.889 210.391 682.336C174.229 659.918 143.536 631.481 117.249 598.337C86.4702 559.529 65.5779 515.861 54.1292 467.476C49.8697 449.474 47.2054 431.291 45.6675 413.086C43.439 386.705 45.3046 360.201 49.7268 334.047C52.4954 317.673 56.5462 301.565 61.6649 285.699C69.0672 262.756 78.8257 240.879 90.9166 220.123C119.972 170.246 159.227 130.102 207.995 99.2468C209.452 98.3246 210.839 97.2224 213.074 97.7144C214.744 101.65 213.509 105.849 213.511 109.901C213.573 266.517 213.549 423.134 213.536 579.75C213.535 585.337 213.596 590.926 213.517 596.512C213.452 601.145 215.676 602.939 220.239 603.155C226.479 603.451 232.407 602.349 237.997 599.868C264.593 588.068 278.377 567.146 278.801 538.428C279.448 494.613 278.961 450.781 278.956 406.957C278.955 397.969 279.163 397.745 287.925 397.742C317.254 397.734 346.583 397.804 375.911 397.69C384.985 397.654 393.677 399.758 401.545 403.673C422.879 414.288 434.365 432.039 434.444 455.837C434.747 546.104 434.564 636.373 434.563 726.642C434.563 742.007 434.533 757.372 434.59 772.736C434.609 777.713 437.487 780.437 442.033 779.921C449.513 779.072 456.716 777.212 463.368 773.582C486.057 761.205 498.548 742.091 498.654 716.252C498.999 632.096 498.845 547.938 498.733 463.78C498.721 455.326 498.85 446.951 497.037 438.386C494.131 424.655 490.25 411.457 483.115 399.439C458.323 357.681 421.892 336.075 372.931 336.287C345.699 336.406 318.464 336.252 291.231 336.155C279.078 336.112 278.955 336.04 278.946 324.05C278.875 228.719 278.848 133.388 278.825 38.0564C278.822 25.9113 276.168 23.6297 264.063 25.6032C263.377 25.715 262.712 25.9494 262.035 26.1157C252.027 28.5719 242.686 32.8123 233.34 36.9957C203.471 50.3653 175.658 67.1081 149.708 87.1093C109.98 117.731 77.7224 154.762 52.2786 198.82ZM742.345 594.809C749.796 583.235 756.443 571.192 762.542 558.875C775.525 532.655 785.087 505.144 791.674 476.685C795.938 458.269 799.454 439.576 800.288 420.673C801.756 387.408 801.411 354.115 794.82 321.295C790.657 300.563 784.889 280.244 777.842 260.24C766.611 228.358 751.401 198.559 732.225 170.844C706.189 133.216 674.604 100.95 637.164 74.4812C604.845 51.6325 570.313 33.2084 532.62 20.8229C520.566 16.862 508.422 13.4062 496.113 10.3014C484.782 7.44334 473.236 6.06942 461.844 3.74702C453.03 1.95011 443.884 1.69869 434.867 0.99863C415.881 -0.475374 396.883 -0.139094 377.882 0.856109C364.829 1.53969 351.979 3.83742 339.093 5.71649C328.638 7.24102 318.266 9.55038 308.004 12.1004C301.706 13.6652 298.612 18.2849 298.434 24.8047C298.257 31.2597 298.238 37.7276 298.427 44.1818C298.656 51.9944 304.402 56.3832 311.874 54.5928C318.095 53.1023 324.299 51.6106 330.586 50.35C353.536 45.7476 376.671 42.7989 400.054 42.7522C429.536 42.6933 458.67 46.0232 487.444 52.7912C509.009 57.8633 529.703 65.2337 549.842 74.2854C580.724 88.1649 608.679 106.622 634.414 128.56C654.659 145.818 672.469 165.293 688.438 186.547C704.191 207.512 716.755 230.282 727.418 254.148C737.627 276.998 744.582 300.918 749.554 325.379C752.034 337.576 753.081 350.058 754.65 362.403C756.158 374.276 756.202 386.478 755.47 398.449C754.803 409.338 754.677 420.251 753.465 431.189C751.291 450.805 747.501 469.994 741.91 488.723C735.51 510.161 726.905 530.873 715.989 550.523C698.699 581.645 677.709 609.95 652.113 634.77C616.301 669.495 575.54 696.483 528.667 713.98C521.339 716.716 515.913 721.343 513.443 729.314C511.15 736.715 512.129 743.705 514.06 750.863C515.587 756.523 518.541 759.075 524.459 759.098C531.414 759.125 537.655 756.303 544.014 753.987C574.383 742.926 603.089 728.553 629.85 710.416C675.062 679.774 712.184 641.198 742.345 594.809ZM639.98 397.749C644.519 397.734 649.06 397.81 653.595 397.681C659.003 397.527 662.041 394.6 662.078 389.19C662.181 374.176 662.171 359.161 662.081 344.147C662.051 339.08 659.5 336.542 654.346 336.207C651.041 335.993 647.716 336.052 644.399 336.054C616.299 336.074 588.198 336.118 560.098 336.136C548.857 336.143 538.197 333.606 528.978 327.12C513.007 315.884 503.429 301.1 503.839 280.675C504.231 261.129 503.923 241.568 503.871 222.014C503.844 211.897 503.952 201.77 503.531 191.667C503.25 184.899 500.999 183.497 494.527 184.541C484.017 186.238 474.527 190.394 466.039 196.686C453.709 205.825 445.51 218.005 442.041 232.891C438.73 247.094 439.344 261.701 439.686 276.164C439.871 283.966 440.491 291.927 442.303 299.484C445.585 313.174 451.072 326.08 458.557 338.133C481.806 375.568 515.609 395.527 559.342 397.49C585.823 398.678 612.4 397.735 639.98 397.749Z" /></svg>
+        Hyber CRM
+      </a>
+    </header>
+    <main>
+      <h1>Privacy policy</h1>
+      <p class="meta">HyberTec LLC · Last updated October 4, 2026</p>
+
+      <p class="lead"><strong>Hyber CRM</strong> is software for tutoring and learning centers, made by <strong>HyberTec LLC</strong> (“HyberTec”, “we”, “us”). Centers use it to run their schedule, staff, students, session notes, progress reports and payroll; their staff, families and students use it on the website, hybercrm.com, and in the Hyber CRM app for iPhone and Android. This policy explains what Hyber CRM collects, why, who can see it, how long it is kept, and how to have it deleted.</p>
+
+      <h2 id="responsibility">Who is responsible for what</h2>
+      <p>Each center decides what it records in Hyber CRM about its own people (staff, students and families) and who at the center may see it. For those records the center is in charge, and HyberTec runs the service on its behalf. For the accounts people sign in with, and for our own website, HyberTec is in charge. If you have a question about what your center keeps, ask the center first; we help centers answer.</p>
+
+      <h2 id="collect">What we collect</h2>
+      <p><strong>Your account.</strong> Your name, your email address and how you sign in: with Google, or with an email and a password (the password is kept by Google’s Firebase Authentication in a form nobody can read; we never see it). If you sign in with Google, the profile picture of your Google account. When you last signed in, which centers gave you access, and your role in each (owner, admin, tutor, parent or student).</p>
+      <p><strong>What a center keeps in Hyber CRM.</strong> Depending on your role and what your center uses:</p>
+      <ul>
+        <li>About staff: name, contact details, role, the subjects they teach, availability, schedule, clock-in and clock-out times (including at the center’s sign-in kiosk, where the 4-digit PIN is stored only in scrambled form), pay rates and pay records, and notification choices.</li>
+        <li>About students: name, grade, school, status, subjects, learning notes, sessions and attendance; and, seen only by the center’s owner and admins, contact details, parents or guardians, address, birth date, school login and sign-up answers.</li>
+        <li>About the center’s work: the schedule, the session logs tutors write (what was covered, notes, ratings, homework), progress reports, parent-conference notes, announcements and their comments, and an audit log of who changed what and when.</li>
+      </ul>
+      <p><strong>On your phone.</strong> If you allow notifications, the app keeps a notification token for that phone, with the phone’s model and system version, the app’s version and a random identifier for the installation, so that we can send you notifications (new or changed sessions, announcements). The token is removed when you sign out.</p>
+      <p><strong>On the website.</strong> Your browser keeps your sign-in and a few display preferences (for example the schedule’s zoom). We use no advertising or tracking cookies. If you write to us with the “Talk to us” form, we keep what you typed (your name, email, center, phone, the center’s size and your message), your browser’s description, and a one-way fingerprint of your internet address that only lets us spot repeated messages (never the address itself). The live demo at hybercrm.com/demo runs entirely in your browser, with made-up data: nothing you do there reaches us.</p>
+      <p><strong>AI help, when a center turns it on.</strong> To draft a session summary or a progress report, the text of the session log or report (which can include a student’s first name and what they worked on) is sent to our AI service provider, which returns the draft. Each center decides whether to use it.</p>
+      <p><strong>What we don’t collect or do.</strong> No location. No contacts, photos or files from your phone. No advertising, no analytics or crash-reporting services, and no tracking across other companies’ apps or websites. We never sell or rent personal information.</p>
+
+      <h2 id="why">Why we use it</h2>
+      <p>To run Hyber CRM for your center (schedules, availability, pay, session logs, reports and notifications), to keep accounts secure and stop abuse, to keep the audit trail centers rely on, to answer your questions, and where the law requires it.</p>
+
+      <h2 id="who">Who can see it</h2>
+      <ul>
+        <li><strong>People at your center, by role.</strong> Owners and admins see the center’s records (an owner can keep some pages, such as pay, from an admin). Tutors see their own schedule, availability and pay, the basic record of students (name, grade, school, subjects, learning notes; never their contact details), the center’s announcements and, if the center allows it, other tutors’ session logs. Parents see their own children’s upcoming sessions and the progress reports the center chooses to share with them. Students see their own sessions and their own information.</li>
+        <li><strong>HyberTec.</strong> Our administrators can open a center’s records to set the center up, to help it when it asks, and to keep the service working, and for no other purpose.</li>
+        <li><strong>Our service providers</strong>, who process the information only for us: Google (Firebase: hosting, sign-in, database, file storage, server functions and push notifications; and Gmail, which sends account emails from HyberTec’s address), Apple (push notifications to iPhones), and our AI service provider (when a center uses AI help). The information is stored in the United States.</li>
+        <li><strong>Nobody else</strong>, unless the law requires it (for example a valid court order), to protect someone’s safety, or as part of a sale or merger of HyberTec’s business, in which case this policy keeps applying.</li>
+      </ul>
+
+      <h2 id="retention">How long we keep it</h2>
+      <ul>
+        <li>Your account: until you delete it.</li>
+        <li>A center’s records: as long as the center uses Hyber CRM. When a center leaves, we delete its records when it asks, or within a reasonable time, except what the law requires to be kept.</li>
+        <li>In-app notifications: 14 days, unless the center chooses otherwise. Sessions in the schedule’s trash: for the center’s trash period, then deleted.</li>
+        <li>Notification tokens: until you sign out of the app, or until the push service says they no longer work.</li>
+        <li>“Talk to us” messages: as long as needed to answer and follow up.</li>
+      </ul>
+
+      <h2 id="delete">Deleting your account</h2>
+      <div class="panel">
+        <ul>
+          <li><strong>In the app:</strong> Profile → Settings → <strong>Delete my account</strong>. The app first asks you to confirm it’s you (your password, or Google).</li>
+          <li><strong>Without the app:</strong> email <a href="mailto:hybertecofficial@gmail.com">hybertecofficial@gmail.com</a> from the address you sign in with, or ask your center.</li>
+        </ul>
+      </div>
+      <p>Deleting your account removes your sign-in, your personal profile and your phones’ notification tokens at once, and ends your access to every center. The records a center keeps about its own work stay with the center: the sessions you taught or attended, the logs you wrote, pay records and the audit log (payroll law can require a center to keep them). To have those removed too, ask the center, or write to us and we will pass the request on.</p>
+
+      <h2 id="children">Children</h2>
+      <p>Hyber CRM is a tool for tutoring centers and is not directed to children. Centers may keep records about students who are children, and may give a student a login of their own. The center is responsible for getting any permission it needs from a parent or guardian before it adds a child’s information or gives a child an account (for example under the U.S. Children’s Online Privacy Protection Act, COPPA). A child cannot open a center by signing up alone: a student’s account works only once the center has added the student. We use children’s information only to provide the service to their center, never for advertising or profiling. A parent or guardian can ask the center, or us, to see, correct or delete their child’s information. If you believe a child’s information reached Hyber CRM without the permission it needed, write to <a href="mailto:hybertecofficial@gmail.com">hybertecofficial@gmail.com</a> and we will delete it.</p>
+
+      <h2 id="security">Security</h2>
+      <p>Everything travels encrypted (HTTPS) and is stored with Google Firebase. Access rules let each person reach only what their role allows, in their own center. Passwords are held by Firebase Authentication, never by us, and kiosk PINs only in scrambled form. Changes to schedules, availability, people, pay and settings are recorded in the center’s audit log.</p>
+
+      <h2 id="rights">Your choices and rights</h2>
+      <p>You can turn notifications off in the app (Profile → Notifications) or in your phone’s Settings. You can see and correct your account details in the app or on the website, or ask your center. You can delete your account at any time. Depending on where you live (for example California, the European Union or the United Kingdom), you may also have the right to ask for a copy of your information, to have it corrected or deleted, or to object to how it is used: write to us and we will answer within 30 days. For records a center keeps, we work with the center to answer.</p>
+
+      <h2 id="changes">Changes</h2>
+      <p>When we change this policy, we update this page and the date at the top. If a change matters, we tell centers, and the people it affects, before it takes effect.</p>
+
+      <h2 id="contact">Contact</h2>
+      <p>HyberTec LLC · <a href="mailto:hybertecofficial@gmail.com">hybertecofficial@gmail.com</a></p>
+    </main>
+    <footer>© 2026 HyberTec LLC · <a href="/">hybercrm.com</a></footer>
+  </body>
+</html>

@@ -1,0 +1,220 @@
+# The session log on the phone, against the practice copy and signed in as the demo tutor (sign-in.yaml):
+# opens an ended session's log by its link, fills in the six steps (the draft saves as it goes), submits it, reads
+# it back in the sheet and edits it there; then checks that a session that hasn't started can't be submitted.
+#   maestro test -e SESSION=<an ended session of the tutor, without a log> -e FUTURE=<one that hasn't started> \
+#     maestro/session-log.yaml
+# Development builds: switch off the dev menu's floating "Tools button" first (it sits over the last step).
+appId: com.hybertec.hybercrm
+---
+- openLink: "hybercrm:///log/${SESSION}"
+# iOS asks before a link opens the app.
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible:
+      id: "log-form"
+    timeout: 60000
+
+# 1 Prepare
+- assertVisible: "Session preparation"
+- tapOn:
+    id: "log-next"
+
+# 2 Session Info: one-tap chips and a free-text topic.
+- assertVisible: "Session setup"
+- tapOn:
+    id: "log-type-school-help"
+- tapOn:
+    id: "log-topic"
+- inputText: "Quadratic equations"
+# The keyboard's Done closes a one-line field.
+- pressKey: Enter
+- waitForAnimationToEnd
+- tapOn:
+    id: "log-homework-completed"
+- tapOn:
+    id: "log-next"
+
+# 3 Materials: Done on an empty field puts the keyboard away; counts by typing and by the stepper.
+- tapOn:
+    id: "log-material-input"
+- inputText: "Khan Academy unit test"
+- tapOn:
+    id: "log-material-add"
+- pressKey: Enter
+- waitForAnimationToEnd
+- assertVisible: "Khan Academy unit test"
+- scrollUntilVisible:
+    element:
+      id: "log-accuracy"
+    direction: DOWN
+- tapOn:
+    id: "log-attempted"
+- inputText: "20"
+- tapOn: "Questions attempted.*"
+- waitForAnimationToEnd
+- tapOn:
+    id: "log-wrong-plus"
+- tapOn:
+    id: "log-wrong-plus"
+- tapOn:
+    id: "log-wrong-plus"
+- tapOn:
+    id: "log-wrong-plus"
+- assertVisible:
+    id: "log-accuracy"
+    text: "80%"
+- tapOn:
+    id: "log-next"
+
+# 4 Notes: each box scrolls into view above the keyboard; tapping its label puts the keyboard away.
+- tapOn:
+    id: "log-note-lessonActivity"
+- inputText: "Factored quadratics by grouping, then solved three word problems together."
+- tapOn: "Lesson activity.*"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "log-note-learningInsight"
+    direction: DOWN
+- tapOn:
+    id: "log-note-learningInsight"
+- inputText: "Strong on factoring; still mixes up signs when completing the square."
+- tapOn: "Learning insight.*"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "log-note-nextFocus"
+    direction: DOWN
+- tapOn:
+    id: "log-note-nextFocus"
+- inputText: "Completing the square and the quadratic formula."
+- tapOn: "Next focus.*"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "log-note-homeworkGiven"
+    direction: DOWN
+- tapOn:
+    id: "log-note-homeworkGiven"
+- inputText: "Workbook page 112, problems 1-15 (odd)."
+- tapOn: "Homework given.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Draft saved.*"
+    timeout: 20000
+# Without an AI key (the practice copy) Polish says so and leaves the notes alone.
+- tapOn:
+    id: "log-polish"
+- extendedWaitUntil:
+    visible: "AI isn’t available right now.*"
+    timeout: 20000
+- tapOn:
+    id: "log-next"
+
+# 5 Evaluation: the flag is suggested from the ratings, never chosen for the tutor.
+- tapOn:
+    id: "log-rating-effort-5"
+- tapOn:
+    id: "log-rating-motivation-4"
+- tapOn:
+    id: "log-rating-behavior-5"
+- tapOn:
+    id: "log-rating-focus-4"
+- tapOn:
+    id: "log-rating-confidence-3"
+- scrollUntilVisible:
+    element:
+      id: "log-flag-suggestion"
+    direction: DOWN
+- assertVisible: "Suggested from the ratings: On Track"
+- tapOn:
+    id: "log-flag-on_track"
+- tapOn:
+    id: "log-next"
+
+# 6 Review & Submit
+- assertVisible: "Review & submit"
+- assertNotVisible:
+    id: "review-missing"
+- tapOn:
+    id: "log-submit"
+# A moment of success ("Session log submitted"), then back where the log was opened from.
+- runFlow:
+    when:
+      visible:
+        id: "log-success"
+    commands:
+      - tapOn:
+          id: "log-success-done"
+- extendedWaitUntil:
+    notVisible:
+      id: "log-form"
+    timeout: 60000
+- extendedWaitUntil:
+    notVisible:
+      id: "log-success"
+    timeout: 20000
+
+# Read it back (the sheet), then edit it: the form opens over the sheet and comes back to it.
+- openLink: "hybercrm:///log-view/${SESSION}"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible:
+      id: "log-view"
+    timeout: 30000
+- assertVisible: "Submitted"
+- assertVisible: "Edit log"
+- tapOn:
+    id: "log-edit"
+- extendedWaitUntil:
+    visible:
+      id: "log-form"
+    timeout: 30000
+- assertVisible: "Editing"
+- tapOn:
+    id: "log-step-5"
+- tapOn:
+    id: "log-rating-confidence-4"
+# Unsaved edits are confirmed before leaving.
+- tapOn:
+    id: "log-close"
+- assertVisible: "Discard unsaved changes?"
+- tapOn: "Keep editing"
+- tapOn:
+    id: "log-step-6"
+- tapOn:
+    id: "log-submit"
+- extendedWaitUntil:
+    visible:
+      id: "log-view"
+    timeout: 60000
+- assertVisible: ".*1 edit.*"
+- tapOn:
+    id: "log-close"
+
+# A session that hasn't started yet: it can be written (as a draft) but not submitted.
+- openLink: "hybercrm:///log/${FUTURE}"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible:
+      id: "log-not-started"
+    timeout: 30000
+- tapOn:
+    id: "log-step-6"
+- tapOn:
+    id: "log-submit"
+- assertVisible: "You can submit this log once the session starts at .*"
+- tapOn:
+    id: "log-close"

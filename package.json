@@ -13,7 +13,20 @@
     "deploy:functions": "firebase deploy --only functions --project hyber-crm",
     "deploy:hosting": "npm run build && tsx scripts/branch-pages.ts && firebase deploy --only hosting --project hyber-crm",
     "deploy": "npm run build && tsx scripts/branch-pages.ts && firebase deploy --project hyber-crm",
-    "e2e": "bash scripts/e2e.sh"
+    "e2e": "bash scripts/e2e.sh",
+    "emulators": "npm --prefix functions run build && PATH=\"/opt/homebrew/opt/openjdk@21/bin:$PATH\" firebase emulators:start --only auth,firestore,functions,storage --project hyber-crm",
+    "dev:emulators": "cd web && VITE_USE_EMULATORS=1 npx vite --host 127.0.0.1 --port 5174 --strictPort",
+    "iphone": "node scripts/phone.mjs iphone",
+    "android": "node scripts/phone.mjs android",
+    "iphone:sim": "node scripts/phone.mjs iphone --sim",
+    "android:sim": "node scripts/phone.mjs android --sim",
+    "iphone:sim:live": "node scripts/phone.mjs iphone --sim --live",
+    "android:sim:live": "node scripts/phone.mjs android --sim --live",
+    "phone:test": "node scripts/phone.mjs test",
+    "phone:setup": "node scripts/phone.mjs setup",
+    "publish:iphone": "node scripts/publish.mjs iphone",
+    "publish:android": "node scripts/publish.mjs android",
+    "publish:screenshots": "node scripts/phone.mjs screenshots"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",

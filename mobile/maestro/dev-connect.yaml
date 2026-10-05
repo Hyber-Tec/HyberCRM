@@ -1,0 +1,30 @@
+# Development builds only: opens the dev server on PORT from Expo's launcher (and accepts the "Open in Hyber CRM?"
+# prompt a fresh simulator shows). Used by the development helpers before sign-in.yaml.
+appId: com.hybertec.hybercrm
+---
+- launchApp
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- runFlow:
+    when:
+      visible: "DEVELOPMENT SERVERS"
+    commands:
+      - tapOn: ".*:${PORT}"
+# Signed out, signed in (Today: its tab on iPhone, its screen on Android, where Maestro can't see a tab's id), or loading.
+- extendedWaitUntil:
+    visible:
+      id: "sign-in|tab-today|today-screen|loading"
+    timeout: 90000
+# Expo's developer menu introduces itself on a new install: put it away.
+- runFlow:
+    when:
+      visible: "Toggle performance monitor"
+    commands:
+      - swipe:
+          start: 50%, 55%
+          end: 50%, 98%
+          duration: 300
+

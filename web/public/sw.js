@@ -3,8 +3,9 @@
 // hashed assets are left to the HTTP cache (they are immutable).
 //
 // Two pages are kept: the website's landing page (`/`) and the app (app.html,
-// served at `/app` and at every app address). The live demo is never kept.
-const CACHE = 'hyber-shell-v2'
+// served at `/app` and at every app address). The live demo and the website's
+// own static pages (the privacy policy) are never kept in their place.
+const CACHE = 'hyber-shell-v3'
 const APP = '/app'
 const LANDING = '/'
 
@@ -30,8 +31,17 @@ self.addEventListener('fetch', (event) => {
   const req = event.request
   if (req.method !== 'GET' || req.mode !== 'navigate') return
   const url = new URL(req.url)
-  // Firebase Auth's sign-in helper pages and the demo always come from the network.
-  if (url.origin !== self.location.origin || url.pathname.startsWith('/__/') || url.pathname === '/demo' || url.pathname.startsWith('/demo/')) return
+  // Firebase Auth's sign-in helper pages, the demo and static pages always come from the network.
+  if (
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith('/__/') ||
+    url.pathname.startsWith('/.well-known/') ||
+    url.pathname === '/demo' ||
+    url.pathname.startsWith('/demo/') ||
+    url.pathname === '/privacy' ||
+    url.pathname.endsWith('.html')
+  )
+    return
   const key = url.pathname === LANDING ? LANDING : APP
   event.respondWith(
     fetch(req)
