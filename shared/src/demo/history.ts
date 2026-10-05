@@ -1,6 +1,6 @@
 import { businessRoundedHours } from '../schedule/hours'
 import { type LogContent, localLogAi } from '../sessions/logs'
-import { type DateKey, addDays, dayEndInstant, toInstant, weekdayOf } from '../time'
+import { type DateKey, addDays, dayEndInstant, diffDays, toInstant, weekdayOf } from '../time'
 
 /** The weekly plan of the demo student whose progress reports are shown off (Ava Patel). */
 const PLAN: { weekday: string; startMin: number; endMin: number; subject: string; tutor: { id: string; name: string }; type: string }[] = [
@@ -48,7 +48,16 @@ export interface HistoryDoc {
  * that improves, accuracy that climbs from the low 60s to the mid 80s, and notes
  * that move through the SAT topics, so her progress reports show every section.
  */
-export function avaHistory(o: { base: string; today: DateKey; timezone: string; now: Date; createdBy: string; subjectId: (name: string) => string | null }) {
+export function avaHistory(o: {
+  base: string
+  today: DateKey
+  timezone: string
+  now: Date
+  createdBy: string
+  subjectId: (name: string) => string | null
+  /** This tutor's sessions from the last `days` days stay Confirmed without a log (see `SeedOptions.openLogs`). */
+  openLogs?: { staffId: string; days: number }
+}) {
   const rand = rng(2026)
   const sessions: HistoryDoc[] = []
   const logs: HistoryDoc[] = []
@@ -69,7 +78,8 @@ export function avaHistory(o: { base: string; today: DateKey; timezone: string; 
     const t = total > 1 ? i / (total - 1) : 1
     const id = `demo-ava-h-${dateKey}-${plan.startMin}`
     // One missed session early on and one canceled one later.
-    const status = i === Math.floor(total * 0.3) ? 'no_show' : i === Math.floor(total * 0.72) ? 'canceled' : 'present'
+    let status = i === Math.floor(total * 0.3) ? 'no_show' : i === Math.floor(total * 0.72) ? 'canceled' : 'present'
+    if (o.openLogs && plan.tutor.id === o.openLogs.staffId && diffDays(dateKey, o.today) <= o.openLogs.days && status !== 'canceled') status = 'confirmed'
     const logged = status === 'present'
     const len = plan.endMin - plan.startMin
     sessions.push({

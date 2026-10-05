@@ -12,13 +12,12 @@ import {
   type StudentFlag,
   accuracy,
   canLog,
-  diffLogContent,
   finishText,
   localLogAi,
   ratingKey,
   submitError,
-  topicString,
 } from '@shared/sessions/logs'
+import { type LogSession, type LogStudent, cleanLogContent, logSubmitWrites } from '@shared/sessions/submit'
 import { resolveBusinessRules } from '@shared/settings/businessRules'
 import { formatMinutes } from '@shared/time'
 import { resolveSettings } from '@shared/settings/resolve'
@@ -128,11 +127,7 @@ export const submitSessionLog = onCall({ secrets: [geminiKey], timeoutSeconds: 6
     throw new HttpsError('failed-precondition', `You can submit this log once the session starts at ${formatMinutes(session.startMin)}. Drafts save any time.`)
   }
 
-  const clean: LogContent = {
-    ...content,
-    topicCovered: topicString(content.sessionType, content.topics ?? [], content.topicCovered ?? ''),
-    materials: (content.materials ?? []).filter((m) => m.label?.trim()).map((m) => ({ label: m.label.trim(), url: m.url ?? '', type: m.type === 'link' ? 'link' : 'text' })),
-  }
+  const clean = cleanLogContent(content)
   const dims = settings.sessionLogs.ratingDimensions
   const ai = settings.sessionLogs.ai.enabled ? await logAi(clean, session.subject, dims) : localLogAi(clean, session.subject)
   const usedHours = billedHours(session.endMin - session.startMin, settings.students.hourRounding)
@@ -140,88 +135,23 @@ export const submitSessionLog = onCall({ secrets: [geminiKey], timeoutSeconds: 6
 
   await db.runTransaction(async (tx) => {
     const [logNow, student] = await Promise.all([tx.get(logRef), tx.get(studentRef)])
-    const prev = logNow.exists ? logNow.data()! : null
-    const wasSubmitted = prev?.status === 'submitted'
-    const prevUsed = wasSubmitted ? (prev.usedHours as number) || 0 : 0
-    // The first submit decides who entered the log; later edits are recorded as edits, never as a new author.
-    const asAdmin = caller.isAdmin && !isOwnTutor
-    const enteredBy = wasSubmitted
-      ? (prev.enteredBy ?? null)
-      : { role: asAdmin ? 'admin' : 'tutor', email: caller.email, name: caller.name, at: FieldValue.serverTimestamp() }
-    const enteredByAdmin = wasSubmitted ? (prev.enteredByAdmin ?? null) : asAdmin ? { email: caller.email, name: caller.name } : null
-    const lastEditedBy = wasSubmitted ? { email: caller.email, name: caller.name, at: FieldValue.serverTimestamp() } : null
-    const changes = wasSubmitted ? diffLogContent(prev as Partial<LogContent>, clean, dims) : []
-    tx.set(logRef, {
+    const now = FieldValue.serverTimestamp()
+    const w = logSubmitWrites({
       sessionId,
-      ...clean,
-      accuracyPercent: accuracy(clean.questionsAttempted, clean.questionsWrong),
-      status: 'submitted',
-      submittedAt: prev?.submittedAt ?? FieldValue.serverTimestamp(),
-      tutorId: session.tutorId,
-      tutorName: session.tutorName,
-      studentId: session.studentId,
-      studentName: session.studentName,
-      subject: session.subject,
-      subjectId: session.subjectId ?? null,
-      sessionNote: session.note ?? '',
-      dateKey: session.dateKey,
-      startMin: session.startMin,
-      endMin: session.endMin,
-      startAt: session.startAt,
-      endAt: session.endAt,
-      usedHours,
+      session: session as LogSession,
+      content: clean,
       ai,
-      enteredByAdmin,
-      enteredBy,
-      lastEditedBy,
-      editCount: wasSubmitted ? ((prev.editCount as number) ?? 0) + 1 : 0,
-      ...(prev ? {} : { createdAt: FieldValue.serverTimestamp(), createdBy: caller.email }),
-      updatedAt: FieldValue.serverTimestamp(),
-      updatedBy: caller.email,
+      prev: logNow.exists ? logNow.data()! : null,
+      student: student.exists ? (student.data() as LogStudent) : null,
+      settings,
+      author: { email: caller.email, name: caller.name, asAdmin: caller.isAdmin && !isOwnTutor },
+      auditActor: { uid: caller.uid, email: caller.email, name: caller.name, role: caller.superAdmin ? 'super_admin' : caller.isAdmin ? 'admin' : 'tutor' },
+      now,
     })
-    tx.update(sessionRef, {
-      status: 'present',
-      logStatus: 'submitted',
-      logSubmittedAt: prev?.submittedAt ?? FieldValue.serverTimestamp(),
-      attendanceMarkedBy: 'session_log',
-      updatedAt: FieldValue.serverTimestamp(),
-      updatedBy: caller.email,
-    })
-    if (student.exists) {
-      const s = student.data()!
-      const patch: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() }
-      const delta = Math.round((usedHours - prevUsed) * 100) / 100
-      if (delta !== 0) patch.totalSessionHours = FieldValue.increment(delta)
-      if (!s.lastSessionDate || session.dateKey > s.lastSessionDate) patch.lastSessionDate = session.dateKey
-      if (!s.firstSessionDate || session.dateKey < s.firstSessionDate) patch.firstSessionDate = session.dateKey
-      const auto = settings.students.autoStatus
-      const manualLock = auto.respectManual && s.statusSource === 'manual'
-      if (auto.enabled && !manualLock && (s.status === 'signed_up' || s.status === 'paused')) {
-        patch.status = 'enrolled'
-        patch.statusSource = 'auto'
-      }
-      tx.update(studentRef, patch)
-    }
-    tx.set(db.collection(`${ROOT.branches}/${branchId}/${COL.auditLog}`).doc(), {
-      at: FieldValue.serverTimestamp(),
-      actorUid: caller.uid,
-      actorEmail: caller.email,
-      actorName: caller.name,
-      actorRole: caller.superAdmin ? 'super_admin' : caller.isAdmin ? 'admin' : 'tutor',
-      action: wasSubmitted ? 'sessionLog.edit' : 'sessionLog.submit',
-      category: 'sessions',
-      entityType: 'sessionLog',
-      entityId: sessionId,
-      summary: `${wasSubmitted ? 'Updated' : 'Submitted'} the session log for ${session.studentName}${asAdmin && !wasSubmitted ? ` on behalf of ${session.tutorName}` : ''}`,
-      context: '',
-      dateKey: session.dateKey,
-      studentId: session.studentId,
-      studentName: session.studentName,
-      tutorId: session.tutorId,
-      tutorName: session.tutorName,
-      changes,
-      via: 'function',
-    })
+    tx.set(logRef, w.log)
+    tx.update(sessionRef, w.sessionPatch)
+    if (w.studentPatch) tx.update(studentRef, { ...w.studentPatch, ...(w.hoursDelta !== 0 ? { totalSessionHours: FieldValue.increment(w.hoursDelta) } : {}) })
+    tx.set(db.collection(`${ROOT.branches}/${branchId}/${COL.auditLog}`).doc(), w.audit)
   })
   return { ok: true, ai, usedHours, submittedAt: Timestamp.now().toMillis() }
 })

@@ -5,11 +5,12 @@ import { type BusinessRules, PAY_MODEL_SINCE_START } from '../settings/businessR
 import { COL, DOC, availabilityDocId } from '../paths'
 import { DEFAULT_SETTINGS, type WeekHours } from '../settings/defaults'
 import { businessRoundedHours } from '../schedule/hours'
-import { localLogAi, type LogContent, type SessionLog } from '../sessions/logs'
+import { localLogAi, type SessionLog } from '../sessions/logs'
 import { composeReport } from '../reports/compose'
+import { demoLogContent } from './content'
 import { avaHistory } from './history'
+import { rng } from './random'
 import { type FactsSession, presetPeriod } from '../reports/facts'
-import { ACT_TOPICS, SAT_PSAT_TOPICS } from '../sessions/topics'
 import { addDays, dayEndInstant, minutesOf, toInstant, weekdayOf } from '../time'
 import type { StaffRole, StudentStatus } from '../types'
 
@@ -40,6 +41,11 @@ export interface SeedOptions {
   contact?: typeof DEMO_CONTACT
   /** Opening hours (default: the standard week). Weekend days get whole-day availability. */
   week?: WeekHours
+  /**
+   * This tutor's ended sessions from the last `days` days (and today) are left Confirmed without a log, for someone
+   * to write them in the app (the live demo's test tutor). Off by default.
+   */
+  openLogs?: { staffId: string; days: number }
 }
 
 /** Demo Academy's contact details (report footers, emails). */
@@ -50,18 +56,6 @@ export const DEMO_BUSINESS_RULES: BusinessRules = {
   payModels: [{ model: 'teaching_admin', from: PAY_MODEL_SINCE_START }],
   maxStudentsPerTutor: 3,
   conferences: { enabled: true, everyHours: 25 },
-}
-
-/** Small deterministic PRNG so the sample data is stable between runs. */
-function rng(seed: number) {
-  let a = seed >>> 0
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0
-    let t = a
-    t = Math.imul(t ^ (t >>> 15), t | 1)
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
 }
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -339,6 +333,10 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
         // Tutors log on the day; only the last few days still miss a log or two (today's, a few more).
         if (status === 'present') logStatus = offset < -3 || roll < (offset === 0 ? 0.9 : 0.97) ? 'submitted' : 'none'
         if (status === 'present' && logStatus === 'none') status = 'confirmed'
+        if (opts.openLogs && staffId === opts.openLogs.staffId && offset >= -opts.openLogs.days && status !== 'canceled') {
+          status = 'confirmed'
+          logStatus = 'none'
+        }
       } else if (offset <= 1) status = roll < 0.06 ? 'canceled' : 'confirmed'
       else status = roll < 0.05 ? 'canceled' : 'pending'
       const id = `demo-s-${dateKey}-${staffId.replace('demo-', '')}-${n}`
@@ -390,7 +388,7 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
   }
   // Ava Patel's own history (her progress reports show every section): her generated past sessions make way for it.
   const AVA = 'demo-student-ava-patel'
-  const ava = avaHistory({ base, today: opts.today, timezone: opts.timezone, now, createdBy, subjectId: (n) => subjectIdByName.get(n) ?? null })
+  const ava = avaHistory({ base, today: opts.today, timezone: opts.timezone, now, createdBy, subjectId: (n) => subjectIdByName.get(n) ?? null, openLogs: opts.openLogs })
   for (let i = docs.length - 1; i >= 0; i--) {
     const d = docs[i]
     if (d.path.includes(`/${COL.sessions}/`) && d.data.studentId === AVA && (d.data.dateKey as string) < opts.today) docs.splice(i, 1)
@@ -422,56 +420,13 @@ export function buildDemoData(opts: SeedOptions): SeedDoc[] {
 
   // Session logs for the sessions whose log was submitted ------------------
   const logRand = rng(9090)
-  const lp = <T,>(arr: readonly T[]) => arr[Math.floor(logRand() * arr.length)]
-  const activities = [
-    'Reviewed last week’s homework, then worked through a timed practice set',
-    'Introduced the new unit with worked examples and guided practice',
-    'Focused on error analysis from the practice test and redid missed questions',
-    'Built fluency with mixed review problems and short quizzes',
-  ]
-  const insights = [
-    'Understands the core concepts but rushes on multi-step problems',
-    'Strong on fundamentals; needs more practice applying them to word problems',
-    'Confidence is growing; still hesitant to show full work',
-    'Made clear progress since last session and asked good questions',
-  ]
-  const focusNext = ['Timed practice on the weakest topic', 'Review mistakes and start the next unit', 'Mixed review before the upcoming test', 'Word problems and showing full work']
-  const homeworkGiven = ['Practice set 3 (20 questions)', 'Finish the worksheet and review the notes', 'Two timed sections and an error log', 'Textbook problems 1–25 (odd)']
   for (const d of [...docs]) {
     if (!d.path.includes(`/${COL.sessions}/`) || d.data.logStatus !== 'submitted' || d.path.includes('/demo-ava-h-')) continue
     const sd = d.data
     const subj = String(sd.subject)
-    const sessionType = /PSAT/.test(subj) ? 'PSAT' : /SAT/.test(subj) ? 'SAT' : /ACT/.test(subj) ? 'ACT' : lp(['School Help', 'Skill Building', 'Homework Support'])
-    let topics: string[] = []
-    if (sessionType === 'SAT' || sessionType === 'PSAT') {
-      const section = /R\/W|Reading|Writing/.test(subj) ? 'Reading & Writing' : 'Math'
-      const domain = lp(Object.keys(SAT_PSAT_TOPICS[section]))
-      topics = [`${section} > ${domain} > ${lp(SAT_PSAT_TOPICS[section][domain])}`]
-    } else if (sessionType === 'ACT') {
-      const sub = /English/.test(subj) ? 'English' : /Science/.test(subj) ? 'Science' : 'Math'
-      topics = [`${sub} > ${lp(ACT_TOPICS[sub])}`]
-    }
-    const attempted = 10 + Math.floor(logRand() * 21)
-    const wrong = Math.floor(logRand() * Math.min(10, attempted))
-    const score = 3 + Math.floor(logRand() * 3)
-    const ratings = { effort: Math.min(5, score + (logRand() < 0.3 ? 1 : 0)), motivation: score, behavior: Math.min(5, score + 1), focus: Math.max(2, score - (logRand() < 0.3 ? 1 : 0)), confidence: score }
-    const avg = Object.values(ratings).reduce((a, b) => a + b, 0) / 5
-    const content: LogContent = {
-      sessionType,
-      topics,
-      topicCovered: topics.length ? topics.join('; ') : `${subj} review`,
-      homeworkStatus: lp(['Completed', 'Completed', 'Completed', 'Partially Done', 'Not Done', 'Not Assigned']),
-      homeworkComments: '',
-      materials: [{ label: lp(['Official practice test', 'Workbook chapter review', 'Class notes', 'Khan Academy unit quiz']), url: '', type: 'text' }],
-      questionsAttempted: attempted,
-      questionsWrong: wrong,
-      lessonActivity: lp(activities),
-      learningInsight: lp(insights),
-      nextFocus: lp(focusNext),
-      homeworkGiven: lp(homeworkGiven),
-      ratings,
-      studentFlag: avg >= 3.8 ? 'on_track' : avg >= 3 ? 'needs_attention' : 'at_risk',
-    }
+    const content = demoLogContent(subj, logRand)
+    const attempted = content.questionsAttempted ?? 0
+    const wrong = content.questionsWrong ?? 0
     const id = d.path.split('/').pop()!
     docs.push({
       path: `${base}/${COL.sessionLogs}/${id}`,
