@@ -1,130 +1,74 @@
-# Hyber CRM: mobile app (future): concepts, rules and flows
+# Hyber CRM: the phone app
 
-> **Not being built now.** This document records what the future iOS/Android app needs, so the knowledge isn't lost and today's architecture keeps the path open. The source material is the True Education PWA ([doc 10](../true-education/10-tutor-portal-and-pwa.md), especially §13) and the Hyber plan ([PLAN.md](PLAN.md)).
+> **Being built since round 4 (2026-10-04).** One app, "Hyber CRM", for iPhone and Android, in [`mobile/`](../../mobile/README.md), set up the way the owner's ycaclock app is (one-command scripts, publishing guide, store templates). The **tutor portal** comes first; the admin, parent and student portals follow in later rounds. Decisions: [DECISIONS.md §8](DECISIONS.md). How to run it: [docs/running-the-apps.md](../running-the-apps.md); how to publish it (a **public** listing): [docs/publishing.md](../publishing.md).
 
 ## 1. Where things stand
 
-| | True Education today | Hyber v1 (web) | Future native app |
+| | True Education | Hyber web | Hyber app |
 |---|---|---|---|
-| Who | Tutors only | Tutors (mobile-friendly portal + installable PWA) | **All roles**: tutor, admin, parent, student |
-| How | Same website; narrower than 768 px switches to a mobile shell with bottom tabs | Same approach, but the tabs are real routes (reload and back work) | One native app per platform, shared by every branch and role |
-| Main job | Entering **availability** | Same | Same for tutors; daily operations for admins; visibility for families |
-| Push | FCM web push, tutor-only, opt-in from Profile | FCM web push, per-device tokens, all toggles honored | FCM (APNs on iOS), platform channels |
+| Who | Tutors only (PWA) | Every role, every page; mobile-friendly | **Tutors now**; admins, parents and students see "Your portal is coming to the app" with a link to the website |
+| Main job | Entering availability | Everything | Tutors: today's sessions, the week, availability, news, the session log, their profile and pay |
+| Sign-in | Email or Google | Google (recommended) or email + password | The same accounts: Google or email + password |
+| Push | FCM web push, tutors, opt-in | In-app inbox (bell) | FCM on both phones (APNs on iPhone), from the same inbox |
 
-TE's mobile tabs (icons only): **News** (announcements) · **Ideas** (suggestions) · **Availability** · **Schedule** · **Profile** (account details, subjects, work-hour requests, payroll history, notification settings, logout). A floating bell opens the notification history.
+## 2. Principles
 
-## 2. Principles the native app must keep
+1. **One account, many branches, one role per branch.** Sign-in (Google, or an email + password whose address is confirmed) → the person's memberships (`branches/*/members/{email}`) → a chooser when there are several (remembered on the phone; Profile → Switch center) → the portal of their role.
+2. **The server is the authority.** Firestore rules and Cloud Functions enforce every rule (availability lead time and lock, past-day lock, log submission, pay); the app mirrors them so people aren't surprised, but never relies on itself.
+3. **Branch time zone everywhere.** Dates, "today", locks and notification texts come from the branch's zone through `shared/src/time.ts`, never the phone's (Hermes' `Intl` handles time zones on both platforms).
+4. **Shared business logic.** The app imports `shared/` directly (`@shared/*`, Metro watches `../shared`): availability, conflicts, statuses, session logs, pay, settings, rules. A rule missing there is added there, for the website, the functions and the app at once.
+5. **Everything loads by ID and is deep-linkable** (`hybercrm:///…`), so pushes, links and the back gesture always work.
+6. **Audit log:** the app writes the same audit entries as the website, marked `via: "app"`.
 
-1. **One account, many branches, role per branch.** Google sign-in → list of memberships (`branches/*/members/{email}`) → branch chooser if there is more than one. Super admin is a separate mode. The role decides the navigation.
-2. **The server is the authority.** Every rule that the TE PWA checked in the browser (availability lead time and lock, one block per day, capacity, past-day lock, pay) is enforced by Firestore rules or Cloud Functions in Hyber. So a native client (or an offline queue) can't bypass it, and it doesn't need to re-implement it to be correct.
-3. **Branch time zone everywhere.** Dates, "today", locks and push texts use the branch's time zone, never the phone's (PLAN §7).
-4. **Shared business logic.** The pure-JS `shared/` package (time math, lane layout, status vocabulary, rounding, availability rules, recurrence, notification types) is what a React Native app would import directly. With another native stack, `shared/` is the reference implementation and its unit tests are the spec.
-5. **Everything is deep-linkable and loads by ID.** No `localStorage` hand-offs between screens (TE's session-log form breaks when opened directly; Hyber's doesn't).
+## 3. Structure (Expo Router)
 
-## 3. Feature map by role (proposal for the native app)
-
-| Role | Must-have | Nice-to-have |
-|---|---|---|
-| Tutor | Availability (month calendar + day sheet), My schedule (week list, day timeline on tablets), Announcements + comments, Notification inbox + push, Profile and subjects, Payroll history, Work-hour requests | Session log on the phone (TE: desktop only); clock in/out if the branch enables web/app clock-in |
-| Admin | Today's schedule (Day view, read-mostly), live "on the clock now", Missing & Needs Attention (missing logs, auto clock-outs, pending hour requests), announcements, student and employee lookup with call/email | Quick status changes (confirm, cancel, no-show) with the same notifications as the web |
-| Parent | Upcoming sessions for linked children, submitted session summaries (parent-visible fields only), shared progress reports, announcements addressed to parents | Requests (reschedule, cancel), payments later |
-| Student | Own schedule, homework assigned (from session logs), announcements | — |
-
-The parent and student scope depends on the owner's answer to **Q6** in [QUESTIONS.md](QUESTIONS.md).
-
-## 4. Deep links
-
-Universal links / App Links on the Hyber domain; the same paths work on the web.
-
-| Target | Path |
+| Route | What |
 |---|---|
-| Branch home | `/{branchId}/{portal}/home` (portal: `admin`, `tutor`, `parent`, `student`) |
-| Announcement | `/{branchId}/{admin\|tutor}/announcements/{id}` |
-| Schedule at a date | `/{branchId}/tutor/schedule?date=YYYY-MM-DD` (tutor) · `/{branchId}/admin/schedule/day/YYYY-MM-DD` (admin) |
-| Availability | `/{branchId}/tutor/availability` |
-| Notification inbox | The bell menu (no page); each item links to its target |
-| Session log (form) | `/{branchId}/session-log/{sessionId}` |
-| Session log (read-only) | `/{branchId}/session-log/{sessionId}/view` |
-| Progress report | `/{branchId}/progress-report/{id}` |
-| Student | `/{branchId}/{admin\|tutor}/students/{id}[/{tab}]` |
+| `sign-in`, `sign-up`, `forgot-password`, `verify-email` | Signed out, or a password account still to confirm its email (the screen checks by itself every few seconds and when the app comes back to the front) |
+| `(app)/choose-branch`, `(app)/no-access` | Several centers; none yet (with any pending sign-up requests) |
+| `(app)/(tutor)/(tabs)/…` | **Today · Schedule · Availability · News · Profile** (native tab bar; News shows the unread count) |
+| `(app)/(tutor)/session/[id]` | A session (native sheet): student, time, note, conflict notice, log state and actions |
+| `(app)/(tutor)/log/[id]`, `log-view/[id]` | The six-step session log (drafts, submit through `submitSessionLog`) and the read-only log |
+| `(app)/(tutor)/notifications` | The inbox (grouped by day, swipe to delete, tap to open what it's about) |
+| `(app)/(tutor)/availability-day` | A day's availability (native sheet) |
+| `(app)/coming-soon` | Admin, parent and student portals, until they come to the app |
 
-Every target screen loads its record by ID and checks permission. If the signed-in user isn't a member of that branch, it shows "No access". Tabs and sub-pages are real routes, so Android back, iOS swipe-back and web reload behave correctly (TE's mobile tabs live in memory only).
+State lives in providers: `AuthProvider` (Firebase Auth), `AccessProvider` (memberships), `BranchProvider` (branch, settings, rules, member, staff, kept live), `AppearanceProvider` (system, light or dark), `NotificationsProvider` (push token, taps, foreground toasts, icon badge).
+
+## 4. Deep links and notification targets
+
+Inbox items carry a `link` below the branch (`tutor/schedule?date=…`, `tutor/announcements/{id}`) and `refs` (session, announcement, date). `shared/src/push.ts` (`appTargetOf`) turns them into app screens: an announcement opens its post, a session change opens the session (or the schedule at that date). Pushes carry the same data, plus the website's URL.
 
 ## 5. Push notifications
 
-- **Tokens:**
-  - One doc per device: `users/{uid}/devices/{deviceId}` = `{token, platform: ios|android|web, appVersion, createdAt, lastSeenAt}`.
-  - Refreshed on token rotation and **deleted on logout** (TE never deleted tokens).
-  - Tokens that FCM reports invalid are pruned.
-- **Recipients:** notifications target a **member** of a branch (email key). The function looks up the member's `uid`, then that user's devices. A person in two branches receives both branches' notifications, each labeled with the branch name.
-- **Payload contract:** `{type, branchId, title, body, url, sessionId?, announcementId?, dateKey?}`.
-  - `url` is the deep link (§4).
-  - `dateKey` is in the branch time zone.
-  - Native apps route from `data`; web needs a same-origin URL.
-- **Types** (TE's 11, shared constants):
-  - announcement new / updated
-  - session confirmed / canceled / restored / reassigned in / reassigned out / no-show / date changed / time changed / subject changed
-- **Preferences:**
-  - Per-type toggles on `staff.notificationPrefs`, all honored, including announcements (TE ignored that toggle).
-  - On Android, map them to notification channels.
-- **Foreground:** show an in-app toast and update the bell count (TE shows nothing).
-- **Inbox:** server-side `branches/{b}/notifications` (14-day retention, swipe to delete). The read state is kept on the server, so badges match across devices.
-- **App badge:** one formula, computed in one place. TE counts unread announcements only; the open question is whether to add unread session notifications.
+- **Devices:** `users/{uid}/devices/{installId}` = `{token, email, platform, appVersion, label, createdAt, updatedAt}`, written when the app opens (once a week if nothing changed, at once on a token change) and **deleted at sign-out**. The install id lives in the phone's secure storage.
+- **Sending:** every inbox item the server creates (`functions/src/notify.ts`) is pushed to the recipient's devices, found by email (`functions/src/push.ts`). Items are created once (`create()`), so a retried trigger never pushes twice; tokens FCM rejects are removed.
+- **What's sent:** the inbox's own title and body; iPhone badge = the person's unread inbox count; Android channels **Sessions** and **Announcements** (people can mute either in the phone's settings).
+- **Preferences:** the four switches in Profile → Notifications (`staff.notificationPrefs`: announcements, new sessions, changes, cancellations) decide what reaches the inbox and so the phone.
+- **In front:** no system banner; the app shows a toast that opens the target. **Taps** (also from a closed app) open the target.
+- **Needs:** HyberTec's APNs key in Firebase for iPhones (docs/publishing.md); Android works with the project's `google-services.json`.
 
-## 6. Availability on the phone (the main mobile use case)
+## 6. Availability on the phone
 
-**UI (from TE):**
-- A continuous month calendar with infinite scroll into past and future months.
-- Closed days are disabled, days with availability are filled, and today is marked.
-- Tapping a day opens a bottom sheet with start and end pickers and the actions **Set / Edit**, **Remove**, **Cancel**.
-- "Remove" marks the day explicitly unavailable (a soft delete). It doesn't delete the record, because the admin schedule relies on the "explicitly unavailable" meaning.
+TE's main mobile job, kept and improved: a vertical, endlessly scrolling month calendar (the permanent month-scroller rule), closed days disabled, each day's times shown as small boxes, days inside the lock window locked and days inside the lead window still without times marked. A day opens a sheet with that date's hours, ranges, "Not available", and the website's warnings (lead time, lock, sessions that would be left uncovered). "Copy last week" and "Repeat weekly" as on the website. Writes are the website's (availability doc + audit entry), checked by the rules.
 
-**Rules (branch settings, enforced by the server):**
-- One record per tutor per date (`availability/{staffId}_{dateKey}`), with up to `maxRangesPerDay` ranges (default 1).
-- Times within the day's open hours; minimum block 30 min; picker step 30 min.
-- **Lead time** (default 14 days) with enforcement `notice` / `warn` / `block`.
-- **Lock window** (default 7 days): blocks starting inside it can't be edited, deleted or moved by the tutor. Admins can change them.
-- Closed days (from the branch default week or day configs) can't hold availability.
+## 7. Session logs on the phone
 
-**Offline:** native Firestore SDKs cache and queue writes offline. Queued availability edits are re-validated by the rules when they sync, using **server time**, so a phone with a wrong clock can't bypass the lock. The app should show "pending sync" on queued edits and explain rejections.
+The full six steps (owner, 2026-10-04), with the website's fields, validation and words (`shared/src/sessions/logs.ts`), drafts saved as the tutor types (and when the app goes to the background), submit only once the session has started, through the same `submitSessionLog` callable (hours, attendance and lifecycle stay consistent). A submitted log opens read-only with **Edit log** when allowed.
 
-## 7. Schedule on the phone
+## 8. Accounts, security, versions
 
-- **TE today:** a read-only weekly list of the tutor's own sessions. Swipe between weeks, "Today" button, past days hidden in the current week, a bottom sheet with the session note, conference note, notices, and ✓/⚠ log status.
-- **Native app:**
-  - Keep the list.
-  - Add availability shading and clock status for parity with desktop.
-  - Offer the desktop day timeline on tablets.
-  - Status colors and icons are the shared tokens (BRANCH_SETTINGS "Fixed design tokens").
+- **Sign-in:** Google (native Google Sign-In → Firebase credential) or email + password; new password accounts confirm their email first (Hyber's own email through `sendAccountEmail`, Firebase's as a fallback). Forgot password and change/add password are in the app.
+- **Delete my account:** Profile → Settings (Apple guideline 5.1.1(v)); the `deleteMyAccount` callable removes the sign-in and personal profile; the centers' records stay.
+- **Status:** the member doc is listened to; a paused access closes the app's portal at once ("Your access is paused").
+- **Versions:** `mobile/release.json` holds the version and build number (the publishing command raises the build). A minimum-version check can come later through a platform document.
 
-## 8. Session logs on the phone
+## 9. Kiosk (still a separate device app, later)
 
-TE allows session logs only on desktop. Hyber's web form works on phones: the tutor taps a session in the phone schedule (which shows TE's check / triangle log indicators) and the six steps open in one column. The native app should do the same:
-- Use the same steps, fields and validation (`shared/src/sessions/logs.ts`).
-- Drafts save to the server as the tutor types (the rules allow only the log's own fields).
-- Submit goes through the same `submitSessionLog` callable, so hours, lifecycle and attendance stay consistent. It refuses before the session starts.
+Unchanged from the plan: its own app, paired with a one-time code for a device-only token (`{kiosk, branchId, deviceId}`), calling the same `kioskIdentify`/`kioskPunch` functions the web kiosk uses.
 
-## 9. Kiosk (a separate device app)
+## 10. Next rounds
 
-The future kiosk is its own app (TE's is Flutter), not part of the role app:
-- **Pairing:** an admin creates a one-time pairing code. The device exchanges it for a **device token** with claims `{kiosk: true, branchId, deviceId}`. It is never an admin account (TE's kiosk ran as an admin).
-- **Clocking:** `verifyPin`, `clockIn` and `clockOut` are Cloud Functions with hashed PINs, lockout, server time, one open shift per employee, and the shared pay-segmentation engine.
-- **Branding:** the device shows the branch name, logo and colors from the branch doc.
-- **Offline:** decide deliberately. Either require connectivity, or use a signed offline queue that the server re-validates.
-
-## 10. Auth, security, versions
-
-- **Sign-in:** Google Sign-In (native SDK) → Firebase Auth credential. No passwords.
-- **Status checks:** on every launch and resume, re-read the member doc. If it is suspended, show the blocked screen.
-- **Rules carried over:** members read only their own data; queries are always under one branch; tutor writes are restricted by allow-lists.
-- **Versions:** a `minSupportedVersion` setting (Remote Config or a platform doc) shows a blocking update screen on native apps; the web shows the update banner (TE polls `meta.json`).
-
-## 11. What the web build does now to keep this path open
-
-- [x] Business logic in `shared/` (pure JS, unit-tested), not in React components.
-- [x] Every rule enforced by Firestore rules or Cloud Functions, not only in the UI.
-- [x] Routes load records by ID; no `localStorage` hand-offs; branch ID in every URL.
-- [x] Branch time zone stored on the branch; dates as `dateKey` + minutes.
-- [x] Per-device push tokens, per-member notifications with a server-side inbox and read state.
-- [x] Mutations with side effects (clock, session-log submit, lifecycle) as callables that any client can call.
-- [x] Status vocabulary, notification types and design tokens defined once.
+1. **Admin portal in the app:** today's schedule (read-mostly), who's in the building, needs-you items, quick session status changes, people lookup with call/email.
+2. **Parent and student portals:** upcoming sessions, shared progress reports, the student's calendar.
+3. iPad layouts (the app is phones-only for now: `supportsTablet: false`).

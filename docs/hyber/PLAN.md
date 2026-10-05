@@ -101,9 +101,9 @@ The admin and tutor nav builders merge the core nav with the nav items of the br
 
 ## 4. Identity, access and roles
 
-### 4.1 Google sign-in only
+### 4.1 Sign-in: Google, or an email and password
 
-Firebase Auth with only the Google provider (already enabled on `hyber-crm`). All of TE's password machinery disappears: email-first login, password setup and resets, `setUserPassword`, and public account creation.
+~~Firebase Auth with only the Google provider.~~ **Round 4 (DECISIONS §8):** Google stays the recommended way, and people may also create an account with any email and a password (Firebase's Email/Password provider; the email-link provider stays off). A password account must confirm its email before it reaches any center (the rules trust verified emails only). Hyber sends its own "Confirm your email" and "Reset your password" emails (`sendAccountEmail`), handled by Hyber's `/auth/action` page.
 
 ### 4.2 Membership is keyed by email **(Q4)**
 
@@ -200,7 +200,7 @@ The first branch is **Demo Academy**: generic name, placeholder logo (an SVG mon
 |---|---|---|
 | `/` | public | The landing page (its own pre-rendered page, `web/index.html`; DECISIONS §7) |
 | `/demo` | public | The live demo: the app on sample data in the browser (DECISIONS §7) |
-| `/login` | public | Google sign-in |
+| `/login` | public | Sign in: Google or email + password (`/signup`, `/verify-email`, `/forgot-password`, `/auth/action` around it) |
 | `/app` | signed in | Resolver: super admin → `/platform`; one membership → `/b/{id}`; several → chooser; none → "No access yet" |
 | `/platform`, `/platform/branches/new`, `/platform/branches/:id` | super admin | Platform pages |
 | `/b/:branchId/*` | members, super admin | The role's portal. Admin paths mirror TE's (below). |
@@ -370,6 +370,8 @@ Details: doc 03 and doc 04.
 ## 12. Build order
 
 Each phase ends with a working, testable slice. Phases 0–1 are the foundation the owner asked for first; Phase 4 is the Schedule.
+
+**Status (2026-10-04):** round 4 adds email + password sign-in, the phone app (`mobile/`, tutor portal first; [MOBILE_APP.md](MOBILE_APP.md)), push notifications, the redesigned web tutor portal and a self-running Demo Academy (DECISIONS §8).
 
 **Status (2026-10-01):** phases 0–9 are built and deployed to https://hybercrm.com, with these changes from the plan, all recorded in `DECISIONS.md`:
 - FCM push waits for the phone app; notifications go to the in-app inbox for now.

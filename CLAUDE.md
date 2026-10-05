@@ -17,11 +17,12 @@ Read first: [`docs/hyber/DECISIONS.md`](docs/hyber/DECISIONS.md) (owner answers,
 | Path | What |
 |---|---|
 | `web/` | Vite + React 19 + React Router 7 + TypeScript, Tailwind v4 + shadcn/ui (neutral theme), react-icons. Three pages: `index.html` the landing page (`src/landing`, pre-rendered at build), `app.html` all portals, `demo.html` the live demo (the app on in-browser stand-ins for Firebase, `src/demo`, `vite.demo.config.ts`). |
+| `mobile/` | The phone app "Hyber CRM" (iPhone + Android): Expo SDK 57, React Native, Expo Router, React Native Firebase, set up like ycaclock's. Tutor portal first (Today · Schedule · Availability · News · Profile); other roles see "coming to the app". Its own rules: [`mobile/AGENTS.md`](mobile/AGENTS.md). |
 | `shared/` | Pure TypeScript business logic (time zones, settings defaults, pay segmentation, rounding, lanes, permissions). No React, no Firebase. Imported by `web` (`@shared/*`) and `functions` (bundled by esbuild). |
 | `functions/` | Cloud Functions v2 (Node 22, TypeScript, bundled with esbuild). |
 | `firestore.rules`, `firestore.indexes.json`, `storage.rules` | Security rules. No catch-all rule. |
 | `tests/rules/` | Firestore rules tests against the emulator. |
-| `scripts/` | Admin scripts (seed, maintenance) using the gcloud user token and the Firestore REST API. |
+| `scripts/` | Admin scripts (seed, demo logins, the live demo, maintenance) using the gcloud user token and the Firestore/Auth REST APIs; `phone.mjs` and `publish.mjs` run and publish the phone app. |
 
 ## Commands
 
@@ -29,11 +30,13 @@ Read first: [`docs/hyber/DECISIONS.md`](docs/hyber/DECISIONS.md) (owner answers,
 - `npx tsx scripts/landing-shots.ts` → retakes the landing page's screenshots and `og.png` from the demo (after the app's look changes).
 - `npm run typecheck`, `npm run build`, `npm test` (shared unit tests), `npm run test:rules` (emulator).
 - `npm run deploy:rules`, `npm run deploy:functions`, `npm run deploy:hosting`, `npm run deploy` (all).
+- Phone app ([`docs/running-the-apps.md`](docs/running-the-apps.md)): `npm run iphone` / `npm run android` (a Release build of the real app on the phone plugged in), `npm run iphone:sim` / `npm run android:sim` (simulators on the practice copy: local emulators with Demo Academy and its demo logins), `…:sim:live` (the real project), `npm run phone:test` (Maestro flows), `npm run phone:setup`. Publishing: `npm run publish:iphone` / `publish:android` ([`docs/publishing.md`](docs/publishing.md)). When asked to open the app on a simulator, run the command in the background and say so once its "✓ … is open" line appears.
+- Demo logins (Demo Academy's tutor, parent and student, email + password): `npx tsx scripts/demo-accounts.ts`; the password is only in the owner's git-ignored `HyberCRM_Demo_Accounts.md`.
 
 ## Conventions
 
-- **Tenancy:** all branch data under `branches/{branchId}/…`; root collections are only `platformAdmins`, `branches`, `users`, and `inquiries` (landing-page requests, Super Admin only). Every new collection gets explicit rules.
-- **Identity:** `branches/{b}/members/{emailLower}` with exactly **one** `role`: `"owner"|"admin"|"tutor"|"parent"|"student"` (permanent rule: one role per person). Only tutors teach. People records `staff/{id}` and `students/{id}` are referenced by ID only.
+- **Tenancy:** all branch data under `branches/{branchId}/…`; root collections are only `platformAdmins`, `branches`, `users` (with `users/{uid}/devices` for the phone app's push tokens and server-only `users/{uid}/private`), and `inquiries` (landing-page requests, Super Admin only). Every new collection gets explicit rules.
+- **Identity:** `branches/{b}/members/{emailLower}` with exactly **one** `role`: `"owner"|"admin"|"tutor"|"parent"|"student"` (permanent rule: one role per person). Only tutors teach. People records `staff/{id}` and `students/{id}` are referenced by ID only. People sign in with Google (recommended) or an email and password; access follows the **verified** email only (DECISIONS §8).
 - **Branch rules:** pay model, students per tutor at once and parent conferences live in `branches/{b}.businessRules`, set by the Super Admin at branch creation and changed only by the Super Admin (Platform page). Never put them in admin Settings and never hard-code True Education's values.
 - **Settings:** defaults in `shared/src/settings/defaults.ts` (TE behavior); a branch stores only overrides; always read through the resolver.
 - **Time:** branch IANA time zone only. Wall clock `dateKey` (`YYYY-MM-DD`) + `startMin`/`endMin`, plus absolute `startAt`/`endAt`. Use `shared/src/time.ts`, never the browser zone.
@@ -41,6 +44,7 @@ Read first: [`docs/hyber/DECISIONS.md`](docs/hyber/DECISIONS.md) (owner answers,
 - **UI:** shadcn/ui components in `web/src/components/ui`, icons from react-icons. The Schedule keeps its structure (tutors as rows, time across, Day / Week / Month) in the side-rail design the owner picked in round 3; everything may improve on TE.
 - **Month calendars (permanent rule):** every monthly calendar, on web and phone, scrolls vertically through months like the iOS Calendar app, built on the shared month scroller. Never static months with ‹ › arrows, including mini calendars and date pickers.
 - **AI naming (permanent rule):** the app never names the AI model or provider in labels, settings, messages or errors; it is always "AI".
+- **Phone app listing (permanent rule):** the app goes on the App Store and Google Play as a **public** listing, never an unlisted app (owner, 2026-10-04; ycaclock's unlisted advice doesn't apply here).
 - **Secrets:** never commit API keys, service-account files, tokens, passwords or PINs. The Firebase web config lives in `web/.env.local` (git-ignored).
 
 ## Git and commits

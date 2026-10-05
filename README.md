@@ -14,6 +14,10 @@ npm test             # shared business-logic tests
 npm run test:rules   # Firestore security rules (emulator, Java 21+)
 npm run e2e          # every portal end-to-end against the emulators
 npm run seed         # (re)create Demo Academy sample data
+npm run iphone       # the phone app on the iPhone plugged in (npm run android: the Android phone)
+npm run iphone:sim   # the phone app in the iPhone Simulator, on the local practice copy
 ```
+
+The phone app (`mobile/`): [docs/running-the-apps.md](docs/running-the-apps.md) runs it, [docs/publishing.md](docs/publishing.md) puts it in the stores, [docs/testing-guide.md](docs/testing-guide.md) checks it.
 
 `web/.env.local` holds the Firebase web config (see `web/.env.example`).

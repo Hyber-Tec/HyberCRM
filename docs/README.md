@@ -15,9 +15,19 @@ Hyber CRM is a multi-tenant SaaS CRM for tutoring centers. It is a rebuild of th
 | [PLAN.md](hyber/PLAN.md) | Principles, stack, repo layout, tenancy model, customization layers, identity and roles, rules strategy, routing, time-zone model, domain changes vs TE, Cloud Functions, security, local workflow, **build order** |
 | [DATA_MODEL.md](hyber/DATA_MODEL.md) | Every Firestore collection and field, with the True Education mapping, indexes and access matrix |
 | [BRANCH_SETTINGS.md](hyber/BRANCH_SETTINGS.md) | Every per-branch business rule, with True Education's value as the default |
-| [MOBILE_APP.md](hyber/MOBILE_APP.md) | Concepts, rules and flows for the future iOS/Android app (not being built now) |
+| [MOBILE_APP.md](hyber/MOBILE_APP.md) | The iPhone and Android app: what it does for each role, its rules and flows (the code: [mobile/README.md](../mobile/README.md)) |
 | [DECISIONS.md](hyber/DECISIONS.md) | The owner's answers and developer calls (wins over the other docs) |
 | [QUESTIONS.md](hyber/QUESTIONS.md) | The original questions, with recommendations (answered) |
+
+## The phone app (written for the owner, step by step)
+
+| Document | Contents |
+|---|---|
+| [running-the-apps.md](running-the-apps.md) | One command each: the app on the simulators (the practice copy, Demo Academy) and on your iPhone and Android phone (the real Hyber CRM); the demo logins; when a build fails; a new Mac |
+| [testing-guide.md](testing-guide.md) | The lab sheet for testing the tutor app on your phones with the demo tutor |
+| [publishing.md](publishing.md) | TestFlight, the public App Store listing and Google Play: where things stand, what Apple checks (account deletion, Sign in with Apple), costs and timing, updates with one command, the push key |
+| [store/](store/) | What the stores ask for: listing texts, review notes, privacy answers, the privacy policy, TestFlight notes |
+| [../mobile/README.md](../mobile/README.md) | How the app is built and checked (for Claude Code and developers) |
 
 ## True Education (the reference system, analyzed read-only)
 
