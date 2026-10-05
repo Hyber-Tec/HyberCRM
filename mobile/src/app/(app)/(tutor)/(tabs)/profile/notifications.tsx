@@ -11,7 +11,7 @@ import { NOTIFICATION_PREFS, prefsOf, setNotificationPref } from "@/features/pro
 import { SwitchRow } from "@/features/profile/SwitchRow";
 import { errorMessage } from "@/lib/api";
 import { type PermissionState, notificationPermission, requestNotificationPermission } from "@/lib/notify";
-import { currentPushToken, registerThisDevice } from "@/lib/push";
+import { currentPushToken, onPushTokenChange, registerThisDevice } from "@/lib/push";
 import { toast } from "@/lib/toast";
 import { useBranch } from "@/state/BranchProvider";
 import { space } from "@/theme";
@@ -23,7 +23,8 @@ const PERMISSION_TEXT: Record<PermissionState, { badge: string; tone: "success" 
   unsupported: { badge: "Unavailable", tone: "secondary", text: "This phone can’t show notifications." },
 };
 
-const NO_TOKEN = { badge: "Allowed", tone: "secondary" as const, text: "Allowed, but this build can’t receive them (a simulator or a test build)." };
+/** Allowed, but no token: a simulator or a personal-team build never gets one; a phone gets one once it's online. */
+const NO_TOKEN = { badge: "Allowed", tone: "secondary" as const, text: "Allowed, but not reachable yet: check the connection." };
 
 /**
  * Notifications (True Education's mobile Settings, made native): whether this phone may show them, with the right
@@ -43,12 +44,19 @@ export default function NotificationSettingsScreen() {
     const sub = AppState.addEventListener("change", (s) => s === "active" && read());
     return () => sub.remove();
   }, []);
+  // The token can come after the permission (the phone's registration with Apple, a slow connection): ask again
+  // whenever the app comes back, keep the last one through a failed try, and take a new one when Firebase replaces it.
   useEffect(() => {
     if (permission !== "granted") return;
     let live = true;
-    void currentPushToken().then((t) => live && setToken(t));
+    const read = () => void currentPushToken().then((t) => live && setToken((last) => t ?? last ?? null));
+    read();
+    const sub = AppState.addEventListener("change", (s) => s === "active" && read());
+    const off = onPushTokenChange((t) => live && setToken(t));
     return () => {
       live = false;
+      sub.remove();
+      off();
     };
   }, [permission]);
 

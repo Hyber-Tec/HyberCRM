@@ -35,17 +35,28 @@ async function readStored(): Promise<Stored | null> {
 }
 
 /**
+ * The question being asked, shared: the app and Profile → Notifications both ask when the app comes back, and React
+ * Native Firebase keeps only one waiting registration on iPhone (a second one leaves the first unanswered).
+ */
+let asking: Promise<string | null> | null = null;
+
+/**
  * This phone's token, or null when this build cannot receive pushes: an iPhone build signed by a personal Apple team
  * has no push capability, and the iPhone Simulator gets none. Profile → Notifications shows it for tests.
  */
-export async function currentPushToken(): Promise<string | null> {
-  const m = getMessaging();
-  try {
-    if (Platform.OS === "ios" && !isDeviceRegisteredForRemoteMessages(m)) await within(registerDeviceForRemoteMessages(m), 10_000);
-    return (await within(getToken(m), 15_000)) || null;
-  } catch {
-    return null;
-  }
+export function currentPushToken(): Promise<string | null> {
+  asking ??= (async () => {
+    const m = getMessaging();
+    try {
+      if (Platform.OS === "ios" && !isDeviceRegisteredForRemoteMessages(m)) await within(registerDeviceForRemoteMessages(m), 10_000);
+      return (await within(getToken(m), 15_000)) || null;
+    } catch {
+      return null;
+    }
+  })().finally(() => {
+    asking = null;
+  });
+  return asking;
 }
 
 async function save(uid: string, email: string, token: string): Promise<void> {
