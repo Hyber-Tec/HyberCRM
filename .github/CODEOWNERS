@@ -1,0 +1,26 @@
+# The shared files: what every part of the app or every developer depends on. A pull request that changes one needs
+# the code owner's approval before it reaches main; any other pull request needs a green CI only.
+# See CLAUDE.md, "Git and commits", and docs/hyber/DECISIONS.md §9.
+
+# The project's rules and the owner's decisions
+/CLAUDE.md               @goochoi913
+/mobile/AGENTS.md        @goochoi913
+/docs/hyber/             @goochoi913
+
+# Business logic shared by the website, the server and the phone app
+/shared/                 @goochoi913
+
+# Security rules, indexes and Firebase settings
+/firestore.rules         @goochoi913
+/firestore.indexes.json  @goochoi913
+/storage.rules           @goochoi913
+/storage.cors.json       @goochoi913
+/firebase.json           @goochoi913
+/.firebaserc             @goochoi913
+
+# Dependencies, in every folder that declares them
+package.json             @goochoi913
+package-lock.json        @goochoi913
+
+# CI and this file
+/.github/                @goochoi913
