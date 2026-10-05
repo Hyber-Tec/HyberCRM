@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { LuClipboardPaste, LuCopy, LuCopyPlus, LuLock, LuPencil, LuRepeat, LuTrash2, LuX } from 'react-icons/lu'
 import { toast } from 'sonner'
 import { dayHours, effectiveLockDays, effectiveRanges, fitRangesToDay, isInsideLeadTime, isLockedForTutor, normalizeRanges, weeklyRepeats } from '@shared/availability'
@@ -36,6 +36,12 @@ const LONG_PRESS_MS = 350
 
 const SKIP_REASON = { closed: 'closed', outside: 'outside opening hours', too_many: 'too many ranges', locked: 'locked' } as const
 
+/** Lets a page open a day of the calendar (Today's and the status line's "Set" links). */
+export interface AvailabilityCalendarHandle {
+  /** Scrolls to the date and opens its editor, once the calendar's data is in. */
+  openDay: (date: DateKey) => void
+}
+
 /**
  * One employee's availability on a vertically scrolling month calendar.
  * Click a time range or a day to select it; Shift-click another day to select
@@ -43,7 +49,17 @@ const SKIP_REASON = { closed: 'closed', outside: 'outside opening hours', too_ma
  * range can be dragged onto another day (hold Alt/Option to copy instead).
  * Times always follow each date's opening hours.
  */
-export function AvailabilityCalendar({ staffId, staffName, mode }: { staffId: string; staffName: string; mode: 'tutor' | 'admin' }) {
+export function AvailabilityCalendar({
+  staffId,
+  staffName,
+  mode,
+  ref,
+}: {
+  staffId: string
+  staffName: string
+  mode: 'tutor' | 'admin'
+  ref?: React.Ref<AvailabilityCalendarHandle>
+}) {
   const { branchId, actor, settings, timezone } = useBranch()
   const a = settings.availability
   const isMobile = useIsMobile()
@@ -166,6 +182,17 @@ export function AvailabilityCalendar({ staffId, staffName, mode }: { staffId: st
     },
     [hoursOf, rangesOf, locked, mode, a.leadTimeEnforcement, timezone, leadDays],
   )
+
+  // A day asked for before the availability loaded opens once it has.
+  const [askedDay, setAskedDay] = useState<DateKey | null>(null)
+  useImperativeHandle(ref, () => ({ openDay: (d) => setAskedDay(d) }), [])
+  useEffect(() => {
+    if (!askedDay || loading) return
+    setAskedDay(null)
+    scroller.current?.scrollToDate(askedDay, { block: 'center' })
+    setSelection({ kind: 'days', anchor: askedDay, focus: askedDay })
+    openEditor(askedDay)
+  }, [askedDay, loading, openEditor])
 
   const copy = useCallback(() => {
     if (!selection) return

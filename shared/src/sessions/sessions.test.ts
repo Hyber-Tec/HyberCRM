@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accuracy, allMissing, averageRating, diffLogContent, finishText, firstMissing, localLogAi, type LogContent, stepOfField, submitError, suggestFlag } from './logs'
+import { accuracy, allMissing, averageRating, diffLogContent, finishText, firstMissing, localLogAi, logIsDue, type LogContent, stepOfField, submitError, suggestFlag } from './logs'
 
 const dims = ['Effort', 'Motivation', 'Behavior', 'Focus', 'Confidence']
 const full: LogContent = {
@@ -68,5 +68,22 @@ describe('session logs', () => {
       { field: 'ratings.focus', label: 'Focus rating', from: 4, to: 5 },
       { field: 'studentFlag', label: 'Student flag', from: 'On Track', to: 'Needs Attention' },
     ])
+  })
+})
+
+describe('logs a tutor still owes', () => {
+  const allowed = ['pending', 'confirmed', 'present'] as const
+  const s = { dateKey: '2026-10-04', endMin: 960, status: 'confirmed' as const, logStatus: 'none' }
+  it('is due once a loggable session has ended without a submitted log', () => {
+    expect(logIsDue(s, '2026-10-04', 959, allowed)).toBe(false)
+    expect(logIsDue(s, '2026-10-04', 960, allowed)).toBe(true)
+    expect(logIsDue(s, '2026-10-05', 0, allowed)).toBe(true)
+    expect(logIsDue({ ...s, logStatus: 'draft' }, '2026-10-05', 0, allowed)).toBe(true)
+  })
+  it('is never due for submitted, canceled, no-show or deleted sessions', () => {
+    expect(logIsDue({ ...s, logStatus: 'submitted' }, '2026-10-05', 0, allowed)).toBe(false)
+    expect(logIsDue({ ...s, status: 'canceled' }, '2026-10-05', 0, allowed)).toBe(false)
+    expect(logIsDue({ ...s, status: 'no_show' }, '2026-10-05', 0, allowed)).toBe(false)
+    expect(logIsDue({ ...s, isDeleted: true }, '2026-10-05', 0, allowed)).toBe(false)
   })
 })

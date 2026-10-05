@@ -1,18 +1,15 @@
 import { query, where } from 'firebase/firestore'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FaCheckCircle } from 'react-icons/fa'
-import { FaTriangleExclamation } from 'react-icons/fa6'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { LuChevronLeft, LuChevronRight, LuTriangleAlert } from 'react-icons/lu'
 import { useNavigate, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { dayHours, effectiveRanges } from '@shared/availability'
 import { COL } from '@shared/paths'
-import { studentLabel } from '@shared/people'
-import { type Conflict, tutorConflictText } from '@shared/schedule/conflicts'
+import type { Conflict } from '@shared/schedule/conflicts'
 import { buildDayRows } from '@shared/schedule/dayModel'
-import { SESSION_STATUS_LABELS, SESSION_STATUS_STYLE } from '@shared/schedule/status'
+import { SESSION_STATUS_LABELS } from '@shared/schedule/status'
 import { canLog } from '@shared/sessions/logs'
-import { type DateKey, addDays, formatDateKey, formatTimeRange, isDateKey, nowMinutes, todayKey, weekDays } from '@shared/time'
+import { type DateKey, addDays, formatDateKey, isDateKey, nowMinutes, todayKey, weekDays } from '@shared/time'
 import type { Availability, Session, Staff, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { PageHeader } from '@/components/app/PageHeader'
@@ -22,12 +19,16 @@ import { useDayConfigs, useStudentList } from '@/features/data/hooks'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { branchCol, branchDocRef, useDoc, useQuery } from '@/lib/firestore'
 import { useShifts } from '@/features/timeclock/api'
-import { cn } from '@/lib/utils'
+import { weekRange } from '@/features/tutor/sessionUi'
 import { computeConflicts } from './conflicts'
 import { type ScheduleUi, ScheduleUiContext } from './context'
 import { DaySection } from './DaySection'
+import { TutorWeekList } from './TutorWeekList'
 
-/** The tutor's own schedule: read-only rows; clicking a session opens its log in a new tab. */
+/**
+ * The tutor's own schedule. Computers: read-only rows by day (week or day);
+ * clicking a session opens its log in a new tab. Phones: the week as a list.
+ */
 export function TutorSchedulePage() {
   const { branchId, staffId, settings, rules, timezone } = useBranch()
   const isMobile = useIsMobile()
@@ -51,9 +52,11 @@ export function TutorSchedulePage() {
   }, [timezone])
 
   const weekStartsOn = settings.general.weekStartsOn
-  const days = view === 'week' ? weekDays(anchor, weekStartsOn) : [anchor]
-  const from = isMobile ? today : days[0]
-  const to = isMobile ? addDays(today, 27) : days[days.length - 1]
+  const week = weekDays(anchor, weekStartsOn)
+  // Phones always show a week.
+  const days = isMobile || view === 'week' ? week : [anchor]
+  const from = days[0]
+  const to = days[days.length - 1]
 
   const meRef = useMemo(() => (staffId ? branchDocRef(branchId, COL.staff, staffId) : null), [branchId, staffId])
   const { data: me } = useDoc<Staff>(meRef)
@@ -113,6 +116,16 @@ export function TutorSchedulePage() {
       </div>
     ) : null
 
+  // Computers: links with ?date= (notifications, Today's week) bring that day into view once it's drawn.
+  const scrolledTo = useRef<string | null>(null)
+  useEffect(() => {
+    if (isMobile || !dateParam || !isDateKey(dateParam) || scrolledTo.current === dateParam) return
+    const el = document.getElementById(`tutor-day-${dateParam}`)
+    if (!el) return
+    scrolledTo.current = dateParam
+    el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }, [isMobile, dateParam, sessionsRaw, view])
+
   if (!staffId) return <p className="text-sm text-muted-foreground">Your employee record isn’t linked yet. Ask an admin.</p>
 
   const ui: ScheduleUi = {
@@ -127,7 +140,8 @@ export function TutorSchedulePage() {
     selection: null,
     select: () => undefined,
     students: studentMap,
-    isLocked: () => true,
+    // Only past days are locked ("Past" on the day). Tutors never edit sessions: cards are read-only in tutor mode.
+    isLocked: (d) => d < today,
     bellFor: () => [],
     conflictsOf,
     createAt: () => undefined,
@@ -162,67 +176,19 @@ export function TutorSchedulePage() {
   }
 
   if (isMobile) {
-    const byDate = new Map<DateKey, WithId<Session>[]>()
-    for (const s of [...sessions].sort((a, b) => a.dateKey.localeCompare(b.dateKey) || a.startMin - b.startMin)) {
-      byDate.set(s.dateKey, [...(byDate.get(s.dateKey) ?? []), s])
-    }
     return (
-      <div>
-        <PageHeader title="Schedule" description="Your sessions for the next four weeks. Tap a session to open its log." />
-        {waitingNote}
-        {byDate.size === 0 ? <p className="py-10 text-center text-sm text-muted-foreground">No sessions scheduled.</p> : null}
-        <div className="space-y-5">
-          {[...byDate.entries()].map(([d, list]) => (
-            <section key={d}>
-              <h2 className="mb-2 text-sm font-semibold">
-                {formatDateKey(d, 'weekdayLong')}
-                {d === today ? <span className="ml-2 rounded-full bg-foreground px-2 py-0.5 text-[10px] text-background">TODAY</span> : null}
-              </h2>
-              <div className="space-y-2">
-                {list.map((s) => {
-                  const st = SESSION_STATUS_STYLE[s.status]
-                  const why = tutorConflictText(conflictsOf(s))
-                  const ended = s.dateKey < today || (s.dateKey === today && s.endMin <= nowMin)
-                  const logState = s.logStatus === 'submitted' ? 'submitted' : ended && loggable(s) ? 'missing' : null
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => openLog(s)}
-                      className={cn('flex w-full items-center gap-3 rounded-xl border p-3 text-left', why && 'border-2 border-dashed')}
-                      style={{ backgroundColor: st.bg, borderColor: why ? '#dc2626' : st.border, opacity: s.status === 'canceled' ? 0.6 : 1 }}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-semibold text-black">{studentLabel(s.studentName, s.studentGrade)}</div>
-                        <div className="truncate text-sm text-neutral-700">{s.subject || 'No subject'}</div>
-                        <div className="text-xs text-neutral-600">{formatTimeRange(s.startMin, s.endMin)}</div>
-                        {why ? (
-                          <div className="mt-1.5 flex items-start gap-1.5 text-xs font-medium text-red-700">
-                            <LuTriangleAlert className="mt-px size-3.5 shrink-0" />
-                            {why}
-                          </div>
-                        ) : null}
-                      </div>
-                      <div className="flex flex-col items-end gap-1 text-xs" style={{ color: st.text }}>
-                        {SESSION_STATUS_LABELS[s.status]}
-                        {logState === 'submitted' ? (
-                          <span title="Session log submitted." data-testid="log-indicator">
-                            <FaCheckCircle className="size-3.5 text-blue-700" aria-label="Session log submitted." />
-                          </span>
-                        ) : logState === 'missing' ? (
-                          <span title="Please write your session log." data-testid="log-indicator">
-                            <FaTriangleExclamation className="size-3.5 text-red-700" aria-label="Please write your session log." />
-                          </span>
-                        ) : null}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </section>
-          ))}
-        </div>
-      </div>
+      <TutorWeekList
+        days={week}
+        today={today}
+        nowMin={nowMin}
+        sessions={sessions}
+        hoursOf={hoursOf}
+        conflictsOf={conflictsOf}
+        studentOf={(id) => studentMap.get(id)}
+        focus={dateParam && isDateKey(dateParam) ? dateParam : null}
+        onWeek={(step) => setAnchor(step === 0 ? today : addDays(anchor, step * 7))}
+        waitingNote={waitingNote}
+      />
     )
   }
 
@@ -274,12 +240,14 @@ export function TutorSchedulePage() {
           }
         />
         {waitingNote}
-        <div className="mb-3 text-sm font-medium text-muted-foreground">
-          {view === 'week' ? `${formatDateKey(days[0], 'medium')} – ${formatDateKey(days[6], 'medium')}` : formatDateKey(anchor, 'weekdayLong')}
+        <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          {view === 'week' ? weekRange(days[0], days[6]) : formatDateKey(anchor, 'weekdayLong')}
+          {view === 'week' && days.includes(today) ? <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-foreground">This week</span> : null}
+          {view === 'day' && anchor === today ? <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-foreground">Today</span> : null}
         </div>
         <div className="flex flex-col gap-6 overflow-x-auto pb-2">
           {sections.map((s) => (
-            <DaySection key={s.d} dateKey={s.d} hours={s.hours} rows={s.rows} events={[]} showHeader />
+            <DaySection key={s.d} dateKey={s.d} hours={s.hours} rows={s.rows} events={[]} showHeader sectionId={`tutor-day-${s.d}`} />
           ))}
           {sections.length === 0 ? (
             <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">No availability or sessions scheduled for this period.</div>

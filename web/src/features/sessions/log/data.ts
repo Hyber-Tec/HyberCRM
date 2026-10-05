@@ -30,19 +30,5 @@ export function usePreviousLogs(session: Pick<WithId<Session>, 'id' | 'studentId
   return { logs, loading }
 }
 
-/** Whether an earlier log was in the session's subject (by subject ID when both have one, else by name). */
-export function sameSubject(log: Pick<SessionLog, 'subjectId' | 'subject'>, session: Pick<Session, 'subjectId' | 'subject'>) {
-  if (session.subjectId && log.subjectId) return log.subjectId === session.subjectId
-  const name = (session.subject || '').trim().toLowerCase()
-  return !!name && (log.subject || '').trim().toLowerCase() === name
-}
-
-/** The earlier log to show by default: same subject (by ID, then name), else the newest. */
-export function matchingLog(logs: readonly WithId<SessionLog>[], session: Pick<Session, 'subjectId' | 'subject'>) {
-  if (session.subjectId) {
-    const byId = logs.find((l) => l.subjectId === session.subjectId)
-    if (byId) return byId
-  }
-  const name = (session.subject || '').trim().toLowerCase()
-  return (name && logs.find((l) => (l.subject || '').trim().toLowerCase() === name)) || logs[0] || null
-}
+// Which earlier log matches the session's subject: shared with the phone app.
+export { matchingLog, sameSubject } from '@shared/sessions/logs'

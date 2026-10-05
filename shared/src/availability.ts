@@ -101,6 +101,40 @@ export function isInsideLeadTime(dateKey: DateKey, timeZone: string, leadDays: n
   return dayStartInstant(dateKey, timeZone).getTime() < now.getTime() + leadDays * 86_400_000
 }
 
+/**
+ * Open days a tutor should still give times for: inside the lead window, not
+ * locked yet, and without availability inside that date's hours. They are the
+ * amber days of the tutor's calendar and the "availability still to set" of
+ * Today (web and phone), so both always count the same days. A branch that
+ * doesn't ask for notice (lead time "Do nothing") has none.
+ */
+export function availabilityGaps(input: {
+  today: DateKey
+  timeZone: string
+  settings: Pick<BranchSettings, 'availability' | 'schedule'>
+  dayConfigs?: Map<DateKey, Pick<DayConfig, 'isOpen' | 'openMin' | 'closeMin'>> | null
+  /** A date's hours, when the caller already has them (instead of `dayConfigs`). */
+  hoursOf?: (dateKey: DateKey) => DayHours
+  /** Saved ranges of a date (as stored; clipped to the date's hours here). */
+  rangesOn: (dateKey: DateKey) => readonly AvailabilityRange[] | null | undefined
+  now?: Date
+}): DateKey[] {
+  const { today, timeZone, settings } = input
+  if (settings.availability.leadTimeEnforcement === 'off') return []
+  const now = input.now ?? new Date()
+  const lead = settings.availability.leadTimeDays
+  const lockDays = effectiveLockDays(settings)
+  const out: DateKey[] = []
+  for (let i = 0; i <= lead; i++) {
+    const d = addDays(today, i)
+    if (!isInsideLeadTime(d, timeZone, lead, now)) break
+    const hours = input.hoursOf ? input.hoursOf(d) : dayHours(d, settings, input.dayConfigs)
+    if (!hours.isOpen || isLockedForTutor(d, timeZone, lockDays, now)) continue
+    if (effectiveRanges(input.rangesOn(d) ?? [], hours).length === 0) out.push(d)
+  }
+  return out
+}
+
 /** Dates `weeks` weeks after `dateKey` on the same weekday (repeat weekly). */
 export function weeklyRepeats(dateKey: DateKey, weeks: number): DateKey[] {
   return Array.from({ length: weeks }, (_, i) => addDays(dateKey, 7 * (i + 1)))

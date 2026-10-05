@@ -330,21 +330,23 @@ function MobileTabs({ tabs, base }: { tabs: NavLeaf[]; base: string }) {
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
       <ul className="mx-auto flex max-w-md">
         {tabs.map((t) => {
-          const active = isActivePath(pathname, base, t)
+          const active = isActivePath(pathname, base, t) || (t.alsoActive ?? []).some((to) => isActivePath(pathname, base, { ...t, to }))
           const Icon = t.icon
           return (
             <li key={t.key} className="flex-1">
               <Link
                 to={`${base}/${t.to}`}
+                aria-current={active ? 'page' : undefined}
+                data-testid={`tab-${t.key}`}
                 className={cn(
-                  'flex flex-col items-center gap-1 py-2 text-[11px] font-medium',
+                  'flex flex-col items-center gap-0.5 pt-1.5 pb-2 text-[11px] font-medium',
                   active ? 'text-foreground' : 'text-muted-foreground',
                 )}
               >
-                <span className="relative">
+                <span className={cn('relative flex h-7 w-12 items-center justify-center rounded-full transition-colors', active && 'bg-muted')}>
                   {Icon ? <Icon className="size-5" /> : null}
                   {badges[t.key] ? (
-                    <span className="absolute -top-1.5 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-background bg-red-500 px-1 text-[10px] leading-none font-semibold text-white tabular-nums">
+                    <span className="absolute -top-1 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-background bg-red-500 px-1 text-[10px] leading-none font-semibold text-white tabular-nums">
                       {badgeText(badges[t.key])}
                     </span>
                   ) : null}

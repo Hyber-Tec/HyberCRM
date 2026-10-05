@@ -266,6 +266,40 @@ export function canLog(status: SessionStatus, allowed: readonly SessionStatus[])
   return allowed.includes(status)
 }
 
+type SubjectRef = { subjectId?: string | null; subject?: string | null }
+
+/** Whether an earlier log was in the session's subject (by subject ID when both have one, else by name). */
+export function sameSubject(log: SubjectRef, session: SubjectRef): boolean {
+  if (session.subjectId && log.subjectId) return log.subjectId === session.subjectId
+  const name = (session.subject || '').trim().toLowerCase()
+  return !!name && (log.subject || '').trim().toLowerCase() === name
+}
+
+/** The earlier log to show by default (newest first in `logs`): same subject (by ID, then name), else the newest. */
+export function matchingLog<L extends SubjectRef>(logs: readonly L[], session: SubjectRef): L | null {
+  if (session.subjectId) {
+    const byId = logs.find((l) => l.subjectId === session.subjectId)
+    if (byId) return byId
+  }
+  const name = (session.subject || '').trim().toLowerCase()
+  return (name && logs.find((l) => (l.subject || '').trim().toLowerCase() === name)) || logs[0] || null
+}
+
+/**
+ * A log the tutor still owes (True Education's "Please write your session
+ * log."): the session has ended, its status takes a log, and none was submitted.
+ * Drafts still count.
+ */
+export function logIsDue(
+  s: { dateKey: DateKey; endMin: number; status: SessionStatus; logStatus?: string | null; isDeleted?: boolean | null },
+  today: DateKey,
+  nowMin: number,
+  allowed: readonly SessionStatus[],
+): boolean {
+  if (s.isDeleted || s.logStatus === 'submitted' || !canLog(s.status, allowed)) return false
+  return s.dateKey < today || (s.dateKey === today && s.endMin <= nowMin)
+}
+
 /** Deterministic AI fallback (no key or the model failed). Never blocks submitting. */
 export function localLogAi(c: LogContent, subject: string): LogAi {
   const avg = averageRating(c.ratings) ?? 3

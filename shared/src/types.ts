@@ -2,6 +2,7 @@ import type { MemberStatus, RestrictablePage, Role } from './roles'
 import type { BusinessRules } from './settings/businessRules'
 import type { SessionStatus } from './settings/defaults'
 import type { SettingsOverrides } from './settings/resolve'
+import type { PayType } from './pay/segment'
 import type { DateKey, Weekday } from './time'
 
 /** Structural Firestore Timestamp (shared code doesn't depend on the Firebase SDK). */
@@ -343,6 +344,27 @@ export interface DayConfig extends AuditStamp {
   isOpen: boolean
   openMin: number
   closeMin: number
+}
+
+// ---------------------------------------------------------------- time clock
+
+/** `branches/{b}/clockShifts/{id}`: one clock-in to clock-out (the kiosk, an admin's time entry, or the automatic clock-out). */
+export interface ClockShift {
+  staffId: string
+  staffName: string
+  dateKey: DateKey
+  inMin: number
+  clockInAt: TimestampLike
+  clockOutAt: TimestampLike | null
+  outDateKey: DateKey | null
+  outMin: number | null
+  status: 'open' | 'closed'
+  source: 'kiosk' | 'admin' | 'auto'
+  autoClosed: boolean
+  autoCorrected: boolean
+  /** An admin's forced pay type for the whole shift (e.g. a meeting that is all admin time). */
+  forcedType: PayType | null
+  note: string
 }
 
 // -------------------------------------------------------------------- audit

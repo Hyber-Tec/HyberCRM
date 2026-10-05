@@ -1,7 +1,7 @@
 import { Navigate, Outlet, type RouteObject } from 'react-router'
 import { BranchProvider } from '@/branch/BranchProvider'
 import { PortalLayout } from '@/portals/PortalLayout'
-import { BranchHomeRedirect, Moved, MovedStudentCalendar, RequireAuth, RequirePage, RequirePortal } from './guards'
+import { BranchHomeRedirect, Moved, MovedStudentCalendar, RequireAuth, RequirePage, RequirePortal, TutorMoved } from './guards'
 
 /** Lazy route helper: `page(() => import('./x'), 'X')`. */
 export function page<M extends Record<string, unknown>>(load: () => Promise<M>, name: keyof M): RouteObject['lazy'] {
@@ -78,22 +78,37 @@ const adminRoutes: RouteObject[] = [
 ]
 
 const tutorRoutes: RouteObject[] = [
-  { index: true, element: <Navigate to="announcements" replace /> },
+  { index: true, element: <TutorMoved to="today" /> },
+  { path: 'today', lazy: page(() => import('@/features/tutor/today/TutorTodayPage'), 'TutorTodayPage') },
   { path: 'announcements', lazy: page(() => import('@/features/announcements/AnnouncementsPage'), 'TutorAnnouncementsPage') },
   { path: 'announcements/:announcementId', lazy: page(() => import('@/features/announcements/AnnouncementsPage'), 'TutorAnnouncementPostPage') },
   { path: 'schedule', lazy: page(() => import('@/features/schedule/TutorSchedulePage'), 'TutorSchedulePage') },
   { path: 'availability', lazy: page(() => import('@/features/availability/TutorAvailabilityPage'), 'TutorAvailabilityPage') },
-  { path: 'sessions', element: <Navigate to="log" replace /> },
+  { path: 'sessions', element: <TutorMoved to="sessions/log" /> },
   { path: 'sessions/log', lazy: page(() => import('@/features/sessions/SessionLogListPage'), 'TutorSessionLogListPage') },
   { path: 'sessions/progress-reports', lazy: page(() => import('@/features/reports/ProgressReportsPage'), 'TutorProgressReportsPage') },
   { path: 'sessions/progress-reports/:reportId', lazy: page(() => import('@/features/reports/ReportEditorPage'), 'ReportEditorPage') },
   { path: 'students', lazy: page(() => import('@/features/students/StudentDirectoryPage'), 'TutorStudentDirectoryPage') },
   { path: 'students/:studentId/:tab?', lazy: page(() => import('@/features/students/StudentProfilePage'), 'TutorStudentProfilePage') },
   { path: 'payroll', lazy: page(() => import('@/features/timeclock/TutorPayrollPage'), 'TutorPayrollPage') },
-  { path: 'my-info', element: <Navigate to="profile" replace /> },
-  { path: 'my-info/profile', lazy: page(() => import('@/features/tutor/MyProfilePage'), 'MyProfilePage') },
-  { path: 'my-info/subjects', lazy: page(() => import('@/features/tutor/MySubjectsPage'), 'MySubjectsPage') },
-  { path: '*', element: <Navigate to="announcements" replace /> },
+  {
+    path: 'profile',
+    lazy: page(() => import('@/features/tutor/profile/ProfilePage'), 'ProfilePage'),
+    children: [
+      { index: true, lazy: page(() => import('@/features/tutor/profile/ProfilePage'), 'ProfileIndex') },
+      { path: 'account', lazy: page(() => import('@/features/tutor/profile/AccountSection'), 'AccountSection') },
+      { path: 'subjects', lazy: page(() => import('@/features/tutor/profile/SubjectsSection'), 'SubjectsSection') },
+      { path: 'notifications', lazy: page(() => import('@/features/tutor/profile/NotificationsSection'), 'NotificationsSection') },
+      { path: 'security', lazy: page(() => import('@/features/tutor/profile/SecuritySection'), 'SecuritySection') },
+      { path: 'appearance', lazy: page(() => import('@/features/tutor/profile/AppearanceSection'), 'AppearanceSection') },
+      { path: '*', element: <TutorMoved to="profile" /> },
+    ],
+  },
+  // Earlier addresses (My Info) and unknown ones.
+  { path: 'my-info', element: <TutorMoved to="profile" /> },
+  { path: 'my-info/profile', element: <TutorMoved to="profile/account" /> },
+  { path: 'my-info/subjects', element: <TutorMoved to="profile/subjects" /> },
+  { path: '*', element: <TutorMoved to="today" /> },
 ]
 
 const parentRoutes: RouteObject[] = [

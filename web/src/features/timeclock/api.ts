@@ -5,28 +5,13 @@ import { type PayType, type PricedSegment, type Rates, payModelFor, priceShift }
 import { type BusinessRules, payModelOn } from '@shared/settings/businessRules'
 import type { BranchSettings } from '@shared/settings/defaults'
 import { type DateKey, addDays, formatDateKey, formatMinutes, minutesOf, toInstant } from '@shared/time'
-import type { Compensation, Session, Staff, StaffRole, TimestampLike, WithId } from '@shared/types'
+import type { ClockShift, Compensation, Session, Staff, StaffRole, WithId } from '@shared/types'
 import { useBranch } from '@/branch/BranchProvider'
 import { type Actor, addAudit } from '@/lib/audit'
 import { db } from '@/lib/firebase'
 import { branchCol, branchDocRef, useQuery } from '@/lib/firestore'
 
-export interface ClockShift {
-  staffId: string
-  staffName: string
-  dateKey: DateKey
-  inMin: number
-  clockInAt: TimestampLike
-  clockOutAt: TimestampLike | null
-  outDateKey: DateKey | null
-  outMin: number | null
-  status: 'open' | 'closed'
-  source: 'kiosk' | 'admin' | 'auto'
-  autoClosed: boolean
-  autoCorrected: boolean
-  forcedType: PayType | null
-  note: string
-}
+export type { ClockShift } from '@shared/types'
 
 /** Live shifts in a date range (optionally one employee). */
 export function useShifts(from: DateKey, to: DateKey, staffId: string | null, enabled = true, opts?: { keepPrevious?: boolean }) {

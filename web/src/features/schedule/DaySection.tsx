@@ -146,7 +146,8 @@ export function DaySection({ dateKey, hours, rows, events, showHeader = false, s
         <h2 className="text-base font-semibold tracking-tight">{formatDateKey(dateKey, 'weekdayLong').replace(/, \d{4}$/, '')}</h2>
         {isToday ? <span className="rounded-full bg-foreground px-2 py-0.5 text-[10px] font-semibold text-background">TODAY</span> : null}
         {!hours.isOpen ? <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-semibold text-white">CLOSED</span> : null}
-        {locked ? <span className="text-xs text-muted-foreground">Past · view only</span> : null}
+        {/* Tutors never edit the schedule, so they only need to know the day is over. */}
+        {locked ? <span className="text-xs text-muted-foreground">{ui.mode === 'tutor' ? 'Past' : 'Past · view only'}</span> : null}
         {ui.mode === 'admin' ? (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -235,7 +236,11 @@ export function DaySection({ dateKey, hours, rows, events, showHeader = false, s
             isToday={isToday}
           />
         ))}
-        {rows.length === 0 ? <div className="px-4 py-8 text-sm text-muted-foreground">{locked ? 'No sessions on this day.' : 'No tutors available.'}</div> : null}
+        {rows.length === 0 ? (
+          <div className="px-4 py-8 text-sm text-muted-foreground">
+            {locked ? 'No sessions on this day.' : ui.mode === 'tutor' ? 'Nothing booked and no availability on this day.' : 'No tutors available.'}
+          </div>
+        ) : null}
 
         {/* Global hover line */}
         <div ref={hoverRef} className="pointer-events-none absolute top-0 bottom-0 z-10 hidden border-l-2 border-dashed border-blue-600/60" />

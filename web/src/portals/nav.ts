@@ -3,12 +3,14 @@ import {
   LuCalendarClock,
   LuCalendarDays,
   LuChartLine,
+  LuCircleUserRound,
   LuGraduationCap,
   LuHouse,
   LuMegaphone,
   LuNotebookPen,
   LuSettings,
   LuShieldCheck,
+  LuSun,
   LuUser,
   LuUserCog,
   LuUsers,
@@ -23,6 +25,8 @@ export interface NavLeaf {
   to: string
   icon?: IconType
   restrict?: RestrictablePage
+  /** Other pages (relative to the portal root) that also light this entry up, e.g. Payroll under the phone's Profile tab. */
+  alsoActive?: string[]
 }
 
 export interface NavGroup {
@@ -81,11 +85,18 @@ export const ADMIN_NAV: PortalNav = {
   ],
 }
 
+/**
+ * The tutor portal: the same five places as the phone app (Today, Schedule,
+ * Availability, News, Profile), plus the desktop's session pages, students and
+ * pay. Profile holds the person's own pages (account, subjects, notifications,
+ * sign-in, appearance).
+ */
 export const TUTOR_NAV: PortalNav = {
   main: [
-    { key: 'announcements', label: 'Announcements', to: 'announcements', icon: LuMegaphone },
+    { key: 'today', label: 'Today', to: 'today', icon: LuSun },
     { key: 'schedule', label: 'Schedule', to: 'schedule', icon: LuCalendarDays },
     { key: 'availability', label: 'Availability', to: 'availability', icon: LuCalendarClock },
+    { key: 'announcements', label: 'Announcements', to: 'announcements', icon: LuMegaphone },
     {
       key: 'sessions',
       label: 'Sessions',
@@ -97,22 +108,14 @@ export const TUTOR_NAV: PortalNav = {
     },
     { key: 'students', label: 'Students', to: 'students', icon: LuGraduationCap },
     { key: 'payroll', label: 'Payroll', to: 'payroll', icon: LuWallet },
-    {
-      key: 'myInfo',
-      label: 'My Info',
-      icon: LuUser,
-      children: [
-        { key: 'profile', label: 'Profile', to: 'my-info/profile' },
-        { key: 'mySubjects', label: 'Subjects', to: 'my-info/subjects' },
-      ],
-    },
   ],
-  secondary: [],
+  secondary: [{ key: 'profile', label: 'Profile', to: 'profile', icon: LuCircleUserRound }],
   mobileTabs: [
-    { key: 'announcements', label: 'News', to: 'announcements', icon: LuMegaphone },
-    { key: 'availability', label: 'Availability', to: 'availability', icon: LuCalendarClock },
+    { key: 'today', label: 'Today', to: 'today', icon: LuSun },
     { key: 'schedule', label: 'Schedule', to: 'schedule', icon: LuCalendarDays },
-    { key: 'profile', label: 'Profile', to: 'my-info/profile', icon: LuUser },
+    { key: 'availability', label: 'Availability', to: 'availability', icon: LuCalendarClock },
+    { key: 'announcements', label: 'News', to: 'announcements', icon: LuMegaphone },
+    { key: 'profile', label: 'Profile', to: 'profile', icon: LuCircleUserRound, alsoActive: ['payroll'] },
   ],
 }
 

@@ -1,9 +1,10 @@
+import { dayStartInstant } from '@shared/availability'
 import { APP_DOMAIN, SENDER_EMAIL } from '@shared/brand'
 import { newBranchData, newMemberData, publicProfileFor } from '@shared/branchFactory'
 import { DEMO_BUSINESS_RULES, DEMO_KIOSK_PINS, type SeedDoc, buildDemoData } from '@shared/demo/seed'
-import { COL, DOC, ROOT } from '@shared/paths'
+import { COL, DOC, ROOT, availabilityDocId } from '@shared/paths'
 import { DEFAULT_SETTINGS, type WeekHours } from '@shared/settings/defaults'
-import { type DateKey, formatMinutes, minutesOf, toInstant, todayKey, weekdayOf } from '@shared/time'
+import { type DateKey, dayEndInstant, formatMinutes, minutesOf, toInstant, todayKey, weekdayOf } from '@shared/time'
 import { seed } from './fake/firestore'
 import { DEMO_BRANCH_ID, type DemoRole } from './protocol'
 
@@ -28,6 +29,9 @@ export const DEMO_LOGO = '/brand/hybercrm-logo.svg'
 
 /** Open every day, so there is always a day in progress to show. */
 export const DEMO_WEEK: WeekHours = { ...DEFAULT_SETTINGS.schedule.defaultWeek, sunday: { isOpen: true, openMin: 720, closeMin: 1080 } }
+
+/** The demo tutor (the tutor view signs in as her). */
+const DEMO_TUTOR_ID = 'demo-maya-thompson'
 
 /** Kiosk PINs of the sample staff (staff ID → PIN), for the demo kiosk. */
 export const demoPins = new Map(Object.entries(DEMO_KIOSK_PINS))
@@ -89,6 +93,96 @@ export function demoTimeZone(now = new Date()): string {
     if (score !== null && (!best || score < best.score)) best = { zone, score }
   }
   return best?.zone ?? own
+}
+
+/**
+ * The tutor view always opens on a day in progress: when the sample gives the
+ * demo tutor nothing today, she gets today's availability and three sessions
+ * around now (one over with its log still to write, one on now, one later).
+ */
+function tutorDay(sample: SeedDoc[], base: string, today: DateKey, tz: string, now: Date) {
+  const sessions = sample.filter((d) => d.path.startsWith(`${base}/${COL.sessions}/`))
+  if (sessions.some((d) => d.data.tutorId === DEMO_TUTOR_ID && d.data.dateKey === today && d.data.status !== 'canceled')) return
+  const hours = DEMO_WEEK[weekdayOf(today)]
+  if (!hours.isOpen) return
+  const half = Math.floor(minutesOf(now, tz) / 30) * 30
+  const slots = [
+    { startMin: Math.max(hours.openMin, half - 120), len: 80 },
+    { startMin: half - 30, len: 110 },
+    { startMin: half + 60, len: 50 },
+  ].filter((x) => x.startMin >= hours.openMin && x.startMin + x.len <= hours.closeMin)
+  // Her own subjects, as on her other days.
+  const subjects = [...new Map(sessions.filter((d) => d.data.tutorId === DEMO_TUTOR_ID).map((d) => [d.data.subjectId, d.data])).values()]
+  const enrolled = sample.filter((d) => /\/students\/[^/]+$/.test(d.path) && d.data.status === 'enrolled' && !d.path.endsWith('/demo-student-ava-patel'))
+  const busy = (studentId: string, a: number, b: number) =>
+    sessions.some((d) => d.data.studentId === studentId && d.data.dateKey === today && d.data.status !== 'canceled' && a < Number(d.data.endMin) && b > Number(d.data.startMin))
+  if (!slots.length || !subjects.length) return
+
+  sample.push({
+    path: `${base}/${COL.availability}/${availabilityDocId(DEMO_TUTOR_ID, today)}`,
+    data: {
+      staffId: DEMO_TUTOR_ID,
+      dateKey: today,
+      weekday: weekdayOf(today),
+      ranges: [{ startMin: hours.openMin, endMin: hours.closeMin }],
+      unavailable: false,
+      hidden: false,
+      dayStartAt: dayStartInstant(today, tz),
+      updatedVia: 'tutor',
+      updatedAt: now,
+      updatedBy: 'maya.thompson@example.com',
+    },
+  })
+  let pick = 3
+  slots.forEach((slot, i) => {
+    const endMin = slot.startMin + slot.len
+    let student: SeedDoc | undefined
+    for (let tries = 0; tries < enrolled.length && !student; tries++) {
+      const candidate = enrolled[(pick + tries * 5) % enrolled.length]
+      if (!busy(candidate.path.split('/').pop()!, slot.startMin, endMin)) student = candidate
+    }
+    pick += 7
+    if (!student) return
+    const subject = subjects[i % subjects.length]
+    const id = `demo-s-${today}-maya-thompson-live-${i}`
+    const doc: SeedDoc = {
+      path: `${base}/${COL.sessions}/${id}`,
+      data: {
+        tutorId: DEMO_TUTOR_ID,
+        tutorName: 'Maya Thompson',
+        studentId: student.path.split('/').pop(),
+        studentName: student.data.name,
+        studentGrade: student.data.grade,
+        subjectId: subject.subjectId,
+        subject: subject.subject,
+        note: i === 1 ? 'Bring last week’s practice test' : '',
+        status: 'confirmed',
+        dateKey: today,
+        weekday: weekdayOf(today),
+        startMin: slot.startMin,
+        endMin,
+        startAt: toInstant(today, slot.startMin, tz),
+        endAt: toInstant(today, endMin, tz),
+        dayEndAt: dayEndInstant(today, tz),
+        visualOrder: 0,
+        logStatus: 'none',
+        logSubmittedAt: null,
+        noShowAppliedHours: null,
+        confirmedAt: null,
+        confirmedBy: null,
+        source: 'seed',
+        isDeleted: false,
+        deletedAt: null,
+        deletedBy: null,
+        createdAt: now,
+        createdBy: DEMO_OWNER.email,
+        updatedAt: now,
+        updatedBy: DEMO_OWNER.email,
+      },
+    }
+    sample.push(doc)
+    sessions.push(doc)
+  })
 }
 
 /** Tutors who are in today: clocked in a little before their first session, out after their last. */
@@ -203,6 +297,7 @@ export function seedDemo(now = new Date()) {
   })
   // Everyone clocks in at the kiosk with a PIN.
   for (const d of sample) if (/\/staff\/[^/]+$/.test(d.path)) d.data.hasKioskPin = true
+  tutorDay(sample, base, today, tz, now)
   const shifts = todayShifts(sample, base, today, tz, now)
   docs.push(...sample, ...shifts, ...teamMembers(sample, base, now), ...announcementReads(sample, base), ...auditHistory([...sample, ...shifts], base, tz, now))
   seed(docs)
@@ -266,7 +361,10 @@ function announcementReads(sample: SeedDoc[], base: string): SeedDoc[] {
     if (!m) continue
     const at = post.data.createdAt as Date
     const ageDays = (Date.now() - at.getTime()) / 86_400_000
-    const readers = tutors.slice(0, Math.min(tutors.length, Math.max(2, Math.round(ageDays * 1.2))))
+    // The demo tutor hasn't opened the newest post yet (it's on her Today).
+    const readers = tutors
+      .slice(0, Math.min(tutors.length, Math.max(2, Math.round(ageDays * 1.2))))
+      .filter((t) => ageDays >= 2 || t.path.split('/').pop() !== DEMO_TUTOR_ID)
     readers.forEach((t, i) => {
       const email = String(t.data.email)
       out.push({

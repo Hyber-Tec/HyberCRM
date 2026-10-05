@@ -92,12 +92,30 @@ export const SCENARIOS: Scenario[] = [
   {
     name: 'tutor',
     email: 'tutor@e2e.test',
-    paths: ['/app', `${b}/admin/home`, `${b}/tutor/announcements/demo-a-welcome`, `${b}/tutor/students`, `${b}/tutor/my-info/profile`, `${b}/tutor/my-info/subjects`, `${b}/tutor/students/demo-student-ava-patel/info`, `${b}/tutor/availability`, `${b}/tutor/schedule`, `${b}/tutor/students/demo-student-ava-patel/calendar`, `${b}/tutor/payroll`],
+    paths: [
+      '/app',
+      `${b}/admin/home`,
+      `${b}/tutor/announcements/demo-a-welcome`,
+      `${b}/tutor/students`,
+      `${b}/tutor/my-info/profile`,
+      `${b}/tutor/my-info/subjects`,
+      `${b}/tutor/profile/notifications`,
+      `${b}/tutor/profile/security`,
+      `${b}/tutor/students/demo-student-ava-patel/info`,
+      `${b}/tutor/availability`,
+      `${b}/tutor/schedule`,
+      `${b}/tutor/students/demo-student-ava-patel/calendar`,
+      `${b}/tutor/payroll`,
+    ],
     expect: {
-      '/app': ['Announcements', 'Welcome to the new Demo Academy portal'],
+      // The tutor portal opens on Today (round 4).
+      '/app': ['Today’s sessions', 'To do'],
       [`${b}/tutor/announcements/demo-a-welcome`]: ['Looks great', 'Post comment'],
+      // Old My Info addresses lead to Profile.
       [`${b}/tutor/my-info/profile`]: ['Maya Thompson', 'Teaching rate'],
       [`${b}/tutor/my-info/subjects`]: ['Test Prep'],
+      [`${b}/tutor/profile/notifications`]: ['Session changes', 'Cancellations'],
+      [`${b}/tutor/profile/security`]: ['Ways to sign in'],
       [`${b}/tutor/availability`]: ['Copy last week', 'closed days take no availability'],
     },
   },
