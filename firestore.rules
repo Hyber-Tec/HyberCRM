@@ -104,6 +104,22 @@ service cloud.firestore {
       allow create, update: if signedIn() && uid == request.auth.uid
         && request.resource.data.email.lower() == emailKey();
       allow delete: if isSuperAdmin();
+
+      // The phone app's installs and their push tokens (shared/src/push.ts). The server
+      // finds a recipient's phones by email; each install removes its own at sign-out.
+      match /devices/{deviceId} {
+        allow read, delete: if signedIn() && uid == request.auth.uid;
+        allow create, update: if signedIn() && uid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['token', 'email', 'platform', 'appVersion', 'label', 'createdAt', 'updatedAt'])
+          && request.resource.data.email == emailKey()
+          && request.resource.data.token is string
+          && request.resource.data.token.size() > 0
+          && request.resource.data.token.size() < 4096
+          && request.resource.data.platform in ['ios', 'android'];
+      }
+
+      // users/{uid}/private/* (e.g. how many account emails were sent) is server-only:
+      // no rule, so no client access.
     }
 
     // "Talk to us" requests from the landing page: written only by the

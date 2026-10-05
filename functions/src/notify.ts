@@ -1,5 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore'
 import { db } from './app'
+import { pushItems } from './push'
 import type { NotificationType } from '@shared/comms'
 import { COL, ROOT } from '@shared/paths'
 import type { NotificationPrefs } from '@shared/types'
@@ -21,19 +22,27 @@ export interface Recipient {
 }
 
 /**
- * Writes inbox items. `dedupeKey` makes the IDs deterministic so a retried
- * trigger doesn't notify twice.
+ * Writes inbox items and pushes them to the recipients' phones. `dedupeKey` makes the IDs deterministic, and each
+ * item is created only if it isn't there yet, so a retried trigger neither notifies nor pushes twice.
  */
 export async function sendNotifications(branchId: string, items: Outgoing[], dedupeKey: string) {
   const col = db.collection(`${ROOT.branches}/${branchId}/${COL.notifications}`)
-  for (let i = 0; i < items.length; i += 400) {
-    const batch = db.batch()
-    for (const n of items.slice(i, i + 400)) {
-      const id = `${dedupeKey}-${n.recipientKey}`.replace(/[^\w@.-]+/g, '_').slice(0, 700)
-      batch.set(col.doc(id), { ...n, createdAt: FieldValue.serverTimestamp(), readAt: null })
+  const created: { id: string; n: Outgoing }[] = []
+  for (let i = 0; i < items.length; i += 100) {
+    const results = await Promise.allSettled(
+      items.slice(i, i + 100).map(async (n) => {
+        const id = `${dedupeKey}-${n.recipientKey}`.replace(/[^\w@.-]+/g, '_').slice(0, 700)
+        await col.doc(id).create({ ...n, createdAt: FieldValue.serverTimestamp(), readAt: null })
+        return { id, n }
+      }),
+    )
+    for (const r of results) {
+      if (r.status === 'fulfilled') created.push(r.value)
+      // ALREADY_EXISTS (6): a retry of a trigger that already wrote it.
+      else if ((r.reason as { code?: number })?.code !== 6) throw r.reason
     }
-    await batch.commit()
   }
+  await pushItems(branchId, created)
 }
 
 /** Active members with the tutor role (optionally only the given keys), with their notification preferences. */
