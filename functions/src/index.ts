@@ -1,5 +1,5 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
-import { db } from './app'
+import { db, LIGHT } from './app'
 import { pinHash } from './pins'
 import { deliverSessionNotices, snapshotOf } from './sessionNotify'
 import { onDocumentCreated } from 'firebase-functions/v2/firestore'
@@ -201,7 +201,7 @@ export const kioskPunch = onCall(async (req) => {
 // ---------------------------------------------------------------- schedules
 
 /** Closes shifts still open after each branch's local cut-off (default midnight). */
-export const autoClockOut = onSchedule({ schedule: 'every 15 minutes', timeZone: 'UTC' }, async () => {
+export const autoClockOut = onSchedule({ schedule: 'every 15 minutes', timeZone: 'UTC', ...LIGHT }, async () => {
   const branches = await db.collection(ROOT.branches).where('status', '==', 'active').get()
   const now = Date.now()
   for (const b of branches.docs) {
@@ -310,7 +310,7 @@ async function confirmIfDue(
 }
 
 /** Pending sessions are confirmed automatically shortly before they start (default 24 h). */
-export const autoConfirmSessions = onSchedule({ schedule: 'every 60 minutes', timeZone: 'UTC' }, async () => {
+export const autoConfirmSessions = onSchedule({ schedule: 'every 60 minutes', timeZone: 'UTC', ...LIGHT }, async () => {
   const now = Timestamp.now()
   const horizon = Timestamp.fromMillis(now.toMillis() + 7 * 24 * 3_600_000)
   const snap = await db.collectionGroup(COL.sessions).where('status', '==', 'pending').where('startAt', '>', now).where('startAt', '<=', horizon).get()
@@ -333,7 +333,7 @@ export const autoConfirmSessions = onSchedule({ schedule: 'every 60 minutes', ti
  * if it is confirmed and starts inside the notification window, the tutor
  * gets "Session Confirmed" in their inbox.
  */
-export const onSessionCreated = onDocumentCreated(`${ROOT.branches}/{branchId}/${COL.sessions}/{sessionId}`, async (event) => {
+export const onSessionCreated = onDocumentCreated({ document: `${ROOT.branches}/{branchId}/${COL.sessions}/{sessionId}`, ...LIGHT }, async (event) => {
   const snap = event.data
   if (!snap) return
   const { branchId, sessionId } = event.params

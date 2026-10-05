@@ -25,7 +25,7 @@ import { resolveSettings } from '@shared/settings/resolve'
 import { addDays, diffDays, isDateKey, todayKey } from '@shared/time'
 import type { Branch, Student } from '@shared/types'
 import { aiConfigured, aiJson, geminiKey } from './ai'
-import { db } from './app'
+import { db, LIGHT } from './app'
 import { gmailAppPassword, sendMail } from './email'
 import { callerFor } from './sessions'
 
@@ -440,7 +440,7 @@ export const shareProgressReport = onCall({ secrets: [gmailAppPassword], timeout
 })
 
 /** The family's first opening of a shared report shows as "Viewed" for staff. */
-export const onReportViewed = onDocumentCreated(`${ROOT.branches}/{branchId}/${COL.progressReports}/{reportId}/views/{viewerKey}`, async (event) => {
+export const onReportViewed = onDocumentCreated({ document: `${ROOT.branches}/{branchId}/${COL.progressReports}/{reportId}/views/{viewerKey}`, ...LIGHT }, async (event) => {
   const { branchId, reportId } = event.params
   const ref = db.doc(`${ROOT.branches}/${branchId}/${COL.progressReports}/${reportId}`)
   await db.runTransaction(async (tx) => {

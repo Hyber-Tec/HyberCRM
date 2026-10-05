@@ -1,6 +1,6 @@
 import type { Timestamp } from 'firebase-admin/firestore'
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore'
-import { db } from './app'
+import { db, LIGHT } from './app'
 import { sendNotifications } from './notify'
 import { COL, ROOT } from '@shared/paths'
 import { type SessionNotice, type SessionSnapshot, sessionChangeNotices } from '@shared/schedule/notify'
@@ -55,7 +55,7 @@ export async function deliverSessionNotices(branchId: string, sessionId: string,
 }
 
 /** Session changes inside the notification window reach the tutor's inbox (TE's decision table). */
-export const onSessionUpdated = onDocumentUpdated('branches/{branchId}/sessions/{sessionId}', async (event) => {
+export const onSessionUpdated = onDocumentUpdated({ document: 'branches/{branchId}/sessions/{sessionId}', ...LIGHT }, async (event) => {
   const before = event.data?.before.data()
   const after = event.data?.after.data()
   if (!before || !after) return

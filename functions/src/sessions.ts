@@ -3,7 +3,7 @@ import { onDocumentUpdated, onDocumentWritten } from 'firebase-functions/v2/fire
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
 import { COL, ROOT } from '@shared/paths'
 import { aiJson, geminiKey } from './ai'
-import { db } from './app'
+import { db, LIGHT } from './app'
 import { billedHours } from '@shared/schedule/hours'
 import {
   FLAG_LABELS,
@@ -265,7 +265,7 @@ export const sessionAi = onCall({ secrets: [geminiKey], timeoutSeconds: 60 }, as
  * Mirrors a draft onto its session (`logStatus: 'draft'`) so lists can show it;
  * a submitted log is never downgraded. A deleted draft clears it again.
  */
-export const onSessionLogWritten = onDocumentWritten(`${ROOT.branches}/{branchId}/${COL.sessionLogs}/{sessionId}`, async (event) => {
+export const onSessionLogWritten = onDocumentWritten({ document: `${ROOT.branches}/{branchId}/${COL.sessionLogs}/{sessionId}`, ...LIGHT }, async (event) => {
   const { branchId, sessionId } = event.params
   const after = event.data?.after.exists ? event.data.after.data() : null
   const sessionRef = db.doc(`${ROOT.branches}/${branchId}/${COL.sessions}/${sessionId}`)
@@ -284,7 +284,7 @@ export const onSessionLogWritten = onDocumentWritten(`${ROOT.branches}/{branchId
  * logged session, the log's copy is updated and the billed hours are corrected:
  * the difference goes to the student, or the hours move to the new student.
  */
-export const onLoggedSessionUpdated = onDocumentUpdated(`${ROOT.branches}/{branchId}/${COL.sessions}/{sessionId}`, async (event) => {
+export const onLoggedSessionUpdated = onDocumentUpdated({ document: `${ROOT.branches}/{branchId}/${COL.sessions}/{sessionId}`, ...LIGHT }, async (event) => {
   const before = event.data?.before.data()
   const after = event.data?.after.data()
   if (!before || !after || after.logStatus !== 'submitted') return

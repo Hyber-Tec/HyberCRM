@@ -6,7 +6,7 @@ import { type InviteKind, inviteEmail } from '@shared/email/invite'
 import { COL, DOC, ROOT } from '@shared/paths'
 import { ROLE_LABELS } from '@shared/roles'
 import type { Branch, BranchPublicProfile, Member, MemberInvite, SignupRequest } from '@shared/types'
-import { db } from './app'
+import { db, LIGHT } from './app'
 import { gmailAppPassword, sendMail } from './email'
 
 /**
@@ -63,7 +63,7 @@ async function deliverInvite(opts: { branchId: string; email: string; member: Me
  * Test and example addresses are never emailed.
  */
 export const onMemberWritten = onDocumentWritten(
-  { document: `${ROOT.branches}/{branchId}/${COL.members}/{email}`, secrets: [gmailAppPassword] },
+  { document: `${ROOT.branches}/{branchId}/${COL.members}/{email}`, secrets: [gmailAppPassword], ...LIGHT },
   async (event) => {
     const before = event.data?.before.data() as Member | undefined
     const after = event.data?.after.data() as Member | undefined

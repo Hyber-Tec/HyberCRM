@@ -1,7 +1,7 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { logger } from 'firebase-functions'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
-import { db } from './app'
+import { db, LIGHT } from './app'
 import { COL, ROOT } from '@shared/paths'
 import { STUDENT_STATUS_LABELS, autoStudentStatus } from '@shared/people'
 import { resolveSettings } from '@shared/settings/resolve'
@@ -20,7 +20,7 @@ async function activeBranches() {
  * (pause after inactivity, re-enroll when sessions return; manual statuses are
  * kept) and refreshes each student's next session date.
  */
-export const studentLifecycleDaily = onSchedule({ schedule: '0 8 * * *', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
+export const studentLifecycleDaily = onSchedule({ schedule: '0 8 * * *', timeZone: 'UTC', timeoutSeconds: 540, ...LIGHT }, async () => {
   for (const { id: branchId, branch } of await activeBranches()) {
     const settings = resolveSettings(branch.settings)
     const today = todayKey(branch.timezone || 'America/New_York')
@@ -84,7 +84,7 @@ export const studentLifecycleDaily = onSchedule({ schedule: '0 8 * * *', timeZon
 })
 
 /** Daily: deletes inbox items and trashed sessions older than each branch's retention. */
-export const purgeExpired = onSchedule({ schedule: '30 8 * * *', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
+export const purgeExpired = onSchedule({ schedule: '30 8 * * *', timeZone: 'UTC', timeoutSeconds: 540, ...LIGHT }, async () => {
   const branches = await db.collection(ROOT.branches).get()
   for (const b of branches.docs) {
     const settings = resolveSettings((b.data() as Branch).settings)

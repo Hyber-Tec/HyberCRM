@@ -2,7 +2,7 @@ import type { Timestamp } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
 import { logger } from 'firebase-functions'
 import { onDocumentCreated, onDocumentWritten } from 'firebase-functions/v2/firestore'
-import { db } from './app'
+import { db, LIGHT } from './app'
 import { sendNotifications, tutorRecipients } from './notify'
 import type { Announcement } from '@shared/comms'
 import { COL, ROOT } from '@shared/paths'
@@ -17,7 +17,7 @@ const postPath = (branchId: string, id: string) => `${ROOT.branches}/${branchId}
  * audience's inbox, honoring each tutor's Announcements preference. Deleting a
  * post removes its read receipts, comments and uploaded files.
  */
-export const onAnnouncementWritten = onDocumentWritten(POST, async (event) => {
+export const onAnnouncementWritten = onDocumentWritten({ document: POST, ...LIGHT }, async (event) => {
   const { branchId, announcementId } = event.params
   const before = event.data?.before.data() as Announcement | undefined
   const after = event.data?.after.data() as Announcement | undefined
@@ -53,14 +53,14 @@ export const onAnnouncementWritten = onDocumentWritten(POST, async (event) => {
 })
 
 /** Keeps `readCount` equal to the number of read receipts. */
-export const onAnnouncementRead = onDocumentCreated('branches/{branchId}/announcements/{announcementId}/reads/{readerKey}', async (event) => {
+export const onAnnouncementRead = onDocumentCreated({ document: 'branches/{branchId}/announcements/{announcementId}/reads/{readerKey}', ...LIGHT }, async (event) => {
   const ref = db.doc(postPath(event.params.branchId, event.params.announcementId))
   const count = (await ref.collection('reads').count().get()).data().count
   await ref.update({ readCount: count }).catch(() => undefined)
 })
 
 /** Keeps `commentCount` equal to the number of comments. */
-export const onAnnouncementComment = onDocumentWritten('branches/{branchId}/announcements/{announcementId}/comments/{commentId}', async (event) => {
+export const onAnnouncementComment = onDocumentWritten({ document: 'branches/{branchId}/announcements/{announcementId}/comments/{commentId}', ...LIGHT }, async (event) => {
   if (event.data?.before.exists === event.data?.after.exists) return
   const ref = db.doc(postPath(event.params.branchId, event.params.announcementId))
   const count = (await ref.collection('comments').count().get()).data().count
