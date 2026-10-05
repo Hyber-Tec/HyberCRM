@@ -98,7 +98,7 @@ A lab sheet for checking that the Hyber CRM phone app (the tutor's app) does wha
 | ☐ 7.2 [Real phone] | **Account details**, **My subjects**. | As the center has them on the website (Demo Academy → Employees → Maya). | Different: tell Claude Code which. |
 | ☐ 7.3 [Real phone, then Website] | **Payroll history**. | The same hours and pay as the website's tutor Payroll page for Maya. | Different numbers: a pay bug; stop and tell Claude Code. |
 | ☐ 7.4 [Real phone] | **Notifications**. | Whether notifications are on (with a way to turn them on), a switch per kind (new sessions, changes, cancellations, announcements), and this phone's **Push token**, copied with a tap (for Firebase's test message). | |
-| ☐ 7.5 [Real phone] | **Settings**. | The look (System, light or dark), how the account signs in (Google, password), **Privacy policy** (opens https://hybercrm.com/privacy), **Version** (the version and build, and for a copy built on this Mac the commit and when), and **Delete my account**. | The privacy page doesn't open: the website isn't deployed with it yet ([docs/publishing.md](publishing.md), to-do 2). |
+| ☐ 7.5 [Real phone] | **Settings**. | The look (System, light or dark), how the account signs in (Google, password), **Privacy policy** (opens https://hybercrm.com/privacy), **Version** (the version and build, and for a copy built on this Mac the commit and when), and **Delete my account**. | The privacy page doesn't open: it is online (https://hybercrm.com/privacy), so tell Claude Code what the phone shows. |
 
 ## 8. Notifications
 
@@ -125,7 +125,7 @@ The server sends one when a session starting **within the next 24 hours** is add
 | ☐ 9.2 [Real phone] | **Create an account** with that address and a password; open the confirmation email's link. | The tutor app for Demo Academy (with no sessions of its own). | |
 | ☐ 9.3 [Real phone] | Profile → Settings → **Delete my account** → your password → **Delete my account** → confirm. | Signed out. Signing in with that address and password no longer works. | |
 | ☐ 9.4 [Website] | Access Control. | The address is still listed in Demo Academy (the center's record), no longer linked to an account. | |
-| ☐ 9.5 [Real phone] | The account from 1.5 (no center): on its "No access yet" screen, **Delete my account**. | Deleted the same way. Apple tests exactly this. | No button there: needed before the App Store ([docs/publishing.md](publishing.md), to-do 3). |
+| ☐ 9.5 [Real phone] | The account from 1.5 (no center): on its "No access yet" screen, **Delete my account**. | Deleted the same way. Apple tests exactly this. | No button there: a bug (it is built, and Apple rejects the app without it); tell Claude Code. |
 
 ## 10. Things that must always be true
 

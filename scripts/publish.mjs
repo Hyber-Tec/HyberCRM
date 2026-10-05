@@ -338,7 +338,7 @@ async function iphone() {
           : null;
     stop([`The upload to App Store Connect didn't go through:`, ...messages.map((m) => `  ${m}`), ...(known ? [known] : []), tail(uploadLog, 6), `The whole answer: ${relative(uploadLog)}. Or ask Claude Code: "npm run publish:iphone fails".`]);
   }
-  console.log(`\n✓ Uploaded ${APP_NAME} ${release.version} (build ${release.build}) to App Store Connect. In 10–30 minutes it appears under TestFlight; Apple emails when it is ready.`);
+  console.log(`\n✓ Uploaded ${APP_NAME} ${release.version} (build ${release.build}) to App Store Connect. It shows "Processing" under TestFlight for 10–30 minutes; Apple doesn't always email when it is ready, so look there.`);
   console.log(`  ${bumpReminder(release)}\n`);
 }
 

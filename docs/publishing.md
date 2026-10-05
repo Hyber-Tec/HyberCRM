@@ -4,14 +4,15 @@ How to get Hyber CRM onto people's phones through Apple and Google: TestFlight f
 
 The app is listed **publicly** on both stores (the owner's permanent decision, 2026-10-04): anyone can find it, and it is useful to the tutors of any center that uses Hyber CRM. There is no unlisted or private route to take.
 
-Start with [Where things stand](#where-things-stand-checked-on-2026-10-04) and [What Apple and Google will check](#what-apple-and-google-will-check): the first is your to-do list, the second explains the one real decision (Sign in with Apple).
+Start with [Where things stand](#where-things-stand-checked-on-2026-10-05) and [What Apple and Google will check](#what-apple-and-google-will-check): the first is your to-do list, the second explains the one real decision (Sign in with Apple).
 
-## Where things stand (checked on 2026-10-04)
+## Where things stand (checked on 2026-10-05)
 
 **Done:**
 - **HyberTec LLC's Apple Developer account**: team `YSK7CHH56P`, an organization, paid. Xcode on this Mac signs for it (its Apple Development certificate is in the keychain), and `npm run iphone` puts the app on your iPhone with it.
 - **Firebase**: the iPhone app (`1:196610922641:ios:c12cba96e87d19d1ba0730`) and the Android app (`1:196610922641:android:35ef79293b6f357aba0730`) are registered in the hyber-crm project, the Android one with the standard debug key's SHA-1 and SHA-256, so Google sign-in works in builds made on this Mac. Their files are in `mobile/firebase/` (`npm run phone:setup` downloads them again).
-- **The app's identity**: Hyber CRM, `com.hybertec.hybercrm`, version 1.0.0, build 1 (`mobile/release.json`). It declares only standard encryption, so App Store Connect asks no export question.
+- **The app's identity**: Hyber CRM, `com.hybertec.hybercrm`, version 1.0.0 (`mobile/release.json` holds the version and the number of the last build uploaded). It declares only standard encryption, so App Store Connect asks no export question.
+- **App Store Connect** (2026-10-05): the API key and its `appstore.json` are in `mobile/.publish/` (the key matches its Key ID; the folder is not in git), the app record exists (Hyber CRM, `com.hybertec.hybercrm`, SKU `hybercrm`), and the first build, **1.0.0 (build 2)**, is uploaded.
 - **In the app, what the stores look for**: Profile → Settings → **Delete my account** (it asks for the password, or Google, then the server function `deleteMyAccount` deletes the account: Apple's guideline 5.1.1(v), Google's account deletion policy), a **Privacy policy** link and the **Version** line, in the same Settings.
 - **The commands**: `npm run publish:iphone`, `npm run publish:android`, `npm run publish:screenshots`; and every text the stores ask for, in [docs/store/](store/).
 - **The privacy policy**: `web/public/privacy.html`, online at https://hybercrm.com/privacy.
@@ -22,7 +23,7 @@ Start with [Where things stand](#where-things-stand-checked-on-2026-10-04) and [
 1. **The push key for iPhones** (APNs), from HyberTec's Apple account into Firebase: [below](#push-notifications-on-iphone-the-apns-key), 10 minutes. Until then iPhones get no push notifications (Android does).
 2. **Decide the sign-in question** (Sign in with Apple, guideline 4.8): [below](#sign-in-with-apple-guideline-48-the-honest-picture). The recommendation is to submit as it is and claim the exception; it costs nothing to try.
 3. **Start the Google Play account now** ([part 4](#part-4-google-play-public), step 1): it costs $25 and Google's checks of HyberTec LLC can take days to weeks, so it should run while you do the Apple steps.
-4. **App Store Connect**: the API key ([part 1](#part-1-one-time-setup-on-your-mac)), the app record and TestFlight ([part 2](#part-2-testflight)).
+4. **TestFlight**: once Apple has processed the build, you as a tester ([part 2](#part-2-testflight), step 5), then tutors at a center (step 6).
 5. **Screenshots**: `npm run publish:screenshots` ([part 3](#part-3-the-app-store-public), step 2).
 6. **The App Store submission** ([part 3](#part-3-the-app-store-public)), then **Google Play** ([part 4](#part-4-google-play-public)).
 
@@ -32,7 +33,7 @@ Start with [Where things stand](#where-things-stand-checked-on-2026-10-04) and [
 
 An app where people can create an account must let them delete it from inside the app; Google also wants a web page that says how. Ours: **Profile → Settings → Delete my account** in the app, and the policy's section https://hybercrm.com/privacy#delete for the web. Deleting removes the sign-in and the person's own profile and phones at once; the records a center keeps about its work (sessions, logs, pay, the audit log) stay with the center, which the rules allow when the privacy policy says so (it does).
 
-Apple's reviewer will most likely create a new account with **Create an account** and look for the button there. Such an account belongs to no center, so it sees "No access yet" and never reaches Profile: the button must be on that screen too ([to-do 3](#where-things-stand-checked-on-2026-10-04)).
+Apple's reviewer will most likely create a new account with **Create an account** and look for the button there. Such an account belongs to no center, so it sees "No access yet" and never reaches Profile: the button must be on that screen too, and it is ([Where things stand](#where-things-stand-checked-on-2026-10-05)).
 
 ### Sign in with Apple (guideline 4.8): the honest picture
 
@@ -49,11 +50,11 @@ Apple lists exceptions. The one that fits Hyber CRM: *"Your app is an education,
 
 ### The privacy policy, inside the app too
 
-Both stores want the policy's address in their forms (https://hybercrm.com/privacy) **and** a link to it inside the app (Profile → Settings → Privacy policy, done). The page must be online before submitting ([to-do 2](#where-things-stand-checked-on-2026-10-04)), and it must say what the app really does; [docs/store/privacy-policy.md](store/privacy-policy.md) does, and [docs/store/privacy-answers.md](store/privacy-answers.md) answers the stores' questionnaires the same way.
+Both stores want the policy's address in their forms (https://hybercrm.com/privacy) **and** a link to it inside the app (Profile → Settings → Privacy policy, done). The page must be online before submitting (it is), and it must say what the app really does; [docs/store/privacy-policy.md](store/privacy-policy.md) does, and [docs/store/privacy-answers.md](store/privacy-answers.md) answers the stores' questionnaires the same way.
 
 ### Everything else they look at
 
-- **A way in:** reviewers can't use an app that needs an account without one. They get the demo tutor (to-do 1) and the notes say what to try.
+- **A way in:** reviewers can't use an app that needs an account without one. They get Demo Academy's demo tutor and the notes say what to try.
 - **People's posts (Apple 1.2):** comments on announcements are seen only inside one center, among people the center added, and the center's admins can delete any comment and take away anyone's access. The notes say so.
 - **A business app on the public store:** Hyber CRM is a product any tutoring center can use (each center is a customer), not one company's internal tool, so a public listing fits. If a reviewer ever suggests otherwise (guideline 3.2), answer that: Hyber CRM is sold to tutoring centers, and the app serves the tutors of every center that uses it.
 
@@ -109,7 +110,7 @@ Nothing costs money per release.
 
 Do this once the TestFlight build is the one you want to ship.
 
-1. **Prerequisites:** [Where things stand](#where-things-stand-checked-on-2026-10-04), items 1 to 5.
+1. **Prerequisites:** [Where things stand](#where-things-stand-checked-on-2026-10-05), items 1 to 5.
 2. **Screenshots:** in Terminal, `npm run publish:screenshots` (20–30 minutes; `-- --iphone` or `-- --android` for one store; see [docs/store/listing.md](store/listing.md), "Screenshots"). It starts the practice copy, makes a simulator and an emulator of its own ("Hyber CRM Screenshots", an iPhone Pro Max, and "HyberCRM_Screenshots", a Pixel 9), installs a store-style build on each, signs in as Demo Academy's demo tutor, opens the five tabs (Today, Schedule, Availability, News, Profile) and saves the pictures into `mobile/.publish/screenshots/ios/` (1320 × 2868, the 6.9-inch size App Store Connect requires) and `mobile/.publish/screenshots/android/` (with the 512 × 512 icon and 1024 × 500 feature graphic Google requires). Look at each: made-up names only, the right screens.
 3. **The version page:** App Store Connect → Hyber CRM → **1.0 Prepare for Submission**:
    - **Screenshots:** drag the five files in under **iPhone 6.9" Display**, in order. (The app is iPhone-only, so no iPad set.)

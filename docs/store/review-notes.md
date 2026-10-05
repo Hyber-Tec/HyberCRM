@@ -2,9 +2,9 @@
 
 What to paste into App Store Connect's **App Review Information**, the reply to send if Apple answers with guideline 4.8, and Google Play's **App access** instructions. Fill in the ALL CAPS parts. Keep them true: reviewers try what the notes say.
 
-**Before pasting, check one sentence against the app:** the one about Delete my account on the "No access yet" screen needs that button built first ([docs/publishing.md](../publishing.md), "Where things stand", to-do 3). Remove a sentence rather than send it untrue.
+**Delete my account is on the "No access yet" screen too** (every build from 1.0.0 (2) on), as the notes say. When the app changes, remove a sentence rather than send it untrue.
 
-The reviewers sign in as Demo Academy's demo tutor, so it must exist on the real Hyber CRM (`npx tsx scripts/demo-accounts.ts`, to-do 1). If Demo Academy's sessions have run out around the review's dates (its sample covers two weeks before to three weeks after the day it was filled), fill it again first: `npm run seed` (or ask Claude Code).
+The reviewers sign in as Demo Academy's demo tutor, so it must exist on the real Hyber CRM (it does; `npx tsx scripts/demo-accounts.ts` makes the demo logins again if they are ever missing). If Demo Academy's sessions have run out around the review's dates (its sample covers two weeks before to three weeks after the day it was filled), fill it again first: `npm run seed` (or ask Claude Code).
 
 ## Apple: App Review Information
 
