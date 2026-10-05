@@ -363,7 +363,7 @@ Details: doc 03 and doc 04.
 - **Rules and indexes:** `firebase deploy --only firestore:rules,firestore:indexes,storage`, after the owner's OK **(Q2)**. Hosting is never deployed, and `firebase.json` contains no hosting section.
 - **Functions:** emulator for callables during development; `firebase deploy --only functions` for triggers and schedules when ready **(Q2)**.
 - **Scripts** (`scripts/`) use the Firebase Admin SDK with Application Default Credentials (`gcloud auth application-default login`, project `hyber-crm`). They cover super admin bootstrap and the Demo Academy seed.
-- **Git:** https://github.com/goochoi913/HyberCRM, pushed straight to `main` (rules in `CLAUDE.md`).
+- **Git:** https://github.com/Hyber-Tec/HyberCRM; `main` is reached through pull requests (rules in `CLAUDE.md`).
 
 ---
 

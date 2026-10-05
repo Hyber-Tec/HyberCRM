@@ -8,9 +8,9 @@
 |---|---|
 | Language | **TypeScript** everywhere (web, shared, functions). |
 | UI | **shadcn/ui** with the **neutral** theme (light + dark tokens), icons from **react-icons** (shadcn's internal icons use the Lucide set via `react-icons/lu`). The UI is a remake, not a port: better than TE, modern and professional. **Exception:** the Schedule keeps TE's layout (time grid, tutor rows, lanes, events strip, right panel), restyled with the Hyber theme. |
-| Identity | Everything runs under **goochoi913@gmail.com**: Firebase, GitHub and the only Super Admin. No other address is used. |
-| Deploys | Full permission to deploy rules, indexes, functions **and Hosting** (https://hybercrm.com), and to seed data. No need to announce each deploy. |
-| Git | https://github.com/goochoi913/HyberCRM, commit and push straight to `main`, no PRs. Commit rules are in [`CLAUDE.md`](../../CLAUDE.md). The repo is public, so the True Education analysis (`docs/true-education/`) stays local and out of git. |
+| Identity | Everything the owner runs is under **goochoi913@gmail.com**: Firebase, GitHub and the only Super Admin. No other address is used. Developers joined on 2026-10-05 with their own GitHub accounts (§9). |
+| Deploys | Full permission to deploy rules, indexes, functions **and Hosting** (https://hybercrm.com), and to seed data. No need to announce each deploy. Only from an up-to-date `main` (§9). |
+| Git | https://github.com/Hyber-Tec/HyberCRM (HyberTec's organization; until 2026-10-05 goochoi913/HyberCRM). `main` is reached through pull requests only (§9). Commit rules are in [`CLAUDE.md`](../../CLAUDE.md). The repo is public, so the True Education analysis (`docs/true-education/`) stays local and out of git. |
 | True Education | TE never moves onto Hyber (Q9). No migration tooling. |
 
 ## 2. Answers
@@ -159,3 +159,16 @@ The owner's fourth list: accept any email with a password (Google stays the reco
 | Session log on the phone | The website's six steps and its submit (`submitSessionLog`, the same checks, AI notes, hours and audit entry), with the draft saved as the tutor goes. Opening a session's log always opens the form when the log can still be written or edited; a session that hasn't started says so before anything is filled in. "Polish notes" (AI) sits under the notes, and the step bar hides while the keyboard is up. Printing and the log's history stay on the website. |
 | Availability still to set | Today (web and phone) and the availability page count the same days, through `shared` `availabilityGaps`: open, unlocked days inside the lead time without times. A branch whose lead time is set to "Do nothing" gets no reminders, since it doesn't ask for notice. |
 | Server capacity | The project may run only 20 vCPU of Cloud Functions at once in `us-central1`, and a full deploy starts every function's new version together. Light triggers and jobs run on a small CPU share (`LIGHT` in `functions/src/app.ts`), which keeps a deploy under the limit; a function that still hits it is deployed again on its own. |
+
+## 9. A team: pull requests (owner, 2026-10-05)
+
+The owner moved the repository to HyberTec's GitHub organization and has developers now. The first three rows are the owner's; the rest are developer calls that make them work. **Where this section disagrees with §1–§8, this section wins.**
+
+| Topic | Decision |
+|---|---|
+| Repository | https://github.com/Hyber-Tec/HyberCRM, public. GitHub forwards the old goochoi913/HyberCRM address. |
+| Reaching `main` | Only through a pull request: CI green, and the code owner's approval where a shared file changed. A session works on a branch, opens the pull request and says so; it never pushes to `main` and never merges unless the owner asked for exactly that. |
+| Commits (unchanged) | Authored solely as the git user configured on the computer (the owner's: goochoi913); no attribution trailers in commits or pull requests; Conventional Commits; one commit per self-contained piece of work. |
+| CI | `.github/workflows/ci.yml`, on every pull request and every change to `main`, in three checks: **Typecheck, unit tests and builds** (shared, website, functions), **Security rules tests** (Firestore emulator) and **Phone app typecheck and lint**. It needs no secrets: the website builds without its Firebase settings, which only the live site uses. |
+| Shared files | What every part of the app or every developer depends on, listed in `.github/CODEOWNERS` with the owner (`@goochoi913`) as code owner: the project's rules and decisions (`CLAUDE.md`, `mobile/AGENTS.md`, `docs/hyber/`), the business logic in `shared/`, the security rules and indexes, the Firebase settings, every `package.json` and lockfile, and `.github/`. Other changes need a green CI only. |
+| Deploys and store builds | Production is deployed from an up-to-date `main` only, never from a branch, so it runs reviewed code; a pull request that changes what production runs says what to deploy after the merge. Store builds of the phone app come from `main` too, and the release-number pull request (`mobile/release.json`) is merged before the next upload. |
