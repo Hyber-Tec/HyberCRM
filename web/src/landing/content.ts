@@ -39,7 +39,7 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: 'Do parents and students get their own access?',
-    a: 'Yes. Owners and admins see everything, tutors get their own schedule, availability, session logs and pay, parents see progress reports and upcoming sessions, and students see their calendar. Everyone signs in with Google and only sees what their role allows.',
+    a: 'Yes. Owners and admins see everything, tutors get their own schedule, availability, session logs and pay, parents see progress reports and upcoming sessions, and students see their calendar. Everyone signs in with Google or their own email and password, and only sees what their role allows.',
   },
   {
     q: 'How do tutors clock in and get paid?',
@@ -51,7 +51,7 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: 'Is our data secure?',
-    a: 'Hyber CRM runs on Google Cloud. People sign in with their Google account, each role only reaches its own pages and data, and every change to schedules, pay, people and settings is written to an audit log.',
+    a: 'Hyber CRM runs on Google Cloud. People sign in with Google or an email and password whose address is confirmed first, each role only reaches its own pages and data, and every change to schedules, pay, people and settings is written to an audit log.',
   },
   {
     q: 'How do we get started?',

@@ -1,7 +1,11 @@
 import { type RouteObject, createBrowserRouter } from 'react-router'
 import { FullPageMessage } from '@/components/app/FullPage'
 import { AppResolver } from '@/pages/public/AppResolver'
+import { AuthAction } from '@/pages/public/AuthAction'
+import { ForgotPassword } from '@/pages/public/ForgotPassword'
 import { Login } from '@/pages/public/Login'
+import { SignUp } from '@/pages/public/SignUp'
+import { VerifyEmail } from '@/pages/public/VerifyEmail'
 import { RootRoute } from '@/pages/public/RootRoute'
 import { CreateBranch } from '@/pages/platform/CreateBranch'
 import { PlatformAdmins } from '@/pages/platform/PlatformAdmins'
@@ -15,6 +19,10 @@ import { RequireAuth, RequireSuperAdmin } from './guards'
 const routes: RouteObject[] = [
   { path: '/', element: <RootRoute /> },
   { path: '/login', element: <Login /> },
+  { path: '/signup', element: <SignUp /> },
+  { path: '/forgot-password', element: <ForgotPassword /> },
+  { path: '/verify-email', element: <VerifyEmail /> },
+  { path: '/auth/action', element: <AuthAction /> },
   {
     path: '/app',
     element: (

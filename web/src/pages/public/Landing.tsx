@@ -18,12 +18,12 @@ const GETTING_STARTED = [
   {
     icon: LuMail,
     title: 'Invited by your center?',
-    text: 'Open the email from your center and sign in with Google using the address it was sent to.',
+    text: 'Open the email from your center and sign in with the address it was sent to: with Google, or with a password you create.',
   },
   {
     icon: LuLink,
     title: 'Have a sign-up link?',
-    text: 'Open the link your center shared (it ends in /signup), sign in with Google and request access. The center approves it.',
+    text: 'Open the link your center shared (it ends in /signup), sign in or create an account, and request access. The center approves it.',
   },
   {
     icon: LuBuilding2,

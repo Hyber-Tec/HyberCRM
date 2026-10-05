@@ -191,13 +191,13 @@ export function MemberDialog({ open, onOpenChange, member, request, members, sta
               <DialogDescription>
                 {member
                   ? member.email
-                  : 'We’ll email them a link to sign in with Google using this address.'}
+                  : 'We’ll email them a link to sign in with this address, with Google or a password they create.'}
               </DialogDescription>
             </DialogHeader>
             <FieldGroup className="py-4">
               {!member ? (
                 <Field>
-                  <FieldLabel htmlFor="m-email">Google email</FieldLabel>
+                  <FieldLabel htmlFor="m-email">Email</FieldLabel>
                   <Input
                     id="m-email"
                     type="email"
@@ -221,7 +221,7 @@ export function MemberDialog({ open, onOpenChange, member, request, members, sta
               </div>
               <FieldSet>
                 <FieldLegend variant="label">Role</FieldLegend>
-                <FieldDescription>Each person has one role. Someone with two jobs signs in with a separate Google account for each.</FieldDescription>
+                <FieldDescription>Each person has one role. Someone with two jobs signs in with a separate email for each.</FieldDescription>
                 <RadioGroup value={role ?? ''} onValueChange={(v) => setRole(v as Role)} className="grid gap-2 sm:grid-cols-2">
                   {ROLES.map((r) => {
                     const disabled = (isAdminRole(r) && !isOwner) || lockedForNonOwner

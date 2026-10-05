@@ -79,7 +79,7 @@ export function AppResolver() {
             <li className="flex gap-3">
               <LuMail className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
               <span>
-                <span className="font-medium">Got an invitation email?</span> Sign in with the Google account for the address it was sent to.
+                <span className="font-medium">Got an invitation email?</span> Sign in with the address it was sent to, with Google or a password.
               </span>
             </li>
             <li className="flex gap-3">

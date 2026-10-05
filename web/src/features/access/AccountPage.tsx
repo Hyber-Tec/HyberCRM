@@ -114,7 +114,7 @@ export function AccountPage() {
     <div>
       <PageHeader
         title="Account"
-        description={`Who can sign in to ${branch.name}, and as what. People sign in with Google; access is matched by email, and new people get an email with a link to sign in.`}
+        description={`Who can sign in to ${branch.name}, and as what. People sign in with Google or an email and password; access is matched by email, and new people get an email with a link to sign in.`}
         actions={
           <>
             <Button variant="outline" onClick={() => setShareOpen(true)}>

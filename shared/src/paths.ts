@@ -35,6 +35,14 @@ export const COL = {
 
 export type BranchCollection = (typeof COL)[keyof typeof COL]
 
+/** Collections under `users/{uid}`. */
+export const USER_COL = {
+  /** The phone app's installs, with their push tokens (`DeviceDoc`). */
+  devices: 'devices',
+  /** Server-only state (e.g. how many account emails were sent), no client access. */
+  private: 'private',
+} as const
+
 /** Sub-documents with fixed IDs. */
 export const DOC = {
   publicProfile: 'profile', // branches/{b}/public/profile

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { FcGoogle } from 'react-icons/fc'
 import { toast } from 'sonner'
+import { authErrorMessage } from '@shared/auth'
 import { useAuth } from '@/auth/AuthProvider'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -30,7 +31,7 @@ export function GoogleSignInButton({
         try {
           await signIn(hint)
         } catch (e) {
-          toast.error('Sign-in failed', { description: (e as Error).message })
+          toast.error('Sign-in failed', { description: authErrorMessage((e as { code?: string }).code, 'google') })
         } finally {
           setBusy(false)
         }

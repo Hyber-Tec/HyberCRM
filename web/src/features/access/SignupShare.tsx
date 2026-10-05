@@ -64,7 +64,7 @@ export function SignupShare({ className }: { className?: string }) {
         </div>
         <div className="min-w-0 flex-1 space-y-3">
           <p className="text-sm text-muted-foreground">
-            New tutors, parents and students open this link, sign in with Google and request access. You approve requests in Account → Sign-up requests.
+            New tutors, parents and students open this link, sign in (Google or email) and request access. You approve requests in Account → Sign-up requests.
           </p>
           <div className="flex gap-2">
             <Input readOnly value={url} className="font-mono text-xs" onFocus={(e) => e.currentTarget.select()} aria-label="Sign-up link" />

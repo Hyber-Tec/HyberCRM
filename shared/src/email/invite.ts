@@ -96,9 +96,10 @@ export function inviteCopy(i: InviteEmailInput) {
 export function inviteEmail(i: InviteEmailInput): EmailContent {
   const appUrl = i.appUrl ?? APP_URL
   const c = inviteCopy(i)
-  const googleNote = isGoogleMail(i.to)
-    ? null
-    : `If ${i.to} isn’t a Google account yet, you can make it one for free: create a Google account and choose “Use your existing email”.`
+  // Gmail addresses are Google accounts; any other address can be one, or get a password of its own.
+  const steps = isGoogleMail(i.to)
+    ? [`Choose “Continue with Google” and use ${i.to}.`]
+    : [`If ${i.to} is a Google account, choose “Continue with Google”.`, `Otherwise choose “Create an account” and set a password for ${i.to}. We’ll email you a link to confirm the address.`]
   const giver = i.byHyberTec ? 'HyberTec' : (i.inviterName ?? i.branchName)
   const why =
     i.kind === 'approved'
@@ -112,8 +113,7 @@ export function inviteEmail(i: InviteEmailInput): EmailContent {
     '',
     'How to sign in:',
     `1. Open ${i.branchName}’s sign-in page: ${i.signInUrl}`,
-    `2. Choose “Sign in with Google” and use ${i.to}.`,
-    ...(googleNote ? ['', googleNote, 'https://accounts.google.com/signup'] : []),
+    ...steps.map((line, n) => `${n + 2}. ${line}`),
     '',
     '—',
     why,
@@ -151,8 +151,7 @@ export function inviteEmail(i: InviteEmailInput): EmailContent {
 <tr><td style="padding:16px 18px;font-size:14px;line-height:22px;color:#3f3f46;">
 <div style="font-weight:600;color:#18181b;margin-bottom:6px;">How to sign in</div>
 <div>1. Open the sign-in page with the button above.</div>
-<div>2. Choose <strong>Sign in with Google</strong> and use <strong>${esc(i.to)}</strong>.</div>
-${googleNote ? `<div style="margin-top:10px;color:#52525b;">${esc(googleNote.replace('create a Google account', '__LINK__')).replace('__LINK__', '<a href="https://accounts.google.com/signup" style="color:#18181b;">create a Google account</a>')}</div>` : ''}
+${steps.map((line, n) => `<div>${n + 2}. ${esc(line).replace('“Continue with Google”', '<strong>Continue with Google</strong>').replace('“Create an account”', '<strong>Create an account</strong>')}</div>`).join('\n')}
 </td></tr>
 </table>
 <p style="margin:20px 0 0;font-size:13px;line-height:20px;color:#71717a;">Button not working? Paste this link into your browser:<br><a href="${esc(i.signInUrl)}" style="color:#52525b;word-break:break-all;">${esc(i.signInUrl)}</a></p>

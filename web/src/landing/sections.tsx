@@ -93,7 +93,7 @@ export function Portals() {
           <Words text="A portal for" accent="everyone in your center" />
         </h2>
         <Reveal as="p" delay={150} className="mx-auto mt-6 max-w-2xl text-lg text-pretty text-white/60">
-          Owners and admins run the center. Tutors, parents and students each get their own simple view, on any phone. Everyone signs in with Google and sees only what their role
+          Owners and admins run the center. Tutors, parents and students each get their own simple view, on any phone. Everyone signs in with Google or their own email and password, and sees only what their role
           allows.
         </Reveal>
       </div>
@@ -374,10 +374,10 @@ export function Bento() {
         </Card>
       </div>
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card title="On every device" text="Phones, tablets and computers. Install it on a home screen like an app, with nothing to download.">
+        <Card title="On every device" text="Phones, tablets and computers, with an iPhone and Android app for tutors. Or install the website on a home screen.">
           <Devices />
         </Card>
-        <Card title="Sign in with Google" text="No new passwords. People sign in with the Google account their center invited.">
+        <Card title="Simple, safe sign-in" text="People sign in with Google or their own email and password. Access follows the email their center invited, confirmed first.">
           <LuShieldCheck className="size-14 text-white/80" strokeWidth={1.2} />
         </Card>
         <Card title="Live on every screen" text="A change on the schedule shows on every screen right away, for everyone it concerns. No refreshing.">

@@ -6,6 +6,8 @@ export const RESERVED_BRANCH_IDS: ReadonlySet<string> = new Set([
   'manifest', 'service-worker', 'sw', 'robots', 'favicon', 'icons', 'images', 'brand',
   // The website's own pages (the landing page lives at `/`).
   'demo', 'landing', 'sitemap', 'og', 'pricing', 'features', 'contact', 'about', 'blog', 'privacy', 'terms',
+  // Signing in with a password (round 4), and the phone app's links.
+  'forgot-password', 'verify-email', 'reset-password', 'delete-account', 'download', 'mobile', 'well-known',
 ])
 
 export function slugify(input: string): string {

@@ -26,7 +26,14 @@ export function connectAuthEmulator() {}
 
 /** Called once by the demo entry before the app renders. */
 export function signInDemoUser(user: { uid: string; email: string; displayName: string }) {
-  auth.currentUser = { ...user, photoURL: null, emailVerified: true, isAnonymous: false, providerData: [], getIdToken: async () => 'demo' }
+  auth.currentUser = {
+    ...user,
+    photoURL: null,
+    emailVerified: true,
+    isAnonymous: false,
+    providerData: [{ providerId: 'google.com', email: user.email }],
+    getIdToken: async () => 'demo',
+  }
   for (const o of observers) o(auth.currentUser)
 }
 
@@ -59,5 +66,31 @@ export class GoogleAuthProvider {
 
   addScope() {
     return this
+  }
+}
+
+/** Email and password: the demo is already signed in, so these explain that instead of acting. */
+const NOT_IN_DEMO = 'This works in your own center. The demo is signed in already and doesn’t change sign-in details.'
+const notInDemo = async (..._args: unknown[]): Promise<never> => {
+  throw Object.assign(new Error(NOT_IN_DEMO), { code: 'auth/operation-not-allowed' })
+}
+
+export const signInWithEmailAndPassword = notInDemo
+export const createUserWithEmailAndPassword = notInDemo
+export const sendEmailVerification = notInDemo
+export const sendPasswordResetEmail = notInDemo
+export const reauthenticateWithCredential = notInDemo
+export const updatePassword = notInDemo
+export const linkWithCredential = notInDemo
+export const applyActionCode = notInDemo
+export const checkActionCode = notInDemo
+export const verifyPasswordResetCode = notInDemo
+export const confirmPasswordReset = notInDemo
+export async function updateProfile() {}
+export async function reload() {}
+
+export class EmailAuthProvider {
+  static credential(email: string, password: string) {
+    return { providerId: 'password', email, password }
   }
 }

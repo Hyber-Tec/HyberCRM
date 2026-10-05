@@ -16,8 +16,13 @@ export function branchSignupUrl(branchId: string, base = APP_URL): string {
   return `${base}/${branchId}/signup`
 }
 
-/** Addresses that never get email (tests and examples). */
+/** Addresses that never get email (tests, examples, and Demo Academy's logins on demo.hybercrm.com). */
 export function isReservedEmail(email: string): boolean {
   const domain = email.split('@')[1]?.toLowerCase() ?? ''
-  return !domain || /(^|\.)(test|example|invalid|localhost)$/.test(domain) || /(^|\.)example\.(com|net|org)$/.test(domain)
+  return (
+    !domain ||
+    /(^|\.)(test|example|invalid|localhost)$/.test(domain) ||
+    /(^|\.)example\.(com|net|org)$/.test(domain) ||
+    domain === `demo.${APP_DOMAIN}`
+  )
 }

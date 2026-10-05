@@ -41,7 +41,7 @@ export function reportEmail(i: ReportEmailInput): EmailContent {
     summary,
     '',
     `View the report: ${i.url}`,
-    `You’ll sign in with ${i.to}.`,
+    `You’ll sign in with ${i.to}, with Google or your password.`,
     '',
     ...(contactLine ? [`Questions? Contact ${i.branchName}: ${contactLine}`, ''] : []),
     '—',
@@ -73,7 +73,7 @@ export function reportEmail(i: ReportEmailInput): EmailContent {
 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;"><tr>
 <td style="border-radius:10px;background:#18181b;"><a href="${esc(i.url)}" style="display:inline-block;padding:12px 22px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:10px;">View the report</a></td>
 </tr></table>
-<p style="margin:0;font-size:14px;line-height:22px;color:#52525b;">You’ll sign in with Google using <strong>${esc(i.to)}</strong>.</p>
+<p style="margin:0;font-size:14px;line-height:22px;color:#52525b;">You’ll sign in with <strong>${esc(i.to)}</strong>, with Google or your password.</p>
 <p style="margin:20px 0 0;font-size:13px;line-height:20px;color:#71717a;">Button not working? Paste this link into your browser:<br><a href="${esc(i.url)}" style="color:#52525b;word-break:break-all;">${esc(i.url)}</a></p>
 </td></tr>
 <tr><td style="padding:20px 4px 0;font-size:12px;line-height:18px;color:#71717a;">

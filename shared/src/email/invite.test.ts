@@ -17,7 +17,7 @@ describe('invite emails', () => {
     expect(e.subject).toBe('You’ve been added to Demo Academy')
     expect(e.text).toContain('Hi Maya,')
     expect(e.text).toContain('Grace Liu added you to Demo Academy on Hyber CRM as a tutor.')
-    expect(e.text).toContain('use maya@school.org')
+    expect(e.text).toContain('a password for maya@school.org')
     expect(e.html).toContain('href="https://hybercrm.com/login?next=%2Fdemo-academy&amp;email=maya%40school.org"')
     expect(e.text).toContain('Hyber CRM is software by HyberTec LLC.')
   })
@@ -34,9 +34,14 @@ describe('invite emails', () => {
     expect(e.text).toContain('approved your request to join as a parent.')
   })
 
-  it('explains Google accounts only for non-Gmail addresses', () => {
-    expect(inviteEmail({ ...base, kind: 'added' }).text).toContain('Use your existing email')
-    expect(inviteEmail({ ...base, to: 'maya@gmail.com', kind: 'added' }).text).not.toContain('Use your existing email')
+  it('offers Google for Gmail addresses, and Google or a password for any other address', () => {
+    const work = inviteEmail({ ...base, kind: 'added' })
+    expect(work.text).toContain('If maya@school.org is a Google account, choose “Continue with Google”.')
+    expect(work.text).toContain('Otherwise choose “Create an account” and set a password for maya@school.org.')
+    expect(work.html).toContain('<strong>Create an account</strong>')
+    const gmail = inviteEmail({ ...base, to: 'maya@gmail.com', kind: 'added' })
+    expect(gmail.text).toContain('Choose “Continue with Google” and use maya@gmail.com.')
+    expect(gmail.text).not.toContain('Create an account')
   })
 
   it('escapes names in the HTML', () => {

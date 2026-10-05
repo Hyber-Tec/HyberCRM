@@ -20,6 +20,7 @@ import { db } from '@/lib/firebase'
 import { useDoc } from '@/lib/firestore'
 import { useBranchTabIcon } from '@/lib/tabIcon'
 import { cn } from '@/lib/utils'
+import { OrDivider } from '@/pages/public/authParts'
 import { GoogleSignInButton } from '@/pages/public/GoogleButton'
 
 const ROLE_CHOICES: { role: Role; title: string; text: string; icon: typeof LuUsers }[] = [
@@ -30,7 +31,7 @@ const ROLE_CHOICES: { role: Role; title: string; text: string; icon: typeof LuUs
 
 export function BranchSignupPage() {
   const { branchId = '' } = useParams()
-  const { status, user, email, memberships } = useAuth()
+  const { status, user, email, memberships, needsVerification } = useAuth()
   const profileRef = useMemo(() => doc(db, ROOT.branches, branchId, COL.public, DOC.publicProfile), [branchId])
   const { data: profile, loading } = useDoc<BranchPublicProfile>(profileRef)
   const requestRef = useMemo(
@@ -72,9 +73,28 @@ export function BranchSignupPage() {
             <div>
               <h1 className="text-xl font-semibold tracking-tight">Join {profile.name}</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                {profile.signupMessage || 'Sign in with your Google account to request access. The center will review your request.'}
+                {profile.signupMessage || 'Sign in or create an account to request access. The center will review your request.'}
               </p>
               <GoogleSignInButton className="mt-6 w-full" label="Continue with Google" />
+              <OrDivider label="or use your email" />
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Button variant="outline" asChild>
+                  <Link to={`/signup?next=${encodeURIComponent(`/${branchId}/signup`)}`}>Create an account</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link to={`/login?next=${encodeURIComponent(`/${branchId}/signup`)}`}>Sign in with email</Link>
+                </Button>
+              </div>
+            </div>
+          ) : needsVerification ? (
+            <div className="text-center">
+              <h1 className="text-xl font-semibold tracking-tight">Confirm your email first</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                We sent a link to {user?.email}. Open it, then come back here to send your request.
+              </p>
+              <Button asChild className="mt-6">
+                <Link to={`/verify-email?next=${encodeURIComponent(`/${branchId}/signup`)}`}>Continue</Link>
+              </Button>
             </div>
           ) : isMember ? (
             <div className="text-center">
@@ -130,7 +150,7 @@ function Pending({ request, profile }: { request: SignupRequest; profile: Branch
       <h1 className="text-xl font-semibold tracking-tight">Request sent</h1>
       <p className="mt-2 text-sm text-muted-foreground">
         {profile.name} will review your request to join as a {ROLE_LABELS[request.requestedRole].toLowerCase()}. We’ll email {request.email} when it’s
-        approved; then sign in with Google and you’ll go straight to your portal.
+        approved; then sign in with {request.email} and you’ll go straight to your portal.
       </p>
     </div>
   )

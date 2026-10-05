@@ -6,13 +6,13 @@ import { useBranch } from '@/branch/BranchProvider'
 import { FullPageMessage, FullPageSpinner } from '@/components/app/FullPage'
 
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { status } = useAuth()
+  const { status, needsVerification } = useAuth()
   const location = useLocation()
   if (status === 'loading') return <FullPageSpinner />
-  if (status === 'signedOut') {
-    const next = encodeURIComponent(location.pathname + location.search)
-    return <Navigate to={`/login?next=${next}`} replace />
-  }
+  const next = encodeURIComponent(location.pathname + location.search)
+  if (status === 'signedOut') return <Navigate to={`/login?next=${next}`} replace />
+  // A password account reaches nothing until its email is confirmed (the rules trust verified emails only).
+  if (needsVerification) return <Navigate to={`/verify-email?next=${next}`} replace />
   return children
 }
 
@@ -62,6 +62,16 @@ export function Moved({ to }: { to: string }) {
   const { branchId, '*': rest } = useParams()
   const { search, hash } = useLocation()
   return <Navigate to={`/${branchId}/admin/${to}${rest ? `/${rest}` : ''}${search}${hash}`} replace />
+}
+
+/**
+ * A tutor-portal address that moved (My Info → Profile), or an unknown one, → its
+ * place, keeping the query. Absolute, so it works from any depth.
+ */
+export function TutorMoved({ to }: { to: string }) {
+  const { branchId } = useParams()
+  const { search, hash } = useLocation()
+  return <Navigate to={`/${branchId}/tutor/${to}${search}${hash}`} replace />
 }
 
 /** Students → Calendar is gone: each student's calendar is a tab of their profile. */

@@ -1,4 +1,5 @@
-import { LuArrowLeftRight, LuChevronsUpDown, LuLayoutGrid, LuLogOut } from 'react-icons/lu'
+import { useState } from 'react'
+import { LuArrowLeftRight, LuChevronsUpDown, LuKeyRound, LuLayoutGrid, LuLogOut } from 'react-icons/lu'
 import { useNavigate } from 'react-router'
 import { useAuth } from '@/auth/AuthProvider'
 import { useOptionalBranch } from '@/branch/BranchProvider'
@@ -15,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { SidebarMenuButton } from '@/components/ui/sidebar'
 import { initials } from './BrandMark'
+import { SignInSecurityDialog } from './SignInSecurity'
 import { ThemeSubmenu } from './ThemeToggle'
 
 export function UserAvatar({ className }: { className?: string }) {
@@ -32,6 +34,7 @@ export function UserMenu({ variant = 'header' }: { variant?: 'header' | 'sidebar
   const { user, email, isSuperAdmin, memberships, signOut } = useAuth()
   const branch = useOptionalBranch()
   const navigate = useNavigate()
+  const [security, setSecurity] = useState(false)
   const name = branch?.member?.displayName || user?.displayName || email || ''
 
   const trigger =
@@ -51,6 +54,7 @@ export function UserMenu({ variant = 'header' }: { variant?: 'header' | 'sidebar
     )
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
       <DropdownMenuContent className="min-w-60" align="end" side={variant === 'sidebar' ? 'top' : 'bottom'}>
@@ -73,6 +77,10 @@ export function UserMenu({ variant = 'header' }: { variant?: 'header' | 'sidebar
               Open kiosk mode
             </DropdownMenuItem>
           ) : null}
+          <DropdownMenuItem onSelect={() => setSecurity(true)}>
+            <LuKeyRound />
+            Sign-in & security
+          </DropdownMenuItem>
           <ThemeSubmenu />
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
@@ -87,5 +95,7 @@ export function UserMenu({ variant = 'header' }: { variant?: 'header' | 'sidebar
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    <SignInSecurityDialog open={security} onOpenChange={setSecurity} />
+    </>
   )
 }
