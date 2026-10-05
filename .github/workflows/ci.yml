@@ -1,0 +1,102 @@
+# Checks every pull request before it can reach main, and main after each merge (two pull requests that pass apart
+# can still break together). Nothing here needs production keys or secrets: the website builds without its Firebase
+# settings (web/.env.local), which only the live site needs. See CLAUDE.md, "Git and commits".
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A new push to the same pull request cancels the check still running for the previous push.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Typecheck, unit tests and builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+            functions/package-lock.json
+
+      - name: Install
+        run: |
+          npm ci
+          npm ci --prefix web
+          npm ci --prefix functions
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      # The landing page is pre-rendered here too, so a page that fails to render stops the merge, not the next deploy.
+      - name: Build the website
+        run: npm run build
+
+      - name: Build the functions
+        run: npm --prefix functions run build
+
+  rules:
+    name: Security rules tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # The Firestore emulator needs Java 21 or newer.
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install
+        run: |
+          npm ci
+          npm install --global firebase-tools@15.19.1
+
+      - name: Rules tests in the Firestore emulator
+        run: npm run test:rules
+
+  phone:
+    name: Phone app typecheck and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      # The phone app is only typechecked and linted here, so none of its packages' install scripts are needed.
+      - name: Install
+        run: npm ci --prefix mobile --ignore-scripts
+
+      # It compiles shared/ too, so a change there that breaks the phone app is caught here.
+      - name: Typecheck and lint
+        run: npm --prefix mobile run typecheck && npm --prefix mobile run lint

@@ -21,3 +21,13 @@ npm run iphone:sim   # the phone app in the iPhone Simulator, on the local pract
 The phone app (`mobile/`): [docs/running-the-apps.md](docs/running-the-apps.md) runs it, [docs/publishing.md](docs/publishing.md) puts it in the stores, [docs/testing-guide.md](docs/testing-guide.md) checks it.
 
 `web/.env.local` holds the Firebase web config (see `web/.env.example`).
+
+## Shipping a change
+
+`main` is reached only through a pull request (the full rules: [`CLAUDE.md`](CLAUDE.md), "Git and commits"):
+
+1. Start a branch from the latest `main`: `git switch main && git pull && git switch -c fix/short-topic`.
+2. Commit with [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) (`feat(schedule): …`, `fix(auth): …`), one commit per self-contained piece of work and no attribution trailers. Push the branch and open a pull request.
+3. **CI** checks it: the typecheck, unit tests, website and functions builds, security-rules tests, and the phone app's typecheck and lint. It must be green.
+4. A pull request that changes a **shared file** also needs the code owner's approval. `.github/CODEOWNERS` lists them: the project's rules and decisions, `shared/`, the security rules and indexes, the Firebase settings, dependencies and CI.
+5. After the merge, production is deployed from an up-to-date `main`, never from a branch.

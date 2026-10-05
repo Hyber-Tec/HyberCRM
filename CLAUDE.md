@@ -6,10 +6,10 @@ Read first: [`docs/hyber/DECISIONS.md`](docs/hyber/DECISIONS.md) (owner answers,
 
 ## Owner, accounts, permissions
 
-- Solo developer. Everything for this project runs under **goochoi913@gmail.com** (Firebase, GitHub, the only Super Admin). Never use any other account.
+- The owner, **goochoi913@gmail.com**, leads a small team of developers (since 2026-10-05). Everything the owner runs for this project uses that account (Firebase, GitHub, the only Super Admin); never use any other.
 - The website is **https://hybercrm.com**, the only address we use (the Firebase Hosting site `hybercrm`, whose own `hybercrm.web.app` and `hybercrm.firebaseapp.com` addresses forward to it). Links and emails take it from `APP_URL` in `shared/src/brand.ts`.
 - Hyber CRM is a product of **HyberTec LLC**. Outgoing email (invites, new accounts) is sent from the company address **hybertecofficial@gmail.com** through Gmail; its app password lives in the `GMAIL_APP_PASSWORD` secret ([`docs/hyber/EMAIL_SETUP.md`](docs/hyber/EMAIL_SETUP.md)).
-- Full permission to deploy Firestore/Storage rules, indexes, Cloud Functions and Hosting to `hyber-crm`, to seed data, and to push to `main`. Do it without asking or announcing each time, unless the owner sets a limit.
+- Full permission to deploy Firestore/Storage rules, indexes, Cloud Functions and Hosting to `hyber-crm` and to seed data, without asking or announcing each time, unless the owner sets a limit. Deploy only from an up-to-date `main`, never from a branch: production runs reviewed code only.
 - When a detail is unclear, decide it (and record notable calls in DECISIONS.md §3) instead of asking.
 
 ## Layout
@@ -49,9 +49,13 @@ Read first: [`docs/hyber/DECISIONS.md`](docs/hyber/DECISIONS.md) (owner answers,
 
 ## Git and commits
 
-- Work on `main` and push straight to it. No pull requests until the owner says more developers are joining.
-- Every commit is authored solely as the git user configured in this repo (`goochoi913` / goochoi913@gmail.com).
-- **No attribution trailers:** no `Co-Authored-By:` line, no session line, no "Generated with" footer, in commit messages or PR bodies.
+- The repository is HyberTec's: https://github.com/Hyber-Tec/HyberCRM (public).
+- **`main` is reached through a pull request:** CI green, plus the code owner's approval where a shared file changed (`.github/CODEOWNERS` lists the shared files; the code owner is `@goochoi913`). A session works on a branch, opens the pull request, and says so. It never pushes to `main` and never merges unless the owner asked for exactly that.
+  - Start the branch from the latest `main`, named `<type>/<topic>` (`fix/push-token`). Open the pull request with `gh pr create`: the title is a Conventional Commits subject; the body says what changed, how it was checked, and what to deploy after merging (or that nothing is). Give the owner its link.
+  - CI (`.github/workflows/ci.yml`) runs the typecheck, unit tests, website and functions builds, security-rules tests, and the phone app's typecheck and lint. Run the parts the change touches before pushing.
+  - "Commit the release number" (after `npm run publish:iphone` / `publish:android`) is a pull request with `mobile/release.json`; it must be merged before the next upload.
+- Every commit is authored solely as the git user configured on the computer (the owner's: `goochoi913` / goochoi913@gmail.com).
+- **No attribution trailers:** no `Co-Authored-By:` line, no session line, no "Generated with" footer, in commit messages or pull request bodies.
 - **Conventional Commits v1.0.0:** `<type>[(scope)][!]: <imperative description>`, blank line, body, blank line, footers.
   - Types: `feat` `fix` `docs` `refactor` `test` `chore` `perf` `build` `ci` `style`.
   - The scope is the part of the app the change is about (e.g. `auth`, `platform`, `access`, `settings`, `schedule`, `availability`, `students`, `employees`, `payroll`, `kiosk`, `sessions`, `announcements`, `rules`, `functions`, `shared`); leave it off when the change spans several.
